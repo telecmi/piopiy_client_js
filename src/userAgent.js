@@ -83,8 +83,10 @@ export default class {
         if ( cmi_ua ) {
 
             if ( cmi_ua.isRegistered() ) {
-                cmi_ua.stop();
+
                 cmi_ua.unregister();
+                cmi_ua.stop();
+
             }
 
         }

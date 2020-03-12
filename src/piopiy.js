@@ -82,10 +82,7 @@ export default class extends EventEmitter {
         userAgent.terminate( _this );
     }
 
-    hangup () {
-        let _this = this;
-        userAgent.hangup( _this );
-    }
+
 
     answer () {
         let _this = this;
