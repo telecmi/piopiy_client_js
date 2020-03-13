@@ -1,14 +1,23 @@
 import _ from 'lodash';
 import cmisession from './session';
+import offline from './offline';
 import SIP from './sipws';
 
 
 let cmi_ua = {}
 let isConnected = false;
 let cmi_session = new cmisession();
+let cmi_offline = new offline();
 let socket = new SIP.WebSocketInterface( 'wss://sbc.telecmi.com' );
 
+window.onbeforeunload = function () {
+    cmi_offline.start( cmi_ua );
+};
+
 export default class {
+
+
+
 
     start ( credentials, _this ) {
 
@@ -235,6 +244,39 @@ export default class {
 
 
         cmi_session.unhold( cmi_ua, _this );
+    }
+
+
+    mute ( _this ) {
+
+        if ( !_.isEmpty( cmi_ua ) ) {
+
+            if ( !cmi_ua.isRegistered() ) {
+                _this.emit( 'error', { code: 1002, status: 'Please login ' } );
+                return;
+            }
+
+        }
+
+
+
+        cmi_session.mute( cmi_ua, _this );
+    }
+
+    unmute ( _this ) {
+
+        if ( !_.isEmpty( cmi_ua ) ) {
+
+            if ( !cmi_ua.isRegistered() ) {
+                _this.emit( 'error', { code: 1002, status: 'Please login ' } );
+                return;
+            }
+
+        }
+
+
+
+        cmi_session.unmute( cmi_ua, _this );
     }
 
 
