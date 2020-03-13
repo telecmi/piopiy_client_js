@@ -172,13 +172,59 @@ export default class {
             return;
         }
 
-        if ( !cmi_session.isOnHold() ) {
+        if ( !cmi_session.isOnHold().local ) {
             _this.emit( 'error', { code: 1002, status: 'call not in hold' } )
             return;
         }
 
 
         cmi_session.unhold();
+    }
+
+
+    mute ( ua, _this ) {
+
+        if ( _.isEmpty( ua._sessions ) ) {
+
+            _this.emit( 'error', { code: 1002, status: 'call not found' } )
+            return;
+        }
+
+        if ( !cmi_session.isEstablished() ) {
+            _this.emit( 'error', { code: 1002, status: 'mute not allowed' } )
+            return;
+        }
+
+        if ( cmi_session.isMuted().audio ) {
+            _this.emit( 'error', { code: 1002, status: 'call already in mute' } )
+            return;
+        }
+
+
+        cmi_session.mute();
+    }
+
+
+    unmute ( ua, _this ) {
+
+        if ( _.isEmpty( ua._sessions ) ) {
+
+            _this.emit( 'error', { code: 1002, status: 'call not found' } )
+            return;
+        }
+
+        if ( !cmi_session.isEstablished() ) {
+            _this.emit( 'error', { code: 1002, status: 'mute not allowed' } )
+            return;
+        }
+
+        if ( !cmi_session.isMuted().audio ) {
+            _this.emit( 'error', { code: 1002, status: 'call not in mute' } )
+            return;
+        }
+
+
+        cmi_session.unmute();
     }
 
 
