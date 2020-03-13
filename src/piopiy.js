@@ -54,8 +54,12 @@ export default class extends EventEmitter {
                 display_name: this.piopiyOption.displayName,
                 no_answer_timeout: this.piopiyOption.ringTime,
                 register: true,
+                register_expires: 300,
+                connection_recovery_min_interval: 2,
+                connection_recovery_max_interval: 3,
+                session_timers: false
             }
-            console.log( credentials )
+
             userAgent.start( credentials, _this );
         } else {
             throw new Error( "invalid user_id or password" );
@@ -64,7 +68,8 @@ export default class extends EventEmitter {
 
 
     logout () {
-        userAgent.stop();
+        let _this = this;
+        userAgent.stop( _this );
     }
 
     call ( to ) {

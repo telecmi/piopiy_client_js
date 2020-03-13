@@ -1,10 +1,10 @@
 import _ from 'lodash';
 import cmisession from './session';
-import session from './session';
-const SIP = require( 'jssip' );
+import SIP from './sipws';
 
 
 let cmi_ua = {}
+let isConnected = false;
 let cmi_session = new cmisession();
 let socket = new SIP.WebSocketInterface( 'wss://sbc.telecmi.com' );
 
@@ -19,19 +19,25 @@ export default class {
                 return;
             }
 
+            if ( cmi_ua.isConnected() ) {
+                cmi_ua.stop();
+            }
+
         }
 
 
         if ( credentials.debug === true ) {
-            SIP.debug.enable( 'JsSIP:*' );
+
+            SIP.debug.enable( 'PIOPIY:*' );
         } else {
 
-            SIP.debug.disable( 'JsSIP:*' );
+            SIP.debug.disable( 'PIOPIY:*' );
         }
 
 
         credentials['sockets'] = [socket];
-
+        credentials['user_agent'] = 'PIOPIYJS'
+        credentials['use_preloaded_route'] = true
         cmi_ua = new SIP.UA( credentials );
 
 
@@ -44,7 +50,8 @@ export default class {
         } );
 
         cmi_ua.on( 'registrationFailed', ( e ) => {
-            _this.emit( 'loginFailed', { code: e.statusCode, status: 'invalid user' } )
+            console.log( e )
+            _this.emit( 'loginFailed', { code: e.response.status_code || 407, status: 'invalid user' } )
         } );
 
 
@@ -69,8 +76,12 @@ export default class {
         } );
 
 
-        if ( !cmi_ua.isConnected() ) {
+        if ( !isConnected ) {
             cmi_ua.start();
+        } else {
+
+            cmi_ua.register()
+
         }
 
 
@@ -78,9 +89,14 @@ export default class {
     }
 
 
-    stop () {
+    stop ( _this ) {
 
         if ( cmi_ua ) {
+
+            if ( !cmi_ua.isRegistered() ) {
+                _this.emit( 'error', { code: 1002, status: 'Please login' } );
+                return;
+            }
 
             if ( cmi_ua.isRegistered() ) {
 

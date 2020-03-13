@@ -32,7 +32,6 @@
     "webpack-dev-server": "^3.10.3"
   },
   "dependencies": {
-    "jssip": "^3.3.11",
     "lodash": "^4.17.15"
   }
 }
