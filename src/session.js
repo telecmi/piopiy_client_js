@@ -228,6 +228,42 @@ export default class {
     }
 
 
+    onmute ( ua, _this ) {
+
+        if ( _.isEmpty( ua._sessions ) ) {
+
+
+            return false;
+        }
+
+        if ( !cmi_session.isEstablished() ) {
+
+            return false;
+        }
+
+
+        return cmi_session.isMuted().audio;
+    }
+
+
+    onhold ( ua, _this ) {
+
+        if ( _.isEmpty( ua._sessions ) ) {
+
+
+            return false;
+        }
+
+        if ( !cmi_session.isEstablished() ) {
+
+            return false;
+        }
+
+
+        return cmi_session.isOnHold().local;
+    }
+
+
     initSession ( cmisession, _this ) {
 
         cmisession.on( 'failed', ( e ) => {

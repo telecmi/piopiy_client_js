@@ -48,8 +48,8 @@ export default class {
         credentials['user_agent'] = 'PIOPIYJS'
         credentials['use_preloaded_route'] = true
         cmi_ua = new SIP.UA( credentials );
-
-
+        console.log( SIP.rtcninja )
+        console.log( cmi_ua )
         cmi_ua.on( 'registered', ( e ) => {
             _this.emit( 'login', { code: 200, status: 'login successfully' } )
         } );
@@ -279,6 +279,51 @@ export default class {
         cmi_session.unmute( cmi_ua, _this );
     }
 
+
+    islogedin ( _this ) {
+
+        if ( !_.isEmpty( cmi_ua ) ) {
+
+            if ( cmi_ua.isRegistered() ) {
+
+                return true;
+            }
+
+        }
+
+
+        return false;
+
+    }
+
+
+    onmute ( _this ) {
+
+        if ( !_.isEmpty( cmi_ua ) ) {
+
+            if ( !cmi_ua.isRegistered() ) {
+
+                return false;
+            } else {
+                return cmi_session.onmute( cmi_ua, _this );
+            }
+
+        }
+    }
+
+    onhold ( _this ) {
+
+        if ( !_.isEmpty( cmi_ua ) ) {
+
+            if ( !cmi_ua.isRegistered() ) {
+
+                return false;
+            } else {
+                return cmi_session.onhold( cmi_ua, _this );
+            }
+
+        }
+    }
 
 
 

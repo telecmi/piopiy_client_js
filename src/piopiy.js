@@ -128,9 +128,20 @@ export default class extends EventEmitter {
 
     }
 
+    isLogedIn () {
+        let _this = this;
+        return userAgent.islogedin( _this );
+    }
 
+    onHold () {
+        let _this = this;
+        return userAgent.onhold( _this );
+    }
 
-
+    onMute () {
+        let _this = this;
+        return userAgent.onmute( _this );
+    }
 
 }
 
