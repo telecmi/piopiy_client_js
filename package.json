@@ -1,6 +1,5 @@
 {
   "name": "piopiyjs",
-  "title": "PIOPIY",
   "version": "0.5.0",
   "description": "PIOPIY javascript browser sdk",
   "main": "index.js",

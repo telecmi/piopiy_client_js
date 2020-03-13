@@ -4,8 +4,6 @@ import { EventEmitter } from 'events';
 import ua from './userAgent';
 import Audio from './audio';
 
-const pkg = require( '../package.json' );
-
 
 
 
@@ -24,8 +22,9 @@ export default class extends EventEmitter {
         this.ua = {};
         let option = options || {};
         EventEmitter.bind( this );
-        this.name = pkg.title;
-        this.version = pkg.version;
+
+
+
 
         this.piopiyOption.debug = ( _.isBoolean( option.debug ) ) ? option.debug : false;
         this.piopiyOption.autoplay = _.isBoolean( option.autoplay ) ? option.autoplay : true;
@@ -113,23 +112,6 @@ export default class extends EventEmitter {
         let _this = this;
         userAgent.unhold( _this );
     }
-
-    mute () {
-
-        let _this = this;
-        userAgent.mute( _this );
-
-    }
-
-    unMute () {
-
-        let _this = this;
-        userAgent.unmute( _this );
-
-    }
-
-
-
 
 
 }
