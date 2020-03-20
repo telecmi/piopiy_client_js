@@ -1,8 +1,33 @@
-# Browser JS SDK for voice
+# PIOPIY Client JS SDK for voice
 
-TeleCMI's browser SDK allows you to make and receive calls directly from any web browsers using the internet. 
+PIOPIY client JS SDK allows you to make and receive voice calls, where making voice calls can be made to a public switched telephone network(PSTN), APP to APP calling and browser to browser calling.  
 
 # Get Started
+
+## Initializing the PIOPIY SDK Object
+
+The PIOPIY SDK object needs to be initialized.
+
+```js
+var piopiy = new PIOPIY( {
+        name: 'Display Name',
+        debug: false,
+        autoplay: true,
+        ringTime: 60
+    } );
+```
+
+#### Configuration Parameters
+
+Below is the configuration parameters
+
+| Attribute  | Description                                 | Allowed Values | Default Value |
+| ---        | ---                                         | ---            | ---           |
+| name       | Your Display Name in App                    | string         | null          |
+| debug      | Enable debug message in JS log              | true, false    | false         |
+| autoplay   | Enable speaker access to your device        | true, false    | true          |
+| ringTime   | Your incoming call ringing time in seconds  | number         | 60            |
+
 
 ## Login
 
@@ -14,7 +39,7 @@ piopiy.login('YOUR_LOGIN_ID','YOUR_PASSWORD');
 
 #### HTTP status codes
 
-TeleCMI API platform represents the following status code to identify the errors.
+PIOPIY platform represents the following status code to identify the errors.
 
 | Status code | Description                                        |
 | ---         | ---                                                |
@@ -34,7 +59,7 @@ piopiy.call('DESTINATION_PHONE_NUMBER');
 
 #### HTTP status codes
 
-TeleCMI API platform represents the following status code to identify the errors.
+PIOPIY platform represents the following status code to identify the errors.
 
 | Status code | Description                                        |
 | ---         | ---                                                |
@@ -54,7 +79,7 @@ piopiy.answer();
 
 #### HTTP status codes
 
-TeleCMI API platform represents the following status code to identify the errors.
+PIOPIY platform represents the following status code to identify the errors.
 
 | Status code | Description                                        |
 | ---         | ---                                                |
@@ -73,7 +98,7 @@ piopiy.reject();
 
 #### HTTP status codes
 
-TeleCMI API platform represents the following status code to identify the errors.
+PIOPIY platform represents the following status code to identify the errors.
 
 | Status code | Description                                        |
 | ---         | ---                                                |
@@ -92,7 +117,7 @@ piopiy.terminate();
 
 #### HTTP status codes
 
-TeleCMI API platform represents the following status code to identify the errors.
+PIOPIY platform represents the following status code to identify the errors.
 
 | Status code | Description                                        |
 | ---         | ---                                                |
@@ -105,12 +130,12 @@ TeleCMI API platform represents the following status code to identify the errors
 Send the digits as dtmf. Digits can be any of the following one character strings: "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "*", "#"
 
 ```js
-piopiy.sendDtmf(1);
+piopiy.sendDtmf(DTMF_DIGIT);
 ```
 
 #### HTTP status codes
 
-TeleCMI API platform represents the following status code to identify the errors.
+PIOPIY platform represents the following status code to identify the errors.
 
 | Status code | Description                                        |
 | ---         | ---                                                |
@@ -146,7 +171,7 @@ piopiy.hold();
 
 #### HTTP status codes
 
-TeleCMI API platform represents the following status code to identify the errors.
+PIOPIY platform represents the following status code to identify the errors.
 
 | Status code | Description                                                 |
 | ---         | ---                                                         |
@@ -164,7 +189,7 @@ piopiy.unHold();
 
 #### HTTP status codes
 
-TeleCMI API platform represents the following status code to identify the errors.
+PIOPIY platform represents the following status code to identify the errors.
 
 | Status code | Description                                        |
 | ---         | ---                                                |
@@ -182,7 +207,7 @@ piopiy.logout();
 
 #### HTTP status codes
 
-TeleCMI API platform represents the following status code to identify the errors.
+PIOPIY platform represents the following status code to identify the errors.
 
 | Status code | Description                                        |
 | ---         | ---                                                |
