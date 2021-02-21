@@ -1,4 +1,5 @@
-import _ from 'lodash';
+
+import { isNumber, isEmpty } from 'lodash-es';
 import cmisession from './session';
 import offline from './offline';
 import SIP from './sipws';
@@ -21,7 +22,7 @@ export default class {
 
     start ( credentials, _this ) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if ( !isEmpty( cmi_ua ) ) {
 
             if ( cmi_ua.isRegistered() ) {
                 _this.emit( 'error', { code: 1001, status: 'Please logout before you login' } );
@@ -48,8 +49,7 @@ export default class {
         credentials['user_agent'] = 'PIOPIYJS'
         credentials['use_preloaded_route'] = true
         cmi_ua = new SIP.UA( credentials );
-        console.log( SIP.rtcninja )
-        console.log( cmi_ua )
+
         cmi_ua.on( 'registered', ( e ) => {
             _this.emit( 'login', { code: 200, status: 'login successfully' } )
         } );
@@ -59,8 +59,8 @@ export default class {
         } );
 
         cmi_ua.on( 'registrationFailed', ( e ) => {
-            console.log( e )
-            _this.emit( 'loginFailed', { code: e.response.status_code || 407, status: 'invalid user' } )
+
+            _this.emit( 'loginFailed', { code: 407, status: 'invalid user' } )
         } );
 
 
@@ -69,7 +69,7 @@ export default class {
 
 
             if ( session.originator != "local" ) {
-                if ( !_.isEmpty( cmi_ua._sessions ) ) {
+                if ( !isEmpty( cmi_ua._sessions ) ) {
                     if ( Object.keys( cmi_ua._sessions ).length > 1 ) {
                         session.session.terminate();
                         return;
@@ -120,7 +120,7 @@ export default class {
 
     make ( to, _this ) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if ( !isEmpty( cmi_ua ) ) {
 
             if ( !cmi_ua.isRegistered() ) {
                 _this.emit( 'error', { code: 1002, status: 'Please login to call' } );
@@ -135,7 +135,7 @@ export default class {
 
     terminate ( _this ) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if ( !isEmpty( cmi_ua ) ) {
 
             if ( !cmi_ua.isRegistered() ) {
                 _this.emit( 'error', { code: 1002, status: 'Please login ' } );
@@ -150,7 +150,7 @@ export default class {
 
     hangup ( _this ) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if ( !isEmpty( cmi_ua ) ) {
 
             if ( !cmi_ua.isRegistered() ) {
                 _this.emit( 'error', { code: 1002, status: 'Please login ' } );
@@ -165,7 +165,7 @@ export default class {
 
     answer ( _this ) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if ( !isEmpty( cmi_ua ) ) {
 
             if ( !cmi_ua.isRegistered() ) {
                 _this.emit( 'error', { code: 1002, status: 'Please login ' } );
@@ -180,7 +180,7 @@ export default class {
 
     reject ( _this ) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if ( !isEmpty( cmi_ua ) ) {
 
             if ( !cmi_ua.isRegistered() ) {
                 _this.emit( 'error', { code: 1002, status: 'Please login ' } );
@@ -196,7 +196,7 @@ export default class {
 
     dtmf ( no, _this ) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if ( !isEmpty( cmi_ua ) ) {
 
             if ( !cmi_ua.isRegistered() ) {
                 _this.emit( 'error', { code: 1002, status: 'Please login ' } );
@@ -205,7 +205,7 @@ export default class {
 
         }
 
-        if ( !_.isNumber( no ) ) {
+        if ( !isNumber( no ) ) {
             _this.emit( 'error', { code: 1005, status: 'invalid dtmf type ' } );
             return;
         }
@@ -216,7 +216,7 @@ export default class {
 
     hold ( _this ) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if ( !isEmpty( cmi_ua ) ) {
 
             if ( !cmi_ua.isRegistered() ) {
                 _this.emit( 'error', { code: 1002, status: 'Please login ' } );
@@ -232,7 +232,7 @@ export default class {
 
     unhold ( _this ) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if ( !isEmpty( cmi_ua ) ) {
 
             if ( !cmi_ua.isRegistered() ) {
                 _this.emit( 'error', { code: 1002, status: 'Please login ' } );
@@ -249,7 +249,7 @@ export default class {
 
     mute ( _this ) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if ( !isEmpty( cmi_ua ) ) {
 
             if ( !cmi_ua.isRegistered() ) {
                 _this.emit( 'error', { code: 1002, status: 'Please login ' } );
@@ -265,7 +265,7 @@ export default class {
 
     unmute ( _this ) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if ( !isEmpty( cmi_ua ) ) {
 
             if ( !cmi_ua.isRegistered() ) {
                 _this.emit( 'error', { code: 1002, status: 'Please login ' } );
@@ -282,7 +282,7 @@ export default class {
 
     islogedin ( _this ) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if ( !isEmpty( cmi_ua ) ) {
 
             if ( cmi_ua.isRegistered() ) {
 
@@ -299,7 +299,7 @@ export default class {
 
     onmute ( _this ) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if ( !isEmpty( cmi_ua ) ) {
 
             if ( !cmi_ua.isRegistered() ) {
 
@@ -313,7 +313,7 @@ export default class {
 
     onhold ( _this ) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if ( !isEmpty( cmi_ua ) ) {
 
             if ( !cmi_ua.isRegistered() ) {
 
