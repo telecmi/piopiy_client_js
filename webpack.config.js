@@ -4,7 +4,7 @@ module.exports = {
     target: "web",
     entry: './src/index.js',
     output: {
-        filename: 'main.js',
+        filename: 'piopiy.min.js',
         path: path.resolve( __dirname, 'dist' ),
         libraryTarget: 'var',
         library: 'PIOPIY'

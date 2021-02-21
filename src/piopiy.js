@@ -1,10 +1,9 @@
-
-import _ from 'lodash';
+import { isString, isBoolean, isNumber } from 'lodash-es';
 import { EventEmitter } from 'events';
 import ua from './userAgent';
 import Audio from './audio';
 
-const pkg = require( '../package.json' );
+
 
 
 
@@ -24,14 +23,17 @@ export default class extends EventEmitter {
         this.ua = {};
         let option = options || {};
         EventEmitter.bind( this );
-        this.name = pkg.title;
-        this.version = pkg.version;
-
-        this.piopiyOption.debug = ( _.isBoolean( option.debug ) ) ? option.debug : false;
-        this.piopiyOption.autoplay = _.isBoolean( option.autoplay ) ? option.autoplay : true;
-        this.piopiyOption.autoReboot = _.isBoolean( option.autoReboot ) ? option.autoReboot : true;
-        this.piopiyOption.ringTime = _.isNumber( option.ringTime ) ? option.ringTime : 60;
-        this.piopiyOption.displayName = _.isString( option.name ) ? option.name : null;
+        this.name = 'PIOPIYJS';
+        this.version = '0.5.1';
+        this.ice_servers = [
+            { 'urls': 'stun:stunind.telecmi.com' },
+            { 'urls': 'stun:stun.ekiga.net' }
+        ]
+        this.piopiyOption.debug = ( isBoolean( option.debug ) ) ? option.debug : false;
+        this.piopiyOption.autoplay = isBoolean( option.autoplay ) ? option.autoplay : true;
+        this.piopiyOption.autoReboot = isBoolean( option.autoReboot ) ? option.autoReboot : true;
+        this.piopiyOption.ringTime = isNumber( option.ringTime ) ? option.ringTime : 60;
+        this.piopiyOption.displayName = isString( option.name ) ? option.name : null;
 
         if ( this.piopiyOption.autoplay ) {
 
@@ -46,7 +48,7 @@ export default class extends EventEmitter {
     login ( user_id, password ) {
 
         let _this = this;
-        if ( _.isString( user_id ) && _.isString( password ) ) {
+        if ( isString( user_id ) && isString( password ) ) {
             var credentials = {
                 uri: user_id + '@sbc.telecmi.com',
                 authorization_user: user_id,
@@ -75,7 +77,7 @@ export default class extends EventEmitter {
 
     call ( to ) {
         let _this = this;
-        if ( !_.isString( to ) ) {
+        if ( !isString( to ) ) {
             _this.emit( 'error', { code: 1002, status: 'Invalid type to call' } )
             return;
         }
