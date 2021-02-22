@@ -53,7 +53,11 @@ export default class {
             return;
         }
 
-        cmi_session.answer( { mediaConstraints: { 'audio': true, 'video': false } } );
+        cmi_session.answer( {
+            mediaConstraints: { 'audio': true, 'video': false }, pcConfig: {
+                'iceServers': _this.ice_servers
+            }
+        } );
 
 
 
