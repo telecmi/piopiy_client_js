@@ -1,10 +1,10 @@
-import { isString, isBoolean, isNumber } from 'lodash-es';
+import _ from 'lodash';
 import { EventEmitter } from 'events';
 import ua from './userAgent';
 import Audio from './audio';
 
 
-
+var pkg = require( '../package.json' );
 
 
 
@@ -23,17 +23,16 @@ export default class extends EventEmitter {
         this.ua = {};
         let option = options || {};
         EventEmitter.bind( this );
-        this.name = 'PIOPIYJS';
-        this.version = '0.5.1';
+        this.name = pkg.name;
+        this.version = pkg.version;
         this.ice_servers = [
-            { 'urls': 'stun:stunind.telecmi.com' },
-            { 'urls': 'stun:stun.ekiga.net' }
+            { 'urls': 'stun:stunind.telecmi.com' }
         ]
-        this.piopiyOption.debug = ( isBoolean( option.debug ) ) ? option.debug : false;
-        this.piopiyOption.autoplay = isBoolean( option.autoplay ) ? option.autoplay : true;
-        this.piopiyOption.autoReboot = isBoolean( option.autoReboot ) ? option.autoReboot : true;
-        this.piopiyOption.ringTime = isNumber( option.ringTime ) ? option.ringTime : 60;
-        this.piopiyOption.displayName = isString( option.name ) ? option.name : null;
+        this.piopiyOption.debug = ( _.isBoolean( option.debug ) ) ? option.debug : false;
+        this.piopiyOption.autoplay = _.isBoolean( option.autoplay ) ? option.autoplay : true;
+        this.piopiyOption.autoReboot = _.isBoolean( option.autoReboot ) ? option.autoReboot : true;
+        this.piopiyOption.ringTime = _.isNumber( option.ringTime ) ? option.ringTime : 60;
+        this.piopiyOption.displayName = _.isString( option.name ) ? option.name : null;
 
         if ( this.piopiyOption.autoplay ) {
 
@@ -45,12 +44,15 @@ export default class extends EventEmitter {
 
 
 
-    login ( user_id, password ) {
+    login ( user_id, password, region ) {
 
         let _this = this;
-        if ( isString( user_id ) && isString( password ) ) {
+        let sbc_region = region || 'sbcsg.telecmi.com';
+        if ( _.isString( user_id ) && _.isString( password ) ) {
+
+
             var credentials = {
-                uri: user_id + '@sbc.telecmi.com',
+                uri: user_id + '@' + region,
                 authorization_user: user_id,
                 password: password,
                 debug: this.piopiyOption.debug,
@@ -58,6 +60,7 @@ export default class extends EventEmitter {
                 no_answer_timeout: this.piopiyOption.ringTime,
                 register: true,
                 register_expires: 300,
+                region: sbc_region,
                 connection_recovery_min_interval: 2,
                 connection_recovery_max_interval: 3,
                 session_timers: false
@@ -77,7 +80,7 @@ export default class extends EventEmitter {
 
     call ( to ) {
         let _this = this;
-        if ( !isString( to ) ) {
+        if ( !_.isString( to ) ) {
             _this.emit( 'error', { code: 1002, status: 'Invalid type to call' } )
             return;
         }
@@ -146,5 +149,3 @@ export default class extends EventEmitter {
     }
 
 }
-
-

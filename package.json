@@ -1,7 +1,7 @@
 {
   "name": "piopiyjs",
   "title": "PIOPIY",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "PIOPIY javascript browser sdk",
   "main": "index.js",
   "directories": {
@@ -33,6 +33,7 @@
     "webpack-dev-server": "^3.10.3"
   },
   "dependencies": {
+    "jssip": "^3.9.0",
     "lodash-es": "^4.17.21"
   }
 }

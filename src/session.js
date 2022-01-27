@@ -1,6 +1,6 @@
+import _ from 'lodash';
 
 
-import { isEmpty } from 'lodash-es';
 
 
 let cmi_session = {};
@@ -13,7 +13,7 @@ export default class {
 
     make ( to, ua, _this ) {
 
-        if ( !isEmpty( ua._sessions ) ) {
+        if ( !_.isEmpty( ua._sessions ) ) {
 
             _this.emit( 'error', { code: 1002, status: 'already in call' } )
             return;
@@ -34,6 +34,9 @@ export default class {
 
         cmi_session = session.session;
         if ( session.originator != "local" ) {
+
+
+
             _this.emit( 'inComingCall', { from: session.request.from._display_name || 'unknown' } )
         }
 
@@ -42,7 +45,7 @@ export default class {
 
     answer ( ua, _this ) {
 
-        if ( isEmpty( ua._sessions ) ) {
+        if ( _.isEmpty( ua._sessions ) ) {
 
             _this.emit( 'error', { code: 1002, status: 'call not found' } )
             return;
@@ -64,7 +67,7 @@ export default class {
     }
 
     reject ( ua, _this ) {
-        if ( isEmpty( ua._sessions ) ) {
+        if ( _.isEmpty( ua._sessions ) ) {
 
             _this.emit( 'error', { code: 1002, status: 'call not found' } )
             return;
@@ -81,7 +84,7 @@ export default class {
 
     terminate ( ua, _this ) {
 
-        if ( isEmpty( ua._sessions ) ) {
+        if ( _.isEmpty( ua._sessions ) ) {
 
             _this.emit( 'error', { code: 1002, status: 'call not found' } )
             return;
@@ -97,7 +100,7 @@ export default class {
     }
 
     hangup ( ua, _this ) {
-        if ( isEmpty( ua.sessions ) ) {
+        if ( _.isEmpty( ua.sessions ) ) {
 
             _this.emit( 'error', { code: 1002, status: 'call not found' } )
             return;
@@ -110,7 +113,7 @@ export default class {
 
     terminate ( ua, _this ) {
 
-        if ( isEmpty( ua._sessions ) ) {
+        if ( _.isEmpty( ua._sessions ) ) {
 
             _this.emit( 'error', { code: 1002, status: 'call not found' } )
             return;
@@ -127,7 +130,7 @@ export default class {
 
     dtmf ( no, ua, _this ) {
 
-        if ( isEmpty( ua._sessions ) ) {
+        if ( _.isEmpty( ua._sessions ) ) {
 
             _this.emit( 'error', { code: 1002, status: 'call not found' } )
             return;
@@ -138,6 +141,7 @@ export default class {
             return;
         }
         var options = {
+
             'transportType': 'RFC2833'
         };
 
@@ -148,7 +152,7 @@ export default class {
 
     hold ( ua, _this ) {
 
-        if ( isEmpty( ua._sessions ) ) {
+        if ( _.isEmpty( ua._sessions ) ) {
 
             _this.emit( 'error', { code: 1002, status: 'call not found' } )
             return;
@@ -171,7 +175,7 @@ export default class {
 
     unhold ( ua, _this ) {
 
-        if ( isEmpty( ua._sessions ) ) {
+        if ( _.isEmpty( ua._sessions ) ) {
 
             _this.emit( 'error', { code: 1002, status: 'call not found' } )
             return;
@@ -194,7 +198,7 @@ export default class {
 
     mute ( ua, _this ) {
 
-        if ( isEmpty( ua._sessions ) ) {
+        if ( _.isEmpty( ua._sessions ) ) {
 
             _this.emit( 'error', { code: 1002, status: 'call not found' } )
             return;
@@ -217,7 +221,7 @@ export default class {
 
     unmute ( ua, _this ) {
 
-        if ( isEmpty( ua._sessions ) ) {
+        if ( _.isEmpty( ua._sessions ) ) {
 
             _this.emit( 'error', { code: 1002, status: 'call not found' } )
             return;
@@ -240,7 +244,7 @@ export default class {
 
     onmute ( ua, _this ) {
 
-        if ( isEmpty( ua._sessions ) ) {
+        if ( _.isEmpty( ua._sessions ) ) {
 
 
             return false;
@@ -258,7 +262,7 @@ export default class {
 
     onhold ( ua, _this ) {
 
-        if ( isEmpty( ua._sessions ) ) {
+        if ( _.isEmpty( ua._sessions ) ) {
 
 
             return false;
@@ -345,17 +349,22 @@ export default class {
         } );
 
         cmisession.on( 'accepted', ( e ) => {
+
             if ( e.originator == "local" ) {
                 return;
             }
+
             var type = ( e.originator == 'local' ) ? 'incoming' : 'outgoing';
             _this.emit( 'answered', { code: 200, status: 'answered' } )
         } );
 
         cmisession.on( 'confirmed', ( e ) => {
+
+
             if ( e.originator == "local" ) {
                 return;
             }
+
             var type = ( e.originator == 'local' ) ? 'incoming' : 'outgoing';
             _this.emit( 'answered', { code: 200, status: 'answered' } )
         } );
