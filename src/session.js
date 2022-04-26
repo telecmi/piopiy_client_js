@@ -173,6 +173,76 @@ export default class {
     }
 
 
+    refer ( to, ua, _this ) {
+
+        if ( _.isEmpty( ua._sessions ) ) {
+
+            _this.emit( 'error', { code: 1002, status: 'call not found' } )
+            return;
+        }
+
+        if ( !cmi_session.isEstablished() ) {
+            _this.emit( 'error', { code: 1002, status: 'hold not allowed' } )
+            return;
+        }
+
+
+        var options = {
+
+            'transportType': 'RFC2833'
+        };
+
+
+        cmi_session.sendDTMF( '*1' + to + '#', options );
+    }
+
+    merge ( ua, _this ) {
+
+        if ( _.isEmpty( ua._sessions ) ) {
+
+            _this.emit( 'error', { code: 1002, status: 'call not found' } )
+            return;
+        }
+
+        if ( !cmi_session.isEstablished() ) {
+            _this.emit( 'error', { code: 1002, status: 'hold not allowed' } )
+            return;
+        }
+
+
+        var options = {
+
+            'transportType': 'RFC2833'
+        };
+
+
+        cmi_session.sendDTMF( '0', options );
+    }
+
+    cancel ( ua, _this ) {
+
+        if ( _.isEmpty( ua._sessions ) ) {
+
+            _this.emit( 'error', { code: 1002, status: 'call not found' } )
+            return;
+        }
+
+        if ( !cmi_session.isEstablished() ) {
+            _this.emit( 'error', { code: 1002, status: 'hold not allowed' } )
+            return;
+        }
+
+
+        var options = {
+
+            'transportType': 'RFC2833'
+        };
+
+
+        cmi_session.sendDTMF( '#', options );
+    }
+
+
     unhold ( ua, _this ) {
 
         if ( _.isEmpty( ua._sessions ) ) {
@@ -373,6 +443,15 @@ export default class {
         cmisession.on( 'getusermediafailed', ( e ) => {
 
             _this.emit( 'mediaFailed', { code: 200, status: e || 'user media failed' } )
+        } );
+
+
+        cmisession.on( "icecandidate", ( event ) => {
+            if ( event.candidate.type === "srflx" &&
+                event.candidate.relatedAddress !== null &&
+                event.candidate.relatedPort !== null ) {
+                event.ready();
+            }
         } );
 
 

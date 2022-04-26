@@ -137,6 +137,51 @@ export default class {
 
     }
 
+    refer ( to, _this ) {
+
+        if ( !_.isEmpty( cmi_ua ) ) {
+
+            if ( !cmi_ua.isRegistered() ) {
+                _this.emit( 'error', { code: 1002, status: 'Please login to call' } );
+                return;
+            }
+
+        }
+
+        cmi_session.refer( to, cmi_ua, _this )
+
+    }
+
+    merge ( _this ) {
+
+        if ( !_.isEmpty( cmi_ua ) ) {
+
+            if ( !cmi_ua.isRegistered() ) {
+                _this.emit( 'error', { code: 1002, status: 'Please login to call' } );
+                return;
+            }
+
+        }
+
+        cmi_session.merge( cmi_ua, _this )
+
+    }
+
+    cancel ( _this ) {
+
+        if ( !_.isEmpty( cmi_ua ) ) {
+
+            if ( !cmi_ua.isRegistered() ) {
+                _this.emit( 'error', { code: 1002, status: 'Please login to call' } );
+                return;
+            }
+
+        }
+
+        cmi_session.cancel( cmi_ua, _this )
+
+    }
+
     terminate ( _this ) {
 
         if ( !_.isEmpty( cmi_ua ) ) {

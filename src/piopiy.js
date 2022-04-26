@@ -88,6 +88,30 @@ export default class extends EventEmitter {
         userAgent.make( to, _this );
     }
 
+    transfer ( to ) {
+        let _this = this;
+        if ( !_.isString( to ) ) {
+            _this.emit( 'error', { code: 1002, status: 'Invalid type to call' } )
+            return;
+        }
+
+        userAgent.refer( to, _this );
+    }
+
+    merge () {
+        let _this = this;
+
+
+        userAgent.merge( _this );
+    }
+
+    cancel () {
+        let _this = this;
+
+
+        userAgent.cancel( _this );
+    }
+
     terminate () {
         let _this = this;
         userAgent.terminate( _this );
