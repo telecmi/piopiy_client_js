@@ -31,11 +31,20 @@ Below is the configuration parameters
 
 ## Login
 
-Validate your login ID and password.
+Validate your login ID, password and SBC URI.
 
-```js
-piopiy.login('YOUR_LOGIN_ID','YOUR_PASSWORD');
+```javascript
+piopiy.login('YOUR_LOGIN_ID','YOUR_PASSWORD','SBC_URI');
 ```
+## Configuration Parameters
+
+Below is the configuration parameters
+
+| Parameter Name| Type   |     Description                                                |  
+|  ---          |    --- |   ---                                                          | 
+| *YOUR_LOGIN_ID  | string | The Agent login ID                      | 
+| *YOUR_PASSWORD  | string | The Agent Login Password                              | 
+| SBC_URI  | string | Below are the SBC URI <ul><li>Singapore - sbcsg.telecmi.com</li><li>United Kingdom - sbcuk.telecmi.com</li><li>United States Of America - sbcus.telecmi.com</li></ul> 
 
 #### HTTP status codes
 
@@ -144,6 +153,29 @@ PIOPIY platform represents the following status code to identify the errors.
 | 1005        | Invalid DTMF type                                  |
 
 
+## Transfer Call
+
+Transfer the ongoing call to user externsion or phone number.
+
+```js
+piopiy.transfer('USER_EXTENSION or PHONE_NUMBER_WITH_COUNTRY_CODE');
+```
+
+## Merge Call
+
+Merge the transfered call with caller or calle.
+
+```js
+piopiy.merge();
+```
+
+## Cancel Call
+
+Cancel the transfered call. The cancel call will be used before merging the call.
+
+```js
+piopiy.cancel();
+```
 
 ## Mute Call
 
