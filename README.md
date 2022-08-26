@@ -1,6 +1,6 @@
 # PIOPIY Client JS SDK for voice
 
-PIOPIY client JS SDK allows you to make and receive voice calls, where making voice calls can be made to a public switched telephone network(PSTN), APP to APP calling and browser to browser calling.  
+PIOPIY WebRTC SDK allows you to make and receive voice calls, where making voice calls can be made to a public switched telephone network(PSTN), APP to APP calling and browser to browser calling.  
 
 # Get Started
 
