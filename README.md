@@ -1,14 +1,26 @@
-# PIOPIY Client JS SDK for voice
 
-PIOPIY WebRTC SDK allows you to make and receive voice calls, where making voice calls can be made to a public switched telephone network(PSTN), APP to APP calling and browser to browser calling.  
+## PIOPIY Client JS SDK for voice
 
-# Get Started
+PIOPIY WebRTC SDK allows you to make and receive voice calls, where making voice calls can be made to a public switched telephone network(PSTN), APP to APP calling and browser to browser calling.
 
-## Initializing the PIOPIY SDK Object
+### Clone the repository
 
-The PIOPIY SDK object needs to be initialized.
+Use command __git clone__ to clone the SDK from our <a href="https://github.com/telecmi/piopiy_client_js" target="_blank">TeleCMI github repository</a>.
 
-```js
+```bash
+git clone https://github.com/telecmi/piopiy_client_js.git
+```
+
+## Add SDK library to your webpage
+```javascript
+<script src="piopiy.min.js" type="text/javascript"></script>
+```
+
+## Get Started
+
+### Initializing the PIOPIY SDK Object
+
+```javascript
 var piopiy = new PIOPIY( {
         name: 'Display Name',
         debug: false,
@@ -17,199 +29,507 @@ var piopiy = new PIOPIY( {
     } );
 ```
 
-#### Configuration Parameters
+## Configuration Parameters
 
 Below is the configuration parameters
 
-| Attribute  | Description                                 | Allowed Values | Default Value |
-| ---        | ---                                         | ---            | ---           |
-| name       | Your Display Name in App                    | string         | null          |
-| debug      | Enable debug message in JS log              | true, false    | false         |
-| autoplay   | Enable speaker access to your device        | true, false    | true          |
-| ringTime   | Your incoming call ringing time in seconds  | number         | 60            |
+| Attribute     |      Description                   |  Allowed Values	| Default Value |
+|  ---          |    ---                             | ---              | ---           |
+| name          | Your Display Name in App	         | string           | none          |
+| debug         | Enable debug message in browser console	   | Boolean      | false         |
+| autoplay      | Handle media stream automatically	  | Boolean | true          |
+| ringTime      | Your incoming call ringing time in seconds | number   | 60            |
 
 
-## Login
+## PIOPIY Methods
 
-Validate your login ID and password.
+### Login
 
-```js
-piopiy.login('YOUR_LOGIN_ID','YOUR_PASSWORD');
+Using this method user can able to connect with TeleCMI SBC.
+
+```javascript
+piopiy.login('USER_ID','PASSWORD','SBC_URI');
 ```
 
-#### HTTP status codes
-
-PIOPIY platform represents the following status code to identify the errors.
-
-| Status code | Description                                        |
-| ---         | ---                                                |
-| 200         | You have Logged in successfully                    |
-| 401         | Your Login ID or Password is invalid, Authenication failed |
-| 1001        | You have already logged in                         |
+#### Configuration Parameters
 
 
+| Parameter Name| Type   |     Description                                                |  
+|  ---          |    --- |   ---                                                          | 
+| USER_ID  | string | The user login ID                      | 
+| PASSWORD  | string | The user login Password                              | 
+| SBC_URI  | url | <ul><li>ASIA - sbcsg.telecmi.com</li><li>Europe - sbcuk.telecmi.com</li><li>America - sbcus.telecmi.com</li><li>India - sbcind.telecmi.com</li></ul>                    | 
 
-## Make call
+### Make call
 
-Make an outbound call to the phone number.
+Using this method user can able to make call to PSTN or Other user extension.
 
-```js
-piopiy.call('DESTINATION_PHONE_NUMBER');
+```javascript
+piopiy.call('PHONE_NUMBER');
 ```
 
-#### HTTP status codes
 
-PIOPIY platform represents the following status code to identify the errors.
-
-| Status code | Description                                        |
-| ---         | ---                                                |
-| 100         | Your outbound call status, __status: trying__      |
-| 183         | Your Outbound call status, __status: ringing__     |
-| 200         | Your Outbound call status, __status: answered, busy, unreachable, call ended__ |
-| 1002        | Your already in a call                             |
+#### Configuration Parameters
 
 
-## Answer call
+| Parameter Name| Type   |     Description                                       |  
+|  ---          |    --- |     ---                                               | 
+| PHONE_NUMBER  | string |     Enter phone number or user extention number ,Phone number start with country code example '13158050050'         | 
 
-Answer an incoming call.
+### Send DTMF 
+
+Using this method user can able to send DTMF tone to ongoing call.
 
 ```js
-piopiy.answer();
+piopiy.sendDtmf('DTMF_TONE');
 ```
 
-#### HTTP status codes
-
-PIOPIY platform represents the following status code to identify the errors.
-
-| Status code | Description                                        |
-| ---         | ---                                                |
-| 183         | Your incoming call status, __status: ringing__     |
-| 200         | Your incoming call status, __status: answered, canceled, call ended__ |
-| 1002        | Your already in a call                             |
+#### Configuration Parameters
 
 
-## Reject call
+| Parameter Name| Type   |     Description                                       |  
+|  ---          |    --- |   ---                                                 | 
+| DTMF_TONE| string | Your DTMF tone input      | 
 
-Reject an incoming call.
+### Hold Call
 
-```js
-piopiy.reject();
-```
-
-#### HTTP status codes
-
-PIOPIY platform represents the following status code to identify the errors.
-
-| Status code | Description                                        |
-| ---         | ---                                                |
-| 200         | Your incoming call status, __status: hangup__      |
-| 1002        | Currently, there is no ongoing calls               |
-
-
-
-## Terminate call
-
-Hangup the ongoing call.
-
-```js
-piopiy.terminate();
-```
-
-#### HTTP status codes
-
-PIOPIY platform represents the following status code to identify the errors.
-
-| Status code | Description                                        |
-| ---         | ---                                                |
-| 200         | Your ongoing call status, __status: hangup__       |
-| 1002        | Currently, there is no ongoing calls               |
-
-
-## Send DTMF digit
-
-Send the digits as dtmf. Digits can be any of the following one character strings: "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "*", "#"
-
-```js
-piopiy.sendDtmf(DTMF_DIGIT);
-```
-
-#### HTTP status codes
-
-PIOPIY platform represents the following status code to identify the errors.
-
-| Status code | Description                                        |
-| ---         | ---                                                |
-| 200         | DTMF digit received                                |
-| 1002        | DTMF not allowed or ongoing call not found         |
-| 1005        | Invalid DTMF type                                  |
-
-
-
-## Mute Call
-
-Mute an incoming or outgoing call.
-
-```js
-piopiy.mute();
-```
-
-## Unmute Call
-
-Mute an incoming or outgoing call.
-
-```js
-piopiy.unMute();
-```
-
-## Hold Call
-
-Mute an incoming or outgoing call.
+Using this method user can able to hold ongoing call.
 
 ```js
 piopiy.hold();
 ```
 
-#### HTTP status codes
+### Unhold Call
 
-PIOPIY platform represents the following status code to identify the errors.
-
-| Status code | Description                                                 |
-| ---         | ---                                                         |
-| 200         | Hold your current call                                      |
-| 1002        | Your call is already on hold or there is no call found to hold |
-
-
-## Unhold Call
-
-Mute an incoming or outgoing call.
+Using this method user can able to unhold ongoing call.
 
 ```js
 piopiy.unHold();
 ```
 
-#### HTTP status codes
+### Mute Call
 
-PIOPIY platform represents the following status code to identify the errors.
+Using this method user can able to mute ongoing call.
 
-| Status code | Description                                        |
-| ---         | ---                                                |
-| 200         | Unhold your current call                           |
-| 1002        | First hold a call to unhold it or there is no call found to unhold                   |
+```js
+piopiy.mute();
+```
+
+### Unmute Call
+
+Using this method user can able to unmute ongoing call.
+
+```js
+piopiy.unMute();
+```
+
+### Answer call
+
+Using this method user can able to answer incoming call.
+
+```js
+piopiy.answer();
+```
 
 
-## Logout 
+### Reject call
 
-Logout 
+Using this method user can able to reject or disconnect incoming call.
+
+```js
+piopiy.reject();
+```
+
+### Hangup call
+
+Using this method user can able to hangup ongoing call.
+
+```js
+piopiy.terminate();
+```
+
+### Logout 
+Using this method user can able to logout from SBC session.
 
 ```js
 piopiy.logout();
 ```
 
-#### HTTP status codes
+## PIOPIY Call Event Handler
 
-PIOPIY platform represents the following status code to identify the errors.
 
-| Status code | Description                                        |
-| ---         | ---                                                |
-| 200         | You have logged out sucessfully                    |
-| 1002        | To logout you need to login first                  |
+### Login
+
+This event will triger when user login sucessfully
+
+```js
+piopiy.on( 'login', function ( object ) {
+
+    //  Data is JSON it contain event and status.
+});
+```
+
+#### Example
+
+
+```js
+piopiy.on( 'login', function ( object ) {
+       
+    if(object.code == 200) {
+   
+        //  Login successfully and do your stuff here.
+        
+    }   
+});
+```
+
+#### List of event and status
+
+| Code | Status                                      |
+| ---  | ---                                         |
+| 200  | Login Successfully                          |
+
+
+### LoginFailed
+
+This event will trigger when user authentication failed.
+
+```js
+piopiy.on( 'loginFailed', function ( object ) {
+
+    //  Data is JSON it contain event and status.
+});
+```
+
+#### Example
+
+
+```js
+ piopiy.on( 'loginFailed', function ( object ) {
+       
+    if(object.code == 407) {
+
+        //  Verify that the user_id and password are correct. 
+    }
+});
+```
+
+#### List of event and status
+
+| Code | Status                                      |
+| ---  | ---                                         |
+| 407  | Invalid user_id or password                 |
+
+
+
+### Trying
+
+
+This event will trigger when user make call to phone number or extention (Destination Number)
+
+
+
+```js
+piopiy.on( 'trying', function ( object ) {
+
+    //  Data is JSON it contain event and status.
+});
+```
+
+
+#### Example
+
+```js
+piopiy.on( 'trying', function ( object ) {
+        
+    if(object.code == 100 ) {
+
+        //  The outgoing call is currently being started.
+    }
+});
+```
+
+#### List of event and status
+
+| code | Status   | Type               |
+|  --- | ---      | ---                |
+|  100 | trying   | The ougoing call started          |
+
+### Ringing
+This event will trigger when call start ringing.
+
+```js
+piopiy.on( 'ringing', function ( object ) {
+
+    //  Data is JSON it contain event and status.
+});
+```
+#### Example
+```js
+piopiy.on( 'ringing', function ( object ) {
+        
+    if(object.code == 183) {
+
+        // An incoming or outgoing call is ringing.        
+    }
+});
+```
+#### List of event and status
+
+|  code | Status   | Type                         |
+|  ---  | ---      | ---                          |
+|  183  | ringing  | outgoing & incoming          |
+
+### Answered
+This event will trigger when ongoing call was answered.
+
+
+
+```js
+piopiy.on( 'answered', function ( object ) {
+
+    //  Data is JSON it contain event and status.
+});
+```
+#### Example
+
+```js
+piopiy.on( 'answered', function ( object ) {
+        
+    if(object.code == 200) {
+
+        // An incoming or outgoing call is answered.
+    }
+});
+```
+#### List of event and status
+
+| code | Status             |
+| ---  | ---                |
+| 200  | answered           |
+
+
+
+### CallStream
+This event will trigger when mediastream established.
+```js
+piopiy.on( 'callStream', function ( object ) {
+
+    //  Data is JSON it contain event and status.
+});
+```
+
+
+#### Example
+
+```js
+piopiy.on( 'callStream', function ( object ) {
+          
+    // MediaStream has been established.
+});
+```
+
+#### List of event and status
+
+| code | Stream             |
+| ---  | ---                |
+| 200  | MediaStream        |
+
+### InComingCall
+This event will trigger when user recive incmoing call.
+
+```js
+piopiy.on( 'inComingCall', function ( object ) {
+
+    //  Data is JSON it contain event and status.
+});
+```
+
+### Hangup
+This event will trigger when user reject or hangup incmoing call.
+
+```js
+piopiy.on( 'hangup', function ( object ) {
+
+    //  Data is JSON it contain event and status.
+});
+```
+#### Example
+
+```js
+piopiy.on( 'hangup', function ( object ) {
+        
+    if(object.code == 200 ) {
+
+        //  to hangup the incoming and ongoing calls.
+    }
+});
+```
+#### List of event and status
+
+|  code | Status   | Type                                   |
+|  ---  | ---      | ---                                    |
+|  200  | call hangup  | Hangup ongoing call      |
+
+
+### Ended
+
+This event will trigger when ongoing call end.
+
+```js
+piopiy.on( 'ended', function ( object ) {
+
+    //  Data is JSON it contain event and status.
+});
+```
+
+
+#### Example
+
+
+```js
+piopiy.on( 'ended', function ( object ) {
+        
+    if(object.code == 200 ) {
+
+        //  An incoming or outgoing call is ended.
+    }
+});
+```
+
+#### List of event and status
+
+| code | Status                                              |
+| ---  | ---                                                 |
+| 200  | call ended , Unavailable , Busy  & Canceled         |
+
+### Hold
+
+This event will trigger when ongoing call on hold.
+
+```js
+piopiy.on( 'hold', function ( object ) {
+
+    //  Data is JSON it contain event and status.
+});
+```
+
+
+#### Example
+
+
+```js
+piopiy.on( 'hold', function ( object ) {
+        
+    if(object.code == 200 ) {
+
+        //  The call is now being hold.
+    }
+});
+```
+
+#### List of event and status
+
+|  code | Status            |
+|  ---  | ---               |
+|  200  | call on hold      |
+
+
+
+
+### UnHold
+
+This event will trigger when ongoing call on unhold.
+
+
+```js
+piopiy.on( 'unhold', function ( object ) {
+
+    //  Data is JSON it contain event and status.
+});
+```
+
+
+#### Example
+
+
+```js
+piopiy.on( 'unhold', function ( object ) {
+        
+    if(object.code == 200 ) {
+
+        //  The call is now being released.
+    }
+});
+```
+
+#### List of event and status
+
+|  code | Status            |
+|  ---  | ---               |
+|  200  | call on active    |
+
+
+
+### Error
+
+This event will trigger when error will occurr.
+
+```js
+piopiy.on( 'error', function ( object ) {
+
+    //  Data is JSON it contain event and status.
+});
+```
+
+
+#### Example
+
+
+```js
+piopiy.on( 'error', function ( object ) {
+        
+    if(object.code == 1001 || object.code == 1002) {
+
+        //  If there are any incorrect commands in the function, displays error.
+    }
+});
+```
+
+#### List of event and status
+
+|  code | Status            |
+|  ---  | ---               |
+|  1001 & 1002  | common error    |
+
+
+
+### Logout
+This event will trigger when user logout .
+
+```js
+piopiy.on( 'logout', function ( object ) {
+
+    //  Data is JSON it contain event and status.
+});
+```
+
+
+#### Example
+
+
+```js
+piopiy.on( 'logout', function ( object ) {
+        
+    if(object.code == 200 ) {
+
+        //  The user logged out successfully. 
+    }
+});
+```
+
+#### List of event and status
+
+|  code | Status                 |
+|  ---  | ---                    |
+|  200  | logout successfully    |
