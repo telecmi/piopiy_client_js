@@ -2,9 +2,8 @@ import _ from 'lodash';
 import { EventEmitter } from 'events';
 import ua from './userAgent';
 import Audio from './audio';
-
-
-var pkg = require( '../package.json' );
+import rest from './rest';
+import { SocketCMI } from './socket';
 
 
 
@@ -12,7 +11,7 @@ var pkg = require( '../package.json' );
 
 let userAgent = new ua();
 let cmiAudio = new Audio();
-
+let RestCMI = new rest();
 export default class extends EventEmitter {
 
 
@@ -23,8 +22,8 @@ export default class extends EventEmitter {
         this.ua = {};
         let option = options || {};
         EventEmitter.bind( this );
-        this.name = pkg.name;
-        this.version = pkg.version;
+        this.name = 'PIOPIYJS';
+        this.version = '0.0.5';
         this.ice_servers = [
             { 'urls': 'stun:stunind.telecmi.com' }
         ]
@@ -59,14 +58,18 @@ export default class extends EventEmitter {
                 display_name: this.piopiyOption.displayName,
                 no_answer_timeout: this.piopiyOption.ringTime,
                 register: true,
-                register_expires: 300,
                 region: sbc_region,
-                connection_recovery_min_interval: 2,
-                connection_recovery_max_interval: 3,
                 session_timers: false
             }
 
             userAgent.start( credentials, _this );
+
+            RestCMI.getToken( user_id, password, ( data ) => {
+                if ( data.code == 200 ) {
+
+                    _this.socketCMI = new SocketCMI( data.token, _this )
+                }
+            } )
         } else {
             throw new Error( "invalid user_id or password" );
         }
@@ -88,33 +91,14 @@ export default class extends EventEmitter {
         userAgent.make( to, _this );
     }
 
-    transfer ( to ) {
-        let _this = this;
-        if ( !_.isString( to ) ) {
-            _this.emit( 'error', { code: 1002, status: 'Invalid type to call' } )
-            return;
-        }
-
-        userAgent.refer( to, _this );
-    }
-
-    merge () {
-        let _this = this;
-
-
-        userAgent.merge( _this );
-    }
-
-    cancel () {
-        let _this = this;
-
-
-        userAgent.cancel( _this );
-    }
-
     terminate () {
         let _this = this;
         userAgent.terminate( _this );
+    }
+
+
+    reRegister () {
+        userAgent.re_register();
     }
 
 
@@ -162,6 +146,11 @@ export default class extends EventEmitter {
         return userAgent.islogedin( _this );
     }
 
+    isConnected () {
+        let _this = this;
+        return userAgent.isConnected( _this );
+    }
+
     onHold () {
         let _this = this;
         return userAgent.onhold( _this );
@@ -171,5 +160,20 @@ export default class extends EventEmitter {
         let _this = this;
         return userAgent.onmute( _this );
     }
+
+    transfer ( uuid, to ) {
+        let _this = this;
+        _this.socketCMI.transfer( uuid, to )
+    }
+
+    getCallId () {
+        let _this = this;
+        return userAgent.getCallId( _this );
+
+    }
+
+
+
+
 
 }
