@@ -40,6 +40,12 @@ export default class {
             _this.emit( 'inComingCall', { from: session.request.from._display_name || 'unknown' } )
         }
 
+        if ( session.request ) {
+            cmi_session['call_id'] = session.request.call_id;
+
+        }
+
+
         this.initSession( cmi_session, _this )
     }
 
@@ -111,22 +117,7 @@ export default class {
     }
 
 
-    terminate ( ua, _this ) {
 
-        if ( _.isEmpty( ua._sessions ) ) {
-
-            _this.emit( 'error', { code: 1002, status: 'call not found' } )
-            return;
-        }
-
-        if ( cmi_session.isEnded() ) {
-            _this.emit( 'error', { code: 1002, status: 'call already ended' } )
-            return;
-        }
-
-
-        cmi_session.terminate();
-    }
 
     dtmf ( no, ua, _this ) {
 
@@ -278,15 +269,34 @@ export default class {
     }
 
 
+    getCallId ( ua, _this ) {
+
+        if ( _.isEmpty( ua._sessions ) ) {
+
+
+            return false;
+        }
+
+        if ( !cmi_session.isEstablished() ) {
+
+            return false;
+        }
+
+
+        return cmi_session['call_id'] || false;
+
+    }
+
+
     initSession ( cmisession, _this ) {
 
         cmisession.on( 'failed', ( e ) => {
 
             if ( e.originator == "local" ) {
 
-                _this.emit( 'hangup', { code: 200, status: 'call hangup' } )
+                _this.emit( 'hangup', { code: 200, status: 'call hangup', call_id: _this.call_id } )
             } else {
-                _this.emit( 'ended', { code: 200, status: e.cause || 'call ended' } )
+                _this.emit( 'ended', { code: 200, status: e.cause || 'call ended', call_id: _this.call_id } )
             }
 
         } );
@@ -303,10 +313,9 @@ export default class {
                     }
                 }
 
-                _this.emit( 'callStream', { code: 200, status: e.stream } );
+                _this.emit( 'callStream', { code: 200, status: e.stream, call_id: _this.call_id } );
             }
         }
-
 
 
 
@@ -316,7 +325,7 @@ export default class {
         cmisession.on( 'sending', ( e ) => {
 
             var type = ( e.originator == 'local' ) ? 'incoming' : 'outgoing';
-            _this.emit( 'trying', { code: 100, status: 'trying', type: type } )
+            _this.emit( 'trying', { code: 100, status: 'trying', type: type, call_id: _this.call_id } )
 
 
         } );
@@ -343,7 +352,7 @@ export default class {
         cmisession.on( 'progress', ( e ) => {
 
             var type = ( e.originator == 'local' ) ? 'incoming' : 'outgoing';
-            _this.emit( 'ringing', { code: 183, status: 'ringing', type: type } )
+            _this.emit( 'ringing', { code: 183, status: 'ringing', type: type, call_id: _this.call_id } )
 
 
         } );
@@ -355,7 +364,7 @@ export default class {
             }
 
             var type = ( e.originator == 'local' ) ? 'incoming' : 'outgoing';
-            _this.emit( 'answered', { code: 200, status: 'answered' } )
+            _this.emit( 'answered', { code: 200, status: 'answered', call_id: _this.call_id } )
         } );
 
         cmisession.on( 'confirmed', ( e ) => {
@@ -365,34 +374,49 @@ export default class {
                 return;
             }
 
+
+            if ( cmisession._request ) {
+
+                _this.call_id = cmisession._request.call_id;
+            }
+
             var type = ( e.originator == 'local' ) ? 'incoming' : 'outgoing';
-            _this.emit( 'answered', { code: 200, status: 'answered' } )
+            _this.emit( 'answered', { code: 200, status: 'answered', call_id: _this.call_id } )
         } );
 
 
         cmisession.on( 'getusermediafailed', ( e ) => {
 
-            _this.emit( 'mediaFailed', { code: 200, status: e || 'user media failed' } )
+            _this.emit( 'mediaFailed', { code: 200, status: e || 'user media failed', call_id: _this.call_id } )
+        } );
+
+        cmisession.on( "icecandidate", ( event ) => {
+
+            if ( event.candidate.type === "srflx" &&
+                event.candidate.relatedAddress !== null &&
+                event.candidate.relatedPort !== null ) {
+                event.ready();
+            }
         } );
 
 
         cmisession.on( 'newDTMF', ( e ) => {
 
             var type = ( e.originator == 'local' ) ? 'incoming' : 'outgoing';
-            _this.emit( 'dtmf', { code: 200, dtmf: e.dtmf._tone, type: type } )
+            _this.emit( 'dtmf', { code: 200, dtmf: e.dtmf._tone, type: type, call_id: _this.call_id } )
         } );
 
         cmisession.on( 'hold', ( e ) => {
 
             var type = ( e.originator == 'local' ) ? 'myself' : 'other';
-            _this.emit( 'hold', { code: 200, status: 'call on hold', whom: type } )
+            _this.emit( 'hold', { code: 200, status: 'call on hold', whom: type, call_id: _this.call_id } )
         } );
 
 
         cmisession.on( 'unhold', ( e ) => {
 
             var type = ( e.originator == 'local' ) ? 'myself' : 'other';
-            _this.emit( 'unhold', { code: 200, status: 'call on active', whom: type } )
+            _this.emit( 'unhold', { code: 200, status: 'call on active', whom: type, call_id: _this.call_id } )
         } );
 
 
@@ -401,25 +425,13 @@ export default class {
         cmisession.on( 'ended', ( e ) => {
 
             if ( e.originator == 'local' ) {
-                _this.emit( 'hangup', { code: 200, status: 'call hangup' } )
+                _this.emit( 'hangup', { code: 200, status: 'call hangup', call_id: _this.call_id } )
             } else {
-                _this.emit( 'ended', { code: 200, status: 'call ended' } )
+                _this.emit( 'ended', { code: 200, status: 'call ended', call_id: _this.call_id } )
             }
 
 
         } );
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     }

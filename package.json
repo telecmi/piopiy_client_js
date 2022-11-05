@@ -1,14 +1,14 @@
 {
   "name": "piopiyjs",
   "title": "PIOPIY",
-  "version": "0.6.0",
-  "description": "PIOPIY javascript browser sdk",
+  "version": "0.8.1",
+  "description": "PIOPIY javascript browser SDK",
   "main": "index.js",
   "directories": {
     "lib": "lib"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npm run test",
     "build": "webpack",
     "start": "webpack-dev-server --watch"
   },
@@ -33,7 +33,10 @@
     "webpack-dev-server": "^3.10.3"
   },
   "dependencies": {
-    "jssip": "^3.9.0",
-    "lodash-es": "^4.17.21"
+    "axios": "^0.27.2",
+    "jssip": "^3.9.1",
+    "lodash-es": "^4.17.21",
+    "socket.io-client": "^4.5.1",
+    "underscore": "^1.13.4"
   }
 }
