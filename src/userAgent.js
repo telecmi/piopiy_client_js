@@ -52,6 +52,8 @@ export default class {
         credentials['sockets'] = [socket];
         credentials['user_agent'] = 'PIOPIYJS'
         credentials['use_preloaded_route'] = true
+
+
         cmi_ua = new SIP.UA( credentials );
 
         cmi_ua.on( 'registered', ( e ) => {
@@ -59,18 +61,34 @@ export default class {
         } );
 
         cmi_ua.on( 'unregistered', ( e ) => {
+
+
             _this.emit( 'logout', { code: 200, status: 'logout successfully' } )
+        } );
+
+        cmi_ua.on( 'connected', ( e ) => {
+            _this.emit( 'connected', { code: 200, status: 'SBC connected' } )
+        } );
+
+        cmi_ua.on( 'disconnected', ( e ) => {
+            _this.emit( 'disconnected', { code: 200, status: 'SBC disconneced' } )
         } );
 
         cmi_ua.on( 'registrationFailed', ( e ) => {
 
-            _this.emit( 'loginFailed', { code: 407, status: 'invalid user' } )
+
+            if ( e.response ) {
+
+                if ( e.response.status_code === 401 ) {
+                    _this.emit( 'loginFailed', { code: 401, status: 'invalid user' } )
+                }
+            }
+
+
         } );
 
 
         cmi_ua.on( 'newRTCSession', ( session ) => {
-
-
 
             if ( session.originator != "local" ) {
                 if ( !_.isEmpty( cmi_ua._sessions ) ) {
@@ -80,6 +98,11 @@ export default class {
                     }
 
                 }
+            }
+
+            if ( session.request ) {
+                _this.call_id = session.request.call_id;
+
             }
 
 
@@ -99,6 +122,13 @@ export default class {
 
 
 
+    }
+
+    re_register () {
+
+        if ( !cmi_ua.isRegistered() ) {
+            cmi_ua.register();
+        }
     }
 
 
@@ -301,6 +331,26 @@ export default class {
     }
 
 
+    isConnected ( _this ) {
+
+        if ( !_.isEmpty( cmi_ua ) ) {
+
+            if ( cmi_ua.isConnected() ) {
+
+                return true;
+            }
+
+        }
+
+
+        return false;
+
+    }
+
+
+
+
+
     onmute ( _this ) {
 
         if ( !_.isEmpty( cmi_ua ) ) {
@@ -324,6 +374,21 @@ export default class {
                 return false;
             } else {
                 return cmi_session.onhold( cmi_ua, _this );
+            }
+
+        }
+    }
+
+
+    getCallId ( _this ) {
+
+        if ( !_.isEmpty( cmi_ua ) ) {
+
+            if ( !cmi_ua.isRegistered() ) {
+
+                return false;
+            } else {
+                return cmi_session.getCallId( cmi_ua, _this );
             }
 
         }

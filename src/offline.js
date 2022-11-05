@@ -1,14 +1,14 @@
-import { isEmpty } from 'lodash-es';
+import _ from 'underscore';
 
 
 export default class {
 
 
     start ( cmi_ua ) {
-        if ( !isEmpty( cmi_ua ) ) {
+        if ( !_.isEmpty( cmi_ua ) ) {
 
 
-            if ( !isEmpty( cmi_ua._sessions ) ) {
+            if ( !_.isEmpty( cmi_ua._sessions ) ) {
                 cmi_ua.terminateSessions();
 
             }
