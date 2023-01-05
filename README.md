@@ -48,7 +48,7 @@ Below is the configuration parameters
 Using this method user can able to connect with TeleCMI SBC.
 
 ```javascript
-piopiy.login('USER_ID','PASSWORD','SBC_URI');
+piopiy.login('user_id','password','SBC_URI');
 ```
 
 #### Configuration Parameters
@@ -56,8 +56,8 @@ piopiy.login('USER_ID','PASSWORD','SBC_URI');
 
 | Parameter Name| Type   |     Description                                                |  
 |  ---          |    --- |   ---                                                          | 
-| USER_ID  | string | The user login ID                      | 
-| PASSWORD  | string | The user login Password                              | 
+| user_id  | string | The user login ID                      | 
+| password  | string | The user login Password                              | 
 | SBC_URI  | url | <ul><li>ASIA - sbcsg.telecmi.com</li><li>Europe - sbcuk.telecmi.com</li><li>America - sbcus.telecmi.com</li><li>India - sbcind.telecmi.com</li></ul>                    | 
 
 ### Make call
@@ -185,7 +185,7 @@ piopiy.on( 'login', function ( object ) {
 
 #### List of event and status
 
-| Code | Status                                      |
+| code | status                                      |
 | ---  | ---                                         |
 | 200  | Login Successfully                          |
 
@@ -207,7 +207,7 @@ piopiy.on( 'loginFailed', function ( object ) {
 ```js
  piopiy.on( 'loginFailed', function ( object ) {
        
-    if(object.code == 407) {
+    if(object.code == 401) {
 
         //  Verify that the user_id and password are correct. 
     }
@@ -216,9 +216,9 @@ piopiy.on( 'loginFailed', function ( object ) {
 
 #### List of event and status
 
-| Code | Status                                      |
+| code | status                                      |
 | ---  | ---                                         |
-| 407  | Invalid user_id or password                 |
+| 401  | Invalid user_id or password                 |
 
 
 
@@ -251,9 +251,9 @@ piopiy.on( 'trying', function ( object ) {
 
 #### List of event and status
 
-| code | Status   | Type               |
-|  --- | ---      | ---                |
-|  100 | trying   | The ougoing call started          |
+| code | status   | type    | call_id                              |
+|  --- | ---      | ---     | ---                                  |
+|  100 | trying   | ougoing | 95ea3424-d77e-123b-0ca1-463d48e96190 |
 
 ### Ringing
 This event will trigger when call start ringing.
@@ -276,9 +276,9 @@ piopiy.on( 'ringing', function ( object ) {
 ```
 #### List of event and status
 
-|  code | Status   | Type                         |
-|  ---  | ---      | ---                          |
-|  183  | ringing  | outgoing & incoming          |
+|  code | status   | type                | call_id                              |
+|  ---  | ---      | ---                 | ---                                  |
+|  183  | ringing  | outgoing & incoming | 95ea3424-d77e-123b-0ca1-463d48e96190 |
 
 ### Answered
 This event will trigger when ongoing call was answered.
@@ -304,9 +304,9 @@ piopiy.on( 'answered', function ( object ) {
 ```
 #### List of event and status
 
-| code | Status             |
-| ---  | ---                |
-| 200  | answered           |
+| code | status             | call_id |
+| ---  | ---                | --- |
+| 200  | answered           | 95ea3424-d77e-123b-0ca1-463d48e96190 |
 
 
 
@@ -331,9 +331,9 @@ piopiy.on( 'callStream', function ( object ) {
 
 #### List of event and status
 
-| code | Stream             |
-| ---  | ---                |
-| 200  | MediaStream        |
+| code | status             | call_id |
+| ---  | ---                | --- |
+| 200  | MediaStream        | 95ea3424-d77e-123b-0ca1-463d48e96190 |
 
 ### InComingCall
 This event will trigger when user recive incmoing call.
@@ -367,9 +367,9 @@ piopiy.on( 'hangup', function ( object ) {
 ```
 #### List of event and status
 
-|  code | Status   | Type                                   |
+|  code | status   | call_id                                   |
 |  ---  | ---      | ---                                    |
-|  200  | call hangup  | Hangup ongoing call      |
+|  200  | call hangup  | 95ea3424-d77e-123b-0ca1-463d48e96190      |
 
 
 ### Ended
@@ -399,9 +399,9 @@ piopiy.on( 'ended', function ( object ) {
 
 #### List of event and status
 
-| code | Status                                              |
-| ---  | ---                                                 |
-| 200  | call ended , Unavailable , Busy  & Canceled         |
+| code | status                                      | call_id                              | 
+| ---  | ---                                         | ---                                  |
+| 200  | call ended , Unavailable , Busy  & Canceled | 95ea3424-d77e-123b-0ca1-463d48e96190 |
 
 ### Hold
 
@@ -430,9 +430,9 @@ piopiy.on( 'hold', function ( object ) {
 
 #### List of event and status
 
-|  code | Status            |
-|  ---  | ---               |
-|  200  | call on hold      |
+|  code | status            | whom | call_id |
+|  ---  | ---               | --- | --- |
+|  200  | call on hold      | myself | 95ea3424-d77e-123b-0ca1-463d48e96190 |
 
 
 
@@ -465,9 +465,9 @@ piopiy.on( 'unhold', function ( object ) {
 
 #### List of event and status
 
-|  code | Status            |
-|  ---  | ---               |
-|  200  | call on active    |
+|  code | status            | whom  | call_id |
+|  ---  | ---               | --- | --- |
+|  200  | call on active    | myself | 95ea3424-d77e-123b-0ca1-463d48e96190 |
 
 
 
@@ -498,7 +498,7 @@ piopiy.on( 'error', function ( object ) {
 
 #### List of event and status
 
-|  code | Status            |
+|  code | status            |
 |  ---  | ---               |
 |  1001 & 1002  | common error    |
 
@@ -530,6 +530,6 @@ piopiy.on( 'logout', function ( object ) {
 
 #### List of event and status
 
-|  code | Status                 |
+|  code | status                 |
 |  ---  | ---                    |
 |  200  | logout successfully    |
