@@ -7,7 +7,7 @@ module.exports = {
         filename: 'piopiy.min.js',
         path: path.resolve( __dirname, 'dist' ),
         libraryTarget: 'var',
-        library: 'piopiyjs'
+        library: 'PIOPIY'
     },
     devServer: {
         contentBase: path.resolve( __dirname, "dist" ),
