@@ -14,7 +14,7 @@ PIOPIY WebRTC SDK allows you to make and receive voice calls, where making voice
 ### Using YARN
 
 ```bash
- yarn install piopiyjs
+ yarn add piopiyjs
 ```
 
 ### Using Bower
