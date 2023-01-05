@@ -1,0 +1,22 @@
+{
+  "name": "piopiyjs",
+  "description": "PIOPIY WebRTC javascript browser SDK",
+  "main": "dist/piopiy.min.js",
+  "authors": [
+    "TeleCMI"
+  ],
+  "license": "ISC",
+  "keywords": [
+    "piopiy",
+    "voice",
+    "sdk"
+  ],
+  "homepage": "https://github.com/telecmi/piopiy_client_js",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}

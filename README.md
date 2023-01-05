@@ -3,25 +3,51 @@
 
 PIOPIY WebRTC SDK allows you to make and receive voice calls, where making voice calls can be made to a public switched telephone network(PSTN), APP to APP calling and browser to browser calling.
 
-### Clone the repository
+## Package Installation 
 
-Use command __git clone__ to clone the SDK from our <a href="https://github.com/telecmi/piopiy_client_js" target="_blank">TeleCMI github repository</a>.
+### using NPM
 
 ```bash
-git clone https://github.com/telecmi/piopiy_client_js.git
+ npm install piopiyjs
 ```
 
-## Add SDK library to your webpage
-```javascript
-<script src="dist/piopiy.min.js" type="text/javascript"></script>
+### using YARN
+
+```bash
+ yarn install piopiyjs
 ```
 
-## Get Started
+### using Bower
 
-### Initializing the PIOPIY SDK Object
+```bash
+ bower install telecmi/piopiy_client_js
+```
+
+
+## Monolithic Import
+
+### in Browser
 
 ```javascript
-var piopiy = new piopiyjs( {
+ <script src="dist/piopiy.min.js" type="text/javascript"></script>
+```
+
+### in ESM/Typescript
+
+```bash
+ import PIOPIY from 'piopiyjs';
+```
+
+### in ESM/Typescript
+
+```bash
+ var PIOPIY =require('piopiyjs');
+```
+
+### Initializing the PIOPIY  Object
+
+```javascript
+var piopiy = new PIOPIY( {
         name: 'Display Name',
         debug: false,
         autoplay: true,
