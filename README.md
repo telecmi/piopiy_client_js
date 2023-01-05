@@ -13,7 +13,7 @@ git clone https://github.com/telecmi/piopiy_client_js.git
 
 ## Add SDK library to your webpage
 ```javascript
-<script src="piopiy.min.js" type="text/javascript"></script>
+<script src="dist/piopiy.min.js" type="text/javascript"></script>
 ```
 
 ## Get Started
@@ -21,7 +21,7 @@ git clone https://github.com/telecmi/piopiy_client_js.git
 ### Initializing the PIOPIY SDK Object
 
 ```javascript
-var piopiy = new PIOPIY( {
+var piopiy = new piopiyjs( {
         name: 'Display Name',
         debug: false,
         autoplay: true,
