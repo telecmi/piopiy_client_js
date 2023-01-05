@@ -5,19 +5,19 @@ PIOPIY WebRTC SDK allows you to make and receive voice calls, where making voice
 
 ## Package Installation 
 
-### using NPM
+### Using NPM
 
 ```bash
  npm install piopiyjs
 ```
 
-### using YARN
+### Using YARN
 
 ```bash
  yarn install piopiyjs
 ```
 
-### using Bower
+### Using Bower
 
 ```bash
  bower install telecmi/piopiy_client_js
@@ -26,25 +26,25 @@ PIOPIY WebRTC SDK allows you to make and receive voice calls, where making voice
 
 ## Monolithic Import
 
-### in Browser
+### In Browser
 
 ```javascript
  <script src="dist/piopiy.min.js" type="text/javascript"></script>
 ```
 
-### in ESM/Typescript
+### In ESM/Typescript
 
 ```bash
  import PIOPIY from 'piopiyjs';
 ```
 
-### in ESM/Typescript
+### In CommonJS
 
 ```bash
- var PIOPIY =require('piopiyjs');
+ var PIOPIY = require('piopiyjs');
 ```
 
-### Initializing the PIOPIY  Object
+## Initializing the PIOPIY  Object
 
 ```javascript
 var piopiy = new PIOPIY( {
@@ -55,7 +55,7 @@ var piopiy = new PIOPIY( {
     } );
 ```
 
-## Configuration Parameters
+### Configuration Parameters
 
 Below is the configuration parameters
 
