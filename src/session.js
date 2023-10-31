@@ -1,10 +1,14 @@
 import _ from 'lodash';
+import rtcpeer from './RTCPeer';
 
 
 
+let RTCPeer = new rtcpeer();
 
 let cmi_session = {};
-
+let cmi_ua = {};
+var timeout;
+var cmi_timeout;
 
 export default class {
 
@@ -13,6 +17,7 @@ export default class {
 
     make ( to, ua, _this ) {
 
+
         if ( !_.isEmpty( ua._sessions ) ) {
 
             _this.emit( 'error', { code: 1002, status: 'already in call' } )
@@ -20,12 +25,73 @@ export default class {
         }
 
 
+        var cmi_media_cons = { 'audio': true, 'video': false }
+        if ( localStorage.getItem( 'deviceId' ) ) {
+            cmi_media_cons['audio'] = { deviceId: localStorage.getItem( 'deviceId' ) }
+        }
+
+
+        var eventHandlers = {
+            'progress': function ( e ) {
+
+            },
+            'failed': function ( e ) {
+                if ( timeout ) {
+                    clearTimeout( timeout );
+                    clearTimeout( cmi_timeout );
+                }
+                if ( e ) {
+                    if ( e.message ) {
+                        if ( e.message.status_code == 407 ) {
+                            _this.emit( 'loginFailed', { code: 407, status: 'invalid user' } )
+                        }
+                    }
+                }
+            },
+            'ended': function ( e ) {
+                if ( timeout ) {
+                    clearTimeout( timeout );
+                    clearTimeout( cmi_timeout );
+                }
+            },
+            'confirmed': function ( e ) {
+                if ( timeout ) {
+                    clearTimeout( timeout );
+                    clearTimeout( cmi_timeout );
+                }
+
+            }
+        };
+
+        cmi_ua = ua;
+
         cmi_session = ua.call( to, {
-            mediaConstraints: { 'audio': true, 'video': false },
+            'eventHandlers': eventHandlers,
+            mediaConstraints: cmi_media_cons,
             pcConfig: {
                 'iceServers': _this.ice_servers
             }
         } )
+
+
+        cmi_timeout = setTimeout( function () {
+
+            if ( cmi_session && ( cmi_session.status === 1 ) ) {
+                _this.emit( 'NETStats', { code: 408, msg: 'Request timeout' } )
+            }
+        }, 5000 );
+
+
+        timeout = setTimeout( function () {
+
+            if ( cmi_session && ( cmi_session.status === 1 ) ) {
+
+                cmi_session.terminate();
+                ua.stop();
+                ua.start();
+
+            }
+        }, 10000 );
 
     }
 
@@ -41,8 +107,18 @@ export default class {
         }
 
         if ( session.request ) {
-            cmi_session['call_id'] = session.request.call_id;
 
+            if ( session.originator != "local" ) {
+                const headers = session.request;
+                var call_uuid = headers.getHeader( 'X-cmi-uuid' );
+
+                cmi_session['call_ID'] = call_uuid;
+
+            } else {
+                cmi_session['call_ID'] = session.request.call_id;
+
+            }
+            cmi_session['call_id'] = session.request.call_id;
         }
 
 
@@ -50,7 +126,7 @@ export default class {
     }
 
     answer ( ua, _this ) {
-
+        cmi_ua = ua;
         if ( _.isEmpty( ua._sessions ) ) {
 
             _this.emit( 'error', { code: 1002, status: 'call not found' } )
@@ -61,6 +137,8 @@ export default class {
             _this.emit( 'error', { code: 1002, status: 'call already  answered' } )
             return;
         }
+
+
 
         cmi_session.answer( {
             mediaConstraints: { 'audio': true, 'video': false }, pcConfig: {
@@ -73,6 +151,7 @@ export default class {
     }
 
     reject ( ua, _this ) {
+
         if ( _.isEmpty( ua._sessions ) ) {
 
             _this.emit( 'error', { code: 1002, status: 'call not found' } )
@@ -83,7 +162,7 @@ export default class {
             _this.emit( 'error', { code: 1002, status: 'call already ended' } )
             return;
         }
-
+        cmi_ua = ua;
         cmi_session.terminate();
 
     }
@@ -101,7 +180,7 @@ export default class {
             return;
         }
 
-
+        cmi_ua = ua;
         cmi_session.terminate();
     }
 
@@ -112,7 +191,7 @@ export default class {
             return;
         }
 
-
+        cmi_ua = ua;
         cmi_session.bye();
     }
 
@@ -277,7 +356,7 @@ export default class {
             return false;
         }
 
-        if ( !cmi_session.isEstablished() ) {
+        if ( ( !cmi_session.isEstablished() && !cmi_session.isInProgress() ) ) {
 
             return false;
         }
@@ -287,16 +366,36 @@ export default class {
 
     }
 
+    getCallID ( ua, _this ) {
+
+        if ( _.isEmpty( ua._sessions ) ) {
+
+
+            return false;
+        }
+
+        if ( ( !cmi_session.isEstablished() && !cmi_session.isInProgress() ) ) {
+
+            return false;
+        }
+
+
+        return cmi_session['call_ID'] || false;
+
+    }
+
 
     initSession ( cmisession, _this ) {
 
         cmisession.on( 'failed', ( e ) => {
 
+
+
             if ( e.originator == "local" ) {
 
-                _this.emit( 'hangup', { code: 200, status: 'call hangup', call_id: _this.call_id } )
+                _this.emit( 'hangup', { code: e.status_code || 200, status: 'call hangup' } )
             } else {
-                _this.emit( 'ended', { code: 200, status: e.cause || 'call ended', call_id: _this.call_id } )
+                _this.emit( 'ended', { code: e?.message?.status_code || 200, status: e?.message?.reason_phrase || 'call ended' } )
             }
 
         } );
@@ -313,7 +412,7 @@ export default class {
                     }
                 }
 
-                _this.emit( 'callStream', { code: 200, status: e.stream, call_id: _this.call_id } );
+                _this.emit( 'callStream', { code: 200, status: e.stream } );
             }
         }
 
@@ -325,7 +424,8 @@ export default class {
         cmisession.on( 'sending', ( e ) => {
 
             var type = ( e.originator == 'local' ) ? 'incoming' : 'outgoing';
-            _this.emit( 'trying', { code: 100, status: 'trying', type: type, call_id: _this.call_id } )
+
+            _this.emit( 'trying', { code: 100, status: 'trying', type: type } )
 
 
         } );
@@ -347,12 +447,31 @@ export default class {
                 _this.emit( 'callStream', { code: 200, status: e.stream } );
             }
 
+            if ( cmisession.connection ) {
+                try {
+                    RTCPeer.connections( cmisession, cmisession.connection, _this )
+                } catch ( e ) {
+                    alert( e )
+                }
+
+            }
+
         } );
 
         cmisession.on( 'progress', ( e ) => {
-
             var type = ( e.originator == 'local' ) ? 'incoming' : 'outgoing';
-            _this.emit( 'ringing', { code: 183, status: 'ringing', type: type, call_id: _this.call_id } )
+            _this.emit( 'ringing', { code: 183, status: 'ringing', type: type } );
+
+
+
+            if ( cmisession.connection ) {
+                try {
+                    RTCPeer.connections( cmisession, cmisession.connection, _this )
+                } catch ( e ) {
+                    alert( e )
+                }
+
+            }
 
 
         } );
@@ -364,7 +483,7 @@ export default class {
             }
 
             var type = ( e.originator == 'local' ) ? 'incoming' : 'outgoing';
-            _this.emit( 'answered', { code: 200, status: 'answered', call_id: _this.call_id } )
+            _this.emit( 'answered', { code: 200, status: 'answered' } )
         } );
 
         cmisession.on( 'confirmed', ( e ) => {
@@ -381,13 +500,15 @@ export default class {
             }
 
             var type = ( e.originator == 'local' ) ? 'incoming' : 'outgoing';
-            _this.emit( 'answered', { code: 200, status: 'answered', call_id: _this.call_id } )
+            _this.emit( 'answered', { code: 200, status: 'answered' } )
         } );
 
 
         cmisession.on( 'getusermediafailed', ( e ) => {
 
-            _this.emit( 'mediaFailed', { code: 200, status: e || 'user media failed', call_id: _this.call_id } )
+
+
+            _this.emit( 'mediaFailed', { code: 415, status: e || 'user media failed' } )
         } );
 
         cmisession.on( "icecandidate", ( event ) => {
@@ -403,20 +524,20 @@ export default class {
         cmisession.on( 'newDTMF', ( e ) => {
 
             var type = ( e.originator == 'local' ) ? 'incoming' : 'outgoing';
-            _this.emit( 'dtmf', { code: 200, dtmf: e.dtmf._tone, type: type, call_id: _this.call_id } )
+            _this.emit( 'dtmf', { code: 200, dtmf: e.dtmf._tone, type: type } )
         } );
 
         cmisession.on( 'hold', ( e ) => {
 
             var type = ( e.originator == 'local' ) ? 'myself' : 'other';
-            _this.emit( 'hold', { code: 200, status: 'call on hold', whom: type, call_id: _this.call_id } )
+            _this.emit( 'hold', { code: 200, status: 'call on hold', whom: type } )
         } );
 
 
         cmisession.on( 'unhold', ( e ) => {
 
             var type = ( e.originator == 'local' ) ? 'myself' : 'other';
-            _this.emit( 'unhold', { code: 200, status: 'call on active', whom: type, call_id: _this.call_id } )
+            _this.emit( 'unhold', { code: 200, status: 'call on active', whom: type } )
         } );
 
 
@@ -424,14 +545,32 @@ export default class {
 
         cmisession.on( 'ended', ( e ) => {
 
+
+
+            if ( _this.cmi_webrtc_stats ) {
+                clearInterval( _this.cmi_webrtc_stats )
+            }
+
             if ( e.originator == 'local' ) {
-                _this.emit( 'hangup', { code: 200, status: 'call hangup', call_id: _this.call_id } )
+                _this.emit( 'hangup', { code: 200, status: 'call hangup' } )
             } else {
-                _this.emit( 'ended', { code: 200, status: 'call ended', call_id: _this.call_id } )
+                _this.emit( 'ended', { code: 200, status: 'call ended' } )
             }
 
 
         } );
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     }

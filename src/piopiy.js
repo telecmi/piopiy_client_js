@@ -64,6 +64,10 @@ export default class extends EventEmitter {
 
             userAgent.start( credentials, _this );
 
+
+
+
+
             RestCMI.getToken( user_id, password, ( data ) => {
                 if ( data.code == 200 ) {
 
@@ -161,10 +165,21 @@ export default class extends EventEmitter {
         return userAgent.onmute( _this );
     }
 
-    transfer ( uuid, to ) {
+    transfer ( to ) {
         let _this = this;
-        _this.socketCMI.transfer( uuid, to )
+        _this.socketCMI.transfer( userAgent.getCallId( _this ), to )
     }
+
+    merge () {
+        let _this = this;
+        userAgent.dtmf( '0', _this );
+    }
+
+    cancel () {
+        let _this = this;
+        userAgent.dtmf( '#', _this );
+    }
+
 
     getCallId () {
         let _this = this;
@@ -172,8 +187,12 @@ export default class extends EventEmitter {
 
     }
 
+    getCallID () {
+        let _this = this;
+        return userAgent.getCallID( _this );
 
-
-
+    }
 
 }
+
+

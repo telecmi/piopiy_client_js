@@ -1,0 +1,12 @@
+{
+    "compilerOptions": {
+        "allowJs": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "skipLibCheck":true,
+    "outDir": "./built"
+    },
+    "include": [
+        "./src/**/*"
+    ]
+}
