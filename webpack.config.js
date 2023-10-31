@@ -10,12 +10,10 @@ module.exports = {
         library: 'PIOPIY'
     },
     devServer: {
-        contentBase: path.resolve( __dirname, "dist" ),
-        watchContentBase: true,
+        static: path.resolve( __dirname, "dist" ),
         compress: true,
+        open: true,
         port: 9001,
-        watchOptions: {
-            poll: true
-        }
+        hot: true
     }
 };
