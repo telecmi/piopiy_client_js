@@ -1,10 +1,9 @@
 {
   "name": "piopiyjs",
   "title": "PIOPIY WebRTC SDK for browser",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "PIOPIY WebRTC javascript browser SDK",
   "main": "lib/index.js",
-  "types": "built/index.d.ts",
   "directories": {
     "lib": "lib"
   },
@@ -36,6 +35,7 @@
     "@babel/cli": "^7.21.5",
     "@babel/core": "^7.22.1",
     "@babel/preset-env": "^7.22.4",
+    "@babel/preset-typescript": "^7.23.2",
     "@babel/register": "^7.21.0",
     "babel-cli": "^6.26.0",
     "babel-preset-env": "^1.7.0",
@@ -48,8 +48,6 @@
     "webpack-dev-server": "^4.15.0"
   },
   "dependencies": {
-    "@babel/preset-typescript": "^7.21.5",
-    "axios": "^1.4.0",
     "jssip": "^3.10.0",
     "lodash-es": "^4.17.21",
     "socket.io-client": "^4.6.2",
