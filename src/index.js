@@ -1,2 +1,2 @@
-const piopiyjs = require( './piopiy' ).default;
-module.exports = piopiyjs;
+const PIOPIY = require( './piopiy' ).default;
+module.exports = PIOPIY;

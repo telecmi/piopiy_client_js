@@ -9,10 +9,12 @@ let isConnected = false;
 let cmi_session = new cmisession();
 let cmi_offline = new offline();
 let socket = new SIP.WebSocketInterface( 'wss://sbcsg.telecmi.com' );
+if ( typeof window !== 'undefined' ) {
+    window.onbeforeunload = function () {
+        cmi_offline.start( cmi_ua );
+    };
+}
 
-window.onbeforeunload = function () {
-    cmi_offline.start( cmi_ua );
-};
 
 export default class {
 
@@ -48,13 +50,38 @@ export default class {
         if ( credentials['region'] ) {
 
             socket = new SIP.WebSocketInterface( 'wss://' + credentials['region'] );
+
+
         }
         credentials['sockets'] = [socket];
         credentials['user_agent'] = 'PIOPIYJS'
         credentials['use_preloaded_route'] = true
 
 
+
+
+
+
         cmi_ua = new SIP.UA( credentials );
+
+
+        // _this.cmi_jssip_option = setInterval( () => {
+        //     var eventHandlers = {
+        //         'succeeded': function ( data ) {
+
+        //         },
+        //         'failed': function ( data ) { /* Your code here */
+
+        //             cmi_ua.start();
+        //         }
+        //     };
+
+        //     var options = {
+        //         'eventHandlers': eventHandlers
+        //     };
+
+        //     cmi_ua.sendOptions( 'sip:' + credentials.uri, null, options );
+        // }, 10000 )
 
         cmi_ua.on( 'registered', ( e ) => {
             _this.emit( 'login', { code: 200, status: 'login successfully' } )
@@ -71,11 +98,11 @@ export default class {
         } );
 
         cmi_ua.on( 'disconnected', ( e ) => {
-            _this.emit( 'disconnected', { code: 200, status: 'SBC disconneced' } )
+            _this.emit( 'disconnected', { code: 1000, status: 'SBC disconneced' } )
         } );
 
-        cmi_ua.on( 'registrationFailed', ( e ) => {
 
+        cmi_ua.on( 'registrationFailed', ( e ) => {
 
             if ( e.response ) {
 
@@ -87,8 +114,25 @@ export default class {
 
         } );
 
+        _this.on( 'net_changed', ( data ) => {
+
+            if ( cmi_ua ) {
+                if ( cmi_ua.isRegistered() & cmi_ua.isConnected() ) {
+                    cmi_ua.transport.disconnect()
+                    //cmi_ua.transport._reconnect()
+                    cmi_ua.transport.connect()
+                    cmi_ua.start();
+                }
+            }
+
+        } )
+
+
+
 
         cmi_ua.on( 'newRTCSession', ( session ) => {
+
+
 
             if ( session.originator != "local" ) {
                 if ( !_.isEmpty( cmi_ua._sessions ) ) {
@@ -162,6 +206,8 @@ export default class {
             }
 
         }
+
+
 
         cmi_session.make( to, cmi_ua, _this )
 
@@ -389,6 +435,20 @@ export default class {
                 return false;
             } else {
                 return cmi_session.getCallId( cmi_ua, _this );
+            }
+
+        }
+    }
+
+    getCallID ( _this ) {
+
+        if ( !_.isEmpty( cmi_ua ) ) {
+
+            if ( !cmi_ua.isRegistered() ) {
+
+                return false;
+            } else {
+                return cmi_session.getCallID( cmi_ua, _this );
             }
 
         }
