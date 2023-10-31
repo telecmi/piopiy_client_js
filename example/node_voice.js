@@ -1,5 +1,4 @@
-var PIOPIY = require( '../lib/index' );
-
+import PIOPIY from '../lib/index.js';
 
 var piopiy = new PIOPIY( {
     name: 'TeleCMI',
@@ -84,5 +83,3 @@ piopiy.on( 'trying', ( e ) => {
 piopiy.on( 'callStream', ( e ) => {
     console.log( e )
 } )
-
-

@@ -24,9 +24,13 @@ class SocketCMI {
         this.socket.on( 'disconnect', ( reson ) => {
             _this.ready_transfer = false;
 
+            if ( reson == 'transport close' ) {
+                _this.emit( 'net_changed', { code: 400, msg: 'network changed' } )
+            }
         } );
 
         this.socket.on( "connect_error", ( err ) => {
+
             _this.ready_transfer = false;
         } );
 
@@ -37,9 +41,8 @@ class SocketCMI {
 
         this.socket.on( 'cmi_transfer', ( data ) => {
 
-
             if ( data.state == 'init' ) {
-                _this.emit( 'api-cmi-transfer', data )
+                _this.sendDtmf( "*9" );
             }
             _this.emit( 'transfer', data )
         } );
@@ -54,6 +57,7 @@ class SocketCMI {
     }
 
     transfer ( uuid, to ) {
+
 
         if ( this.socket.connected ) {
             this.socket.emit( 'agent-call-transfer', { uuid: uuid, to: to } )
