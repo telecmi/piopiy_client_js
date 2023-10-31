@@ -25,7 +25,7 @@ export const piopiy_start = async ( _this ) => {
 
     //Agent/User ID and password
 
-    _this.piopiy.login( "3011_2224302", "123456", "sbcind.telecmi.com" );
+    _this.piopiy.login( "xxxxx", "xxxxx", "sbcind.telecmi.com" );
 
     window.piopiy = _this.piopiy;
     _this.piopiy.on( 'login', function ( object ) {
