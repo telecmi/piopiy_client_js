@@ -103,12 +103,20 @@ export default class {
 
 
         cmi_ua.on( 'registrationFailed', ( e ) => {
-
             if ( e.response ) {
 
                 if ( e.response.status_code === 401 ) {
                     _this.emit( 'loginFailed', { code: 401, status: 'invalid user' } )
                 }
+
+                if ( e.response.status_code === 503 ) {
+                    _this.emit( 'loginFailed', { code: 405, status: 'too many connection' } )
+                }
+
+                if ( e.response.status_code === 407 ) {
+                    _this.emit( 'loginFailed', { code: 407, status: 'invalid IP' } )
+                }
+
             }
 
 
