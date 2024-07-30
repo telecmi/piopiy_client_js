@@ -204,7 +204,7 @@ export default class {
 
     }
 
-    make ( to, _this ) {
+    make ( to, _this, options ) {
 
         if ( !_.isEmpty( cmi_ua ) ) {
 
@@ -217,7 +217,7 @@ export default class {
 
 
 
-        cmi_session.make( to, cmi_ua, _this )
+        cmi_session.make( to, cmi_ua, _this, options );
 
     }
 

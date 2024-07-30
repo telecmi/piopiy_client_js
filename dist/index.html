@@ -12,14 +12,14 @@
 <script type="text/javascript">
     var piopiy = new PIOPIY( {
         name: 'TeleCMI',
-        debug:false,
+        debug:true,
         autoplay: true,
         autoReboot: false,
         ringTime: 60
     } );
 
 
-    piopiy.login( "xxxxxxxx", "xxxx", 'testsbc.telecmi.com' )
+    piopiy.login( "1001_2224388", "123456", 'testsbc.telecmi.com' )
 
     piopiy.on( 'login', function ( object ) {
         console.log( object );

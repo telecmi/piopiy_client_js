@@ -15,7 +15,7 @@ export default class {
 
 
 
-    make ( to, ua, _this ) {
+    make ( to, ua, _this, options ) {
 
 
         if ( !_.isEmpty( ua._sessions ) ) {
@@ -29,6 +29,8 @@ export default class {
         if ( localStorage.getItem( 'deviceId' ) ) {
             cmi_media_cons['audio'] = { deviceId: localStorage.getItem( 'deviceId' ) }
         }
+
+
 
 
         var eventHandlers = {
@@ -65,13 +67,28 @@ export default class {
 
         cmi_ua = ua;
 
-        cmi_session = ua.call( to, {
+        const call_options = {
             'eventHandlers': eventHandlers,
             mediaConstraints: cmi_media_cons,
             pcConfig: {
                 'iceServers': _this.ice_servers
             }
-        } )
+        }
+
+        if ( _.isObject( options ) ) {
+            if ( isString( options.extra_param ) ) {
+
+                const extraHeaders = [
+                    `X-cmi-extra_param:${options.extra_param}`,
+                ];
+
+                call_options['extraHeaders'] = extraHeaders;
+            }
+        }
+
+
+
+        cmi_session = ua.call( to, call_options )
 
 
         cmi_timeout = setTimeout( function () {
@@ -574,4 +591,8 @@ export default class {
 
 
     }
+}
+
+const isString = ( value ) => {
+    return typeof value === 'string';
 }

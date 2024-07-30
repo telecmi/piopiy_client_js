@@ -85,14 +85,22 @@ export default class extends EventEmitter {
         userAgent.stop( _this );
     }
 
-    call ( to ) {
+    call ( to, options ) {
         let _this = this;
         if ( !_.isString( to ) ) {
             _this.emit( 'error', { code: 1002, status: 'Invalid type to call' } )
             return;
         }
 
-        userAgent.make( to, _this );
+        if ( _.isObject( options ) ) {
+            if ( !isString( options.extra_param ) ) {
+                _this.emit( 'error', { code: 1002, status: 'extra_param must be string' } );
+                return;
+            }
+        }
+
+
+        userAgent.make( to, _this, options );
     }
 
     terminate () {
@@ -193,6 +201,10 @@ export default class extends EventEmitter {
 
     }
 
+}
+
+const isString = ( value ) => {
+    return typeof value === 'string';
 }
 
 
