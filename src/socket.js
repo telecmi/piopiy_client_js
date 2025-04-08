@@ -23,7 +23,6 @@ class SocketCMI {
 
         this.socket.on( 'disconnect', ( reson ) => {
             _this.ready_transfer = false;
-            console.log( 'disconnect', reson );
             if ( reson == 'transport close' ) {
                 _this.emit( 'net_changed', { code: 400, msg: 'network changed' } )
             }
