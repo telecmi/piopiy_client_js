@@ -49,7 +49,7 @@ class SocketCMI {
         } );
 
         this.socket.on( 'force_logout', ( data ) => {
-            console.log( _this )
+
             _this.logout();
             _this.emit( 'sbc_logout', data );
         } );
