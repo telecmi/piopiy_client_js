@@ -45,8 +45,8 @@ PIOPIY WebRTC SDK allows you to make and receive voice calls, where making voice
 ## Initializing the PIOPIY Object
 
 ```javascript
-const piopiy = new PIOPIY({
-        name: "Display Name",
+var piopiy = new PIOPIY( {
+        name: 'Display Name',
         debug: false,
         autoplay: true,
         ringTime: 60,
@@ -87,14 +87,15 @@ piopiy.login("user_id", "password", "SBC_URI");
 Using this method user can able to make call to PSTN or Other user extension.
 
 ```javascript
-piopiy.call("PHONE_NUMBER", options);
+piopiy.call('PHONE_NUMBER');
 ```
 
 #### Configuration Parameters
 
-| Parameter Name | Type   | Description                                                                                             |
-| -------------- | ------ | ------------------------------------------------------------------------------------------------------- |
-| PHONE_NUMBER   | string | Enter phone number or user extention number ,Phone number start with country code example '13158050050' |
+
+| Parameter Name| Type   |     Description                                       |  
+|  ---          |    --- |     ---                                               | 
+| PHONE_NUMBER  | string |     Enter phone number or user extention number ,Phone number start with country code example '13158050050'         | 
 
 ### Send DTMF
 
