@@ -70,7 +70,6 @@ export default class extends EventEmitter {
 
             RestCMI.getToken( user_id, password, ( data ) => {
                 if ( data.code == 200 ) {
-
                     _this.socketCMI = new SocketCMI( data.token, _this )
                 }
             } )
