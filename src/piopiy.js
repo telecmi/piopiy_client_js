@@ -172,9 +172,13 @@ export default class extends EventEmitter {
         return userAgent.onmute( _this );
     }
 
-    transfer ( to ) {
+    transfer ( to, callback ) {
         let _this = this;
-        _this.socketCMI.transfer( userAgent.getCallId( _this ), to )
+        _this.socketCMI.transfer( userAgent.getCallId( _this ), to, ( data ) => {
+            if ( typeof callback === 'function' ) {
+                callback( data )
+            }
+        } )
     }
 
     merge () {
