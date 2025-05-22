@@ -62,11 +62,15 @@ class SocketCMI {
 
     }
 
-    transfer ( uuid, to ) {
+    transfer ( uuid, to, callback ) {
 
 
         if ( this.socket.connected ) {
-            this.socket.emit( 'agent-call-transfer', { uuid: uuid, to: to } )
+            this.socket.emit( 'agent-call-transfer', { uuid: uuid, to: to }, ( data ) => {
+                if ( typeof callback === 'function' ) {
+                    callback( data )
+                }
+            } )
         }
 
     }

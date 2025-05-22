@@ -1,7 +1,7 @@
 {
   "name": "piopiyjs",
   "title": "PIOPIY WebRTC SDK for browser",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "PIOPIY WebRTC javascript browser SDK",
   "main": "lib/index.js",
   "directories": {
