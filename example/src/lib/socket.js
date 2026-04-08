@@ -1,3 +1,4 @@
+/* eslint-disable */
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -5,13 +6,13 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.SocketCMI = void 0;
 var _socket = _interopRequireDefault(require("socket.io-client"));
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
-function _typeof(obj) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (obj) { return typeof obj; } : function (obj) { return obj && "function" == typeof Symbol && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }, _typeof(obj); }
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, _toPropertyKey(descriptor.key), descriptor); } }
-function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); Object.defineProperty(Constructor, "prototype", { writable: false }); return Constructor; }
-function _toPropertyKey(arg) { var key = _toPrimitive(arg, "string"); return _typeof(key) === "symbol" ? key : String(key); }
-function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input === null) return input; var prim = input[Symbol.toPrimitive]; if (prim !== undefined) { var res = prim.call(input, hint || "default"); if (_typeof(res) !== "object") return res; throw new TypeError("@@toPrimitive must return a primitive value."); } return (hint === "string" ? String : Number)(input); }
+function _interopRequireDefault(e) { return e && e.__esModule ? e : { "default": e }; }
+function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
+function _classCallCheck(a, n) { if (!(a instanceof n)) throw new TypeError("Cannot call a class as a function"); }
+function _defineProperties(e, r) { for (var t = 0; t < r.length; t++) { var o = r[t]; o.enumerable = o.enumerable || !1, o.configurable = !0, "value" in o && (o.writable = !0), Object.defineProperty(e, _toPropertyKey(o.key), o); } }
+function _createClass(e, r, t) { return r && _defineProperties(e.prototype, r), t && _defineProperties(e, t), Object.defineProperty(e, "prototype", { writable: !1 }), e; }
+function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == _typeof(i) ? i : i + ""; }
+function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != _typeof(i)) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
 var SocketCMI = exports.SocketCMI = /*#__PURE__*/function () {
   function SocketCMI(token, _this) {
     var _this2 = this;
@@ -21,12 +22,6 @@ var SocketCMI = exports.SocketCMI = /*#__PURE__*/function () {
         token: token
       }
     });
-
-    // this.socket = io( 'http://localhost:8181', {
-    //     query: { token: token }
-    // } );
-
-    var socket = this.socket;
     this.socket.on('disconnect', function (reson) {
       _this.ready_transfer = false;
       if (reson == 'transport close') {
@@ -36,7 +31,7 @@ var SocketCMI = exports.SocketCMI = /*#__PURE__*/function () {
         });
       }
     });
-    this.socket.on("connect_error", function (err) {
+    this.socket.on("connect_error", function () {
       _this.ready_transfer = false;
     });
     this.socket.on('connect', function () {
@@ -51,27 +46,38 @@ var SocketCMI = exports.SocketCMI = /*#__PURE__*/function () {
       }
       _this.emit('transfer', data);
     });
+    this.socket.on('force_logout', function (data) {
+      _this.logout();
+      _this.emit('sbc_logout', data);
+    });
     this.socket.on('cmi_record', function (data) {
       _this.emit('record', data);
     });
   }
-  _createClass(SocketCMI, [{
+  return _createClass(SocketCMI, [{
     key: "transfer",
-    value: function transfer(uuid, to) {
+    value: function transfer(uuid, to, callback) {
       if (this.socket.connected) {
         this.socket.emit('agent-call-transfer', {
           uuid: uuid,
           to: to
+        }, function (data) {
+          if (typeof callback === 'function') {
+            callback(data);
+          }
         });
-      } else {}
+      } else if (typeof callback === 'function') {
+        callback({
+          error: "Socket is not connected"
+        });
+      }
     }
   }, {
     key: "cancel",
     value: function cancel(uuid) {
-      this.socket('agent-cancel-transfer', {
+      this.socket.emit('agent-cancel-transfer', {
         uuid: uuid
       });
     }
   }]);
-  return SocketCMI;
 }();

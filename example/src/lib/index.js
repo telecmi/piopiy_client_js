@@ -1,3 +1,4 @@
+/* eslint-disable */
 "use strict";
 
 var PIOPIY = require('./piopiy')["default"];

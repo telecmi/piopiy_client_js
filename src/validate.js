@@ -1,4 +1,4 @@
-import _ from 'lodash';
+
 
 
 export default class {
@@ -9,8 +9,8 @@ export default class {
             if ( obj && typeof obj === 'object' && obj !== null ) {
                 return true;
             }
-        } catch ( err ) {
-
+        } catch {
+            // Ignore error
         }
         return false;
     }
