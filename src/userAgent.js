@@ -8,10 +8,10 @@ let cmi_ua = {}
 let isConnected = false;
 let cmi_session = new cmisession();
 let cmi_offline = new offline();
-let socket = new SIP.WebSocketInterface( 'wss://sbcsg.telecmi.com' );
-if ( typeof window !== 'undefined' ) {
+let socket = new SIP.WebSocketInterface('wss://sbcsg.telecmi.com');
+if (typeof window !== 'undefined') {
     window.onbeforeunload = function () {
-        cmi_offline.start( cmi_ua );
+        cmi_offline.start(cmi_ua);
     };
 }
 
@@ -21,35 +21,35 @@ export default class {
 
 
 
-    start ( credentials, _this ) {
+    start(credentials, _this) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if (!_.isEmpty(cmi_ua)) {
 
-            if ( cmi_ua.isRegistered() ) {
-                _this.emit( 'error', { code: 1001, status: 'Please logout before you login' } );
+            if (cmi_ua.isRegistered()) {
+                _this.emit('error', { code: 1001, status: 'Please logout before you login' });
                 return;
             }
 
-            if ( cmi_ua.isConnected() ) {
+            if (cmi_ua.isConnected()) {
                 cmi_ua.stop();
             }
 
         }
 
 
-        if ( credentials.debug === true ) {
-            SIP.debug.enable( 'JsSIP:*' );
+        if (credentials.debug === true) {
+            SIP.debug.enable('JsSIP:*');
 
         } else {
 
-            SIP.debug.disable( 'PIOPIY:*' );
+            SIP.debug.disable('PIOPIY:*');
         }
 
 
 
-        if ( credentials['region'] ) {
+        if (credentials['region']) {
 
-            socket = new SIP.WebSocketInterface( 'wss://' + credentials['region'] );
+            socket = new SIP.WebSocketInterface('wss://' + credentials['region']);
 
 
         }
@@ -62,72 +62,56 @@ export default class {
 
 
 
-        cmi_ua = new SIP.UA( credentials );
-
-
-        // _this.cmi_jssip_option = setInterval( () => {
-        //     var eventHandlers = {
-        //         'succeeded': function ( data ) {
-
-        //         },
-        //         'failed': function ( data ) { /* Your code here */
-
-        //             cmi_ua.start();
-        //         }
-        //     };
-
-        //     var options = {
-        //         'eventHandlers': eventHandlers
-        //     };
-
-        //     cmi_ua.sendOptions( 'sip:' + credentials.uri, null, options );
-        // }, 10000 )
-
-        cmi_ua.on( 'registered', ( e ) => {
-            _this.emit( 'login', { code: 200, status: 'login successfully' } )
-        } );
+        cmi_ua = new SIP.UA(credentials);
 
 
 
-        cmi_ua.on( 'unregistered', ( e ) => {
+
+        cmi_ua.on('registered', () => {
+            _this.emit('login', { code: 200, status: 'login successfully' })
+        });
 
 
-            _this.emit( 'logout', { code: 200, status: 'logout successfully' } )
-        } );
 
-        cmi_ua.on( 'connected', ( e ) => {
-            _this.emit( 'connected', { code: 200, status: 'SBC connected' } )
-        } );
-
-        cmi_ua.on( 'disconnected', ( e ) => {
-            _this.emit( 'disconnected', { code: 1000, status: 'SBC disconneced' } )
-        } );
+        cmi_ua.on('unregistered', () => {
 
 
-        cmi_ua.on( 'registrationFailed', ( e ) => {
-            if ( e.response ) {
+            _this.emit('logout', { code: 200, status: 'logout successfully' })
+        });
 
-                if ( e.response.status_code === 401 ) {
-                    _this.emit( 'loginFailed', { code: 401, status: 'invalid user' } )
+        cmi_ua.on('connected', () => {
+            _this.emit('connected', { code: 200, status: 'SBC connected' })
+        });
+
+        cmi_ua.on('disconnected', () => {
+            _this.emit('disconnected', { code: 1000, status: 'SBC disconneced' })
+        });
+
+
+        cmi_ua.on('registrationFailed', (e) => {
+            if (e.response) {
+
+                if (e.response.status_code === 401) {
+                    _this.emit('loginFailed', { code: 401, status: 'invalid user' })
                 }
 
-                if ( e.response.status_code === 503 ) {
-                    _this.emit( 'loginFailed', { code: 405, status: 'too many connection' } )
+                if (e.response.status_code === 503) {
+                    _this.emit('loginFailed', { code: 405, status: 'too many connection' })
                 }
 
-                if ( e.response.status_code === 407 ) {
-                    _this.emit( 'loginFailed', { code: 407, status: 'invalid IP' } )
+                if (e.response.status_code === 407) {
+                    _this.emit('loginFailed', { code: 407, status: 'invalid IP' })
                 }
 
             }
 
 
-        } );
+        });
 
-        _this.on( 'net_changed', ( data ) => {
+        _this.on('net_changed', () => {
 
-            if ( cmi_ua ) {
-                if ( cmi_ua.isRegistered() & cmi_ua.isConnected() ) {
+            if (cmi_ua) {
+                if (cmi_ua.isRegistered() & cmi_ua.isConnected()) {
                     cmi_ua.transport.disconnect()
                     //cmi_ua.transport._reconnect()
                     cmi_ua.transport.connect()
@@ -135,18 +119,18 @@ export default class {
                 }
             }
 
-        } )
+        })
 
 
 
 
-        cmi_ua.on( 'newRTCSession', ( session ) => {
+        cmi_ua.on('newRTCSession', (session) => {
 
 
 
-            if ( session.originator != "local" ) {
-                if ( !_.isEmpty( cmi_ua._sessions ) ) {
-                    if ( Object.keys( cmi_ua._sessions ).length > 1 ) {
+            if (session.originator != "local") {
+                if (!_.isEmpty(cmi_ua._sessions)) {
+                    if (Object.keys(cmi_ua._sessions).length > 1) {
                         session.session.terminate();
                         return;
                     }
@@ -154,19 +138,19 @@ export default class {
                 }
             }
 
-            if ( session.request ) {
+            if (session.request) {
                 _this.call_id = session.request.call_id;
 
             }
 
 
-            cmi_session.invite( session, _this )
+            cmi_session.invite(session, _this)
 
 
-        } );
+        });
 
 
-        if ( !isConnected ) {
+        if (!isConnected) {
             cmi_ua.start();
         } else {
 
@@ -178,24 +162,24 @@ export default class {
 
     }
 
-    re_register () {
+    re_register() {
 
-        if ( !cmi_ua.isRegistered() ) {
+        if (!cmi_ua.isRegistered()) {
             cmi_ua.register();
         }
     }
 
 
-    stop ( _this ) {
+    stop(_this) {
 
-        if ( cmi_ua ) {
+        if (cmi_ua) {
 
-            if ( !cmi_ua.isRegistered() ) {
-                _this.emit( 'error', { code: 1002, status: 'Please login' } );
+            if (!cmi_ua.isRegistered()) {
+                _this.emit('error', { code: 1002, status: 'Please login' });
                 return;
             }
 
-            if ( cmi_ua.isRegistered() ) {
+            if (cmi_ua.isRegistered()) {
 
                 cmi_ua.unregister();
                 cmi_ua.stop();
@@ -206,12 +190,12 @@ export default class {
 
     }
 
-    make ( to, _this, options ) {
+    make(to, _this, options) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if (!_.isEmpty(cmi_ua)) {
 
-            if ( !cmi_ua.isRegistered() ) {
-                _this.emit( 'error', { code: 1002, status: 'Please login to call' } );
+            if (!cmi_ua.isRegistered()) {
+                _this.emit('error', { code: 1002, status: 'Please login to call' });
                 return;
             }
 
@@ -219,97 +203,97 @@ export default class {
 
 
 
-        cmi_session.make( to, cmi_ua, _this, options );
+        cmi_session.make(to, cmi_ua, _this, options);
 
     }
 
-    terminate ( _this ) {
+    terminate(_this) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if (!_.isEmpty(cmi_ua)) {
 
-            if ( !cmi_ua.isRegistered() ) {
-                _this.emit( 'error', { code: 1002, status: 'Please login ' } );
+            if (!cmi_ua.isRegistered()) {
+                _this.emit('error', { code: 1002, status: 'Please login ' });
                 return;
             }
 
         }
 
-        cmi_session.terminate( cmi_ua, _this );
+        cmi_session.terminate(cmi_ua, _this);
 
     }
 
-    hangup ( _this ) {
+    hangup(_this) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if (!_.isEmpty(cmi_ua)) {
 
-            if ( !cmi_ua.isRegistered() ) {
-                _this.emit( 'error', { code: 1002, status: 'Please login ' } );
+            if (!cmi_ua.isRegistered()) {
+                _this.emit('error', { code: 1002, status: 'Please login ' });
                 return;
             }
 
         }
 
-        cmi_session.hangup( cmi_ua, _this );
+        cmi_session.hangup(cmi_ua, _this);
 
     }
 
-    answer ( _this ) {
+    answer(_this) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if (!_.isEmpty(cmi_ua)) {
 
-            if ( !cmi_ua.isRegistered() ) {
-                _this.emit( 'error', { code: 1002, status: 'Please login ' } );
+            if (!cmi_ua.isRegistered()) {
+                _this.emit('error', { code: 1002, status: 'Please login ' });
                 return;
             }
 
         }
 
-        cmi_session.answer( cmi_ua, _this );
+        cmi_session.answer(cmi_ua, _this);
 
     }
 
-    reject ( _this ) {
+    reject(_this) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if (!_.isEmpty(cmi_ua)) {
 
-            if ( !cmi_ua.isRegistered() ) {
-                _this.emit( 'error', { code: 1002, status: 'Please login ' } );
+            if (!cmi_ua.isRegistered()) {
+                _this.emit('error', { code: 1002, status: 'Please login ' });
                 return;
             }
 
         }
 
-        cmi_session.reject( cmi_ua, _this );
+        cmi_session.reject(cmi_ua, _this);
 
     }
 
 
-    dtmf ( no, _this ) {
+    dtmf(no, _this) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if (!_.isEmpty(cmi_ua)) {
 
-            if ( !cmi_ua.isRegistered() ) {
-                _this.emit( 'error', { code: 1002, status: 'Please login ' } );
+            if (!cmi_ua.isRegistered()) {
+                _this.emit('error', { code: 1002, status: 'Please login ' });
                 return;
             }
 
         }
 
-        if ( _.isEmpty( no ) && ( !_.isNumber( no ) ) ) {
-            _this.emit( 'error', { code: 1005, status: 'invalid dtmf type ' } );
+        if (_.isEmpty(no) && (!_.isNumber(no))) {
+            _this.emit('error', { code: 1005, status: 'invalid dtmf type ' });
             return;
         }
 
-        cmi_session.dtmf( no, cmi_ua, _this );
+        cmi_session.dtmf(no, cmi_ua, _this);
     }
 
 
-    hold ( _this ) {
+    hold(_this) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if (!_.isEmpty(cmi_ua)) {
 
-            if ( !cmi_ua.isRegistered() ) {
-                _this.emit( 'error', { code: 1002, status: 'Please login ' } );
+            if (!cmi_ua.isRegistered()) {
+                _this.emit('error', { code: 1002, status: 'Please login ' });
                 return;
             }
 
@@ -317,15 +301,15 @@ export default class {
 
 
 
-        cmi_session.hold( cmi_ua, _this );
+        cmi_session.hold(cmi_ua, _this);
     }
 
-    unhold ( _this ) {
+    unhold(_this) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if (!_.isEmpty(cmi_ua)) {
 
-            if ( !cmi_ua.isRegistered() ) {
-                _this.emit( 'error', { code: 1002, status: 'Please login ' } );
+            if (!cmi_ua.isRegistered()) {
+                _this.emit('error', { code: 1002, status: 'Please login ' });
                 return;
             }
 
@@ -333,16 +317,16 @@ export default class {
 
 
 
-        cmi_session.unhold( cmi_ua, _this );
+        cmi_session.unhold(cmi_ua, _this);
     }
 
 
-    mute ( _this ) {
+    mute(_this) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if (!_.isEmpty(cmi_ua)) {
 
-            if ( !cmi_ua.isRegistered() ) {
-                _this.emit( 'error', { code: 1002, status: 'Please login ' } );
+            if (!cmi_ua.isRegistered()) {
+                _this.emit('error', { code: 1002, status: 'Please login ' });
                 return;
             }
 
@@ -350,15 +334,15 @@ export default class {
 
 
 
-        cmi_session.mute( cmi_ua, _this );
+        cmi_session.mute(cmi_ua, _this);
     }
 
-    unmute ( _this ) {
+    unmute(_this) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if (!_.isEmpty(cmi_ua)) {
 
-            if ( !cmi_ua.isRegistered() ) {
-                _this.emit( 'error', { code: 1002, status: 'Please login ' } );
+            if (!cmi_ua.isRegistered()) {
+                _this.emit('error', { code: 1002, status: 'Please login ' });
                 return;
             }
 
@@ -366,15 +350,15 @@ export default class {
 
 
 
-        cmi_session.unmute( cmi_ua, _this );
+        cmi_session.unmute(cmi_ua, _this);
     }
 
 
-    islogedin ( _this ) {
+    islogedin() {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if (!_.isEmpty(cmi_ua)) {
 
-            if ( cmi_ua.isRegistered() ) {
+            if (cmi_ua.isRegistered()) {
 
                 return true;
             }
@@ -387,11 +371,11 @@ export default class {
     }
 
 
-    isConnected ( _this ) {
+    isConnected() {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if (!_.isEmpty(cmi_ua)) {
 
-            if ( cmi_ua.isConnected() ) {
+            if (cmi_ua.isConnected()) {
 
                 return true;
             }
@@ -407,58 +391,58 @@ export default class {
 
 
 
-    onmute ( _this ) {
+    onmute(_this) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if (!_.isEmpty(cmi_ua)) {
 
-            if ( !cmi_ua.isRegistered() ) {
+            if (!cmi_ua.isRegistered()) {
 
                 return false;
             } else {
-                return cmi_session.onmute( cmi_ua, _this );
+                return cmi_session.onmute(cmi_ua, _this);
             }
 
         }
     }
 
-    onhold ( _this ) {
+    onhold(_this) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if (!_.isEmpty(cmi_ua)) {
 
-            if ( !cmi_ua.isRegistered() ) {
+            if (!cmi_ua.isRegistered()) {
 
                 return false;
             } else {
-                return cmi_session.onhold( cmi_ua, _this );
+                return cmi_session.onhold(cmi_ua, _this);
             }
 
         }
     }
 
 
-    getCallId ( _this ) {
+    getCallId(_this) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if (!_.isEmpty(cmi_ua)) {
 
-            if ( !cmi_ua.isRegistered() ) {
+            if (!cmi_ua.isRegistered()) {
 
                 return false;
             } else {
-                return cmi_session.getCallId( cmi_ua, _this );
+                return cmi_session.getCallId(cmi_ua, _this);
             }
 
         }
     }
 
-    getCallID ( _this ) {
+    getCallID(_this) {
 
-        if ( !_.isEmpty( cmi_ua ) ) {
+        if (!_.isEmpty(cmi_ua)) {
 
-            if ( !cmi_ua.isRegistered() ) {
+            if (!cmi_ua.isRegistered()) {
 
                 return false;
             } else {
-                return cmi_session.getCallID( cmi_ua, _this );
+                return cmi_session.getCallID(cmi_ua, _this);
             }
 
         }

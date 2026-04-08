@@ -1,500 +1,159 @@
-## PIOPIY Client JS SDK for voice
+# PIOPIY Client JS SDK
 
-PIOPIY WebRTC SDK allows you to make and receive voice calls, where making voice calls can be made to a public switched telephone network(PSTN), APP to APP calling and browser to browser calling.
+The PIOPIY WebRTC SDK for Javascript enables high-quality voice communication directly within the browser. It supports making and receiving calls to PSTN (Public Switched Telephone Network), App-to-App, and Browser-to-Browser.
 
-## Package Installation
+## Key Features
+- **Crystal Clear Audio**: High-fidelity WebRTC-based voice.
+- **Cross-Platform**: Seamless communication between browsers and traditional phones.
+- **Rich Call Control**: Mute, Hold, Transfer, and DTMF support.
+- **Metadata Support**: Extract custom SIP headers and transfer information.
 
-### Using NPM
+---
 
+## Installation
+
+### Installation via NPM
 ```bash
- npm install piopiyjs
+npm install piopiyjs
 ```
 
-### Using YARN
-
+### Installation via Yarn
 ```bash
- yarn add piopiyjs
+yarn add piopiyjs
 ```
 
-### Using Bower
+---
 
-```bash
- bower install telecmi/piopiy_client_js
-```
+## Quick Start
 
-## Monolithic Import
-
-### In Browser
+### 1. Initialization
+Create a new PIOPIY instance with your configuration.
 
 ```javascript
-<script src='dist/piopiy.min.js' type='text/javascript'></script>
-```
+import PIOPIY from 'piopiyjs';
 
-### In ESM/Typescript
-
-```bash
- import PIOPIY from 'piopiyjs';
-```
-
-### In CommonJS
-
-```bash
- var PIOPIY = require('piopiyjs');
-```
-
-## Initializing the PIOPIY Object
-
-```javascript
 const piopiy = new PIOPIY({
-        name: "Display Name",
-        debug: false,
-        autoplay: true,
-        ringTime: 60,
+    name: "Display Name",
+    debug: false,
+    autoplay: true,
+    ringTime: 60,
 });
 ```
 
-### Configuration Parameters
+#### Configuration Options
+| Attribute | Description | Type | Default |
+| :--- | :--- | :--- | :--- |
+| `name` | Your display name shown to other parties | string | `none` |
+| `debug` | Enable detailed console logging for troubleshooting | boolean | `false` |
+| `autoplay` | Automatically handle and play remote audio streams | boolean | `true` |
+| `ringTime` | Maximum duration for an incoming call to ring (seconds) | number | `60` |
 
-Below is the configuration parameters
-
-| Attribute | Description                                | Allowed Values | Default Value |
-| --------- | ------------------------------------------ | -------------- | ------------- |
-| name      | Your Display Name in App                   | string         | none          |
-| debug     | Enable debug message in browser console    | Boolean        | false         |
-| autoplay  | Handle media stream automatically          | Boolean        | true          |
-| ringTime  | Your incoming call ringing time in seconds | number         | 60            |
-
-## PIOPIY Methods
-
-### Login
-
-Using this method user can able to connect with TeleCMI SBC.
+### 2. Authentication
+Connect to the PIOPIY SBC using your account credentials.
 
 ```javascript
 piopiy.login("user_id", "password", "SBC_URI");
 ```
 
-#### Configuration Parameters
+#### Regional SBC Endpoints
+| Region | SBC URI |
+| :--- | :--- |
+| **Asia** | `sbcsg.telecmi.com` |
+| **Europe** | `sbcuk.telecmi.com` |
+| **America** | `sbcus.telecmi.com` |
+| **India** | `sbcind.telecmi.com`, `sbcindncr.telecmi.com` |
 
-| Parameter Name | Type   | Description                                                                                                                                          |
-| -------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| user_id        | string | The user login ID                                                                                                                                    |
-| password       | string | The user login Password                                                                                                                              |
-| SBC_URI        | url    | <ul><li>ASIA - sbcsg.telecmi.com</li><li>Europe - sbcuk.telecmi.com</li><li>America - sbcus.telecmi.com</li><li>India - sbcind.telecmi.com</li></ul> |
+---
 
-### Make call
+## Methods
 
-Using this method user can able to make call to PSTN or Other user extension.
+### `call(phone_number, options)`
+Initiates an outgoing call to a PSTN number or another extension.
+- **`phone_number`**: The target number in E.164 format (e.g., `13158050050`).
+- **`options`**: (Optional) JSON object containing `extra_param` for webhook headers.
 
+### `getCallId()`
+Returns the unique identifier for the current active call.
+- **Returns**: A `string` (UUID or SIP ID) or `false` if no active call exists.
+> [!TIP]
+> Use this method to track calls or interact with the PIOPIY REST API.
+
+### `answer()`
+Answers an incoming call.
+
+### `reject()`
+Rejects/Disconnects an incoming call.
+
+### `terminate()`
+Hangs up an ongoing call.
+
+### `hold()` / `unHold()`
+Places the active call on hold or resumes it.
+
+### `mute()` / `unMute()`
+Mutes or unmutes your local microphone.
+
+### `sendDtmf(tone)`
+Sends a DTMF tone (0-9, *, #) to the remote party.
+
+### `transfer(to)`
+Transfers the call to another agent or number.
+
+### `logout()`
+Disconnects from the SBC session.
+
+---
+
+## Event Handlers
+
+The SDK uses an event-driven architecture. Listen for events using `.on(eventName, callback)`.
+
+### Authentication Events
+- **`login`**: Triggered upon successful authentication.
+- **`loginFailed`**: Triggered when authentication fails (e.g., code 401: Invalid credentials).
+- **`logout`**: Triggered when the user logs out successfully.
+
+### Call Lifecycle Events
+- **`inComingCall`**: Triggered when a new call arrives.
 ```javascript
-piopiy.call("PHONE_NUMBER", options);
-```
-
-#### Configuration Parameters
-
-| Parameter Name | Type   | Description                                                                                             |
-| -------------- | ------ | ------------------------------------------------------------------------------------------------------- |
-| PHONE_NUMBER   | string | Enter phone number or user extention number ,Phone number start with country code example '13158050050' |
-
-| extra_param    | JSON   | Enter header param which you can receive in webhook example {extra_param:'13158050050'}                 |
-|  |
-
-### Send DTMF
-
-Using this method user can able to send DTMF tone to ongoing call.
-
-```js
-piopiy.sendDtmf("DTMF_TONE");
-```
-
-#### Configuration Parameters
-
-| Parameter Name | Type   | Description          |
-| -------------- | ------ | -------------------- |
-| DTMF_TONE      | string | Your DTMF tone input |
-
-### Hold Call
-
-Using this method user can able to hold ongoing call.
-
-```js
-piopiy.hold();
-```
-
-### Unhold Call
-
-Using this method user can able to unhold ongoing call.
-
-```js
-piopiy.unHold();
-```
-
-### Mute Call
-
-Using this method user can able to mute ongoing call.
-
-```js
-piopiy.mute();
-```
-
-### Unmute Call
-
-Using this method user can able to unmute ongoing call.
-
-```js
-piopiy.unMute();
-```
-
-### Answer call
-
-Using this method user can able to answer incoming call.
-
-```js
-piopiy.answer();
-```
-
-### Reject call
-
-Using this method user can able to reject or disconnect incoming call.
-
-```js
-piopiy.reject();
-```
-
-### Hangup call
-
-Using this method user can able to hangup ongoing call.
-
-```js
-piopiy.terminate();
-```
-
-### Logout
-
-Using this method user can able to logout from SBC session.
-
-```js
-piopiy.logout();
-```
-
-## PIOPIY Call Event Handler
-
-### Login
-
-This event will triger when user login sucessfully
-
-```js
-piopiy.on("login", function (object) {
-        //  Data is JSON it contain event and status.
+piopiy.on("inComingCall", (data) => {
+    console.log("Caller:", data.from);
+    if (data.team_name) console.log("Team:", data.team_name);
+    if (data.call_id) console.log("Unique ID:", data.call_id);
 });
 ```
+| Payload Property | Description |
+| :--- | :--- |
+| `from` | Display name or number of the caller |
+| `team_name` | (Optional) Name of the assigned team/group |
+| `to_number` | (Optional) The target virtual number |
+| `call_id` | Unique identifier for this call session |
+| `transfer_from` | (Optional) Originating agent if this is a transfer |
+| `transfer_to` | (Optional) Target agent if this is a transfer |
 
-#### Example
+- **`trying`**: The outgoing call is being initiated.
+- **`ringing`**: The call is currently ringing.
+- **`answered`**: The call has been picked up.
+- **`ended`**: The call has concluded successfully.
+- **`hangup`**: The call was terminated or rejected.
+- **`error`**: A generic error occurred.
 
-```js
-piopiy.on("login", function (object) {
-        if (object.code == 200) {
-                //  Login successfully and do your stuff here.
-        }
-});
+### Media Events
+- **`callStream`**: Triggered when the remote media stream is established.
+- **`mediaFailed`**: Triggered if the SDK cannot access local audio devices.
+
+---
+
+## Development & Security
+The SDK includes built-in ESLint rules to ensure code quality.
+
+```bash
+# Run linter
+npm run lint
+
+# Auto-fix lint errors
+npm run lint:fix
 ```
 
-#### List of event and status
-
-| code | status             |
-| ---- | ------------------ |
-| 200  | Login Successfully |
-
-### LoginFailed
-
-This event will trigger when user authentication failed.
-
-```js
-piopiy.on("loginFailed", function (object) {
-        //  Data is JSON it contain event and status.
-});
-```
-
-#### Example
-
-```js
-piopiy.on("loginFailed", function (object) {
-        if (object.code == 401) {
-                //  Verify that the user_id and password are correct.
-        }
-});
-```
-
-#### List of event and status
-
-| code | status                      |
-| ---- | --------------------------- |
-| 401  | Invalid user_id or password |
-
-### Trying
-
-This event will trigger when user make call to phone number or extention (Destination Number)
-
-```js
-piopiy.on("trying", function (object) {
-        //  Data is JSON it contain event and status.
-});
-```
-
-#### Example
-
-```js
-piopiy.on("trying", function (object) {
-        if (object.code == 100) {
-                //  The outgoing call is currently being started.
-        }
-});
-```
-
-#### List of event and status
-
-| code | status | type    | call_id                              |
-| ---- | ------ | ------- | ------------------------------------ |
-| 100  | trying | ougoing | 95ea3424-d77e-123b-0ca1-463d48e96190 |
-
-### Ringing
-
-This event will trigger when call start ringing.
-
-```js
-piopiy.on("ringing", function (object) {
-        //  Data is JSON it contain event and status.
-});
-```
-
-#### Example
-
-```js
-piopiy.on("ringing", function (object) {
-        if (object.code == 183) {
-                // An incoming or outgoing call is ringing.
-        }
-});
-```
-
-#### List of event and status
-
-| code | status  | type                | call_id                              |
-| ---- | ------- | ------------------- | ------------------------------------ |
-| 183  | ringing | outgoing & incoming | 95ea3424-d77e-123b-0ca1-463d48e96190 |
-
-### Answered
-
-This event will trigger when ongoing call was answered.
-
-```js
-piopiy.on("answered", function (object) {
-        //  Data is JSON it contain event and status.
-});
-```
-
-#### Example
-
-```js
-piopiy.on("answered", function (object) {
-        if (object.code == 200) {
-                // An incoming or outgoing call is answered.
-        }
-});
-```
-
-#### List of event and status
-
-| code | status   | call_id                              |
-| ---- | -------- | ------------------------------------ |
-| 200  | answered | 95ea3424-d77e-123b-0ca1-463d48e96190 |
-
-### CallStream
-
-This event will trigger when mediastream established.
-
-```js
-piopiy.on("callStream", function (object) {
-        //  Data is JSON it contain event and status.
-});
-```
-
-#### Example
-
-```js
-piopiy.on("callStream", function (object) {
-        // MediaStream has been established.
-});
-```
-
-#### List of event and status
-
-| code | status      | call_id                              |
-| ---- | ----------- | ------------------------------------ |
-| 200  | MediaStream | 95ea3424-d77e-123b-0ca1-463d48e96190 |
-
-### InComingCall
-
-This event will trigger when user recive incmoing call.
-
-```js
-piopiy.on("inComingCall", function (object) {
-        //  Data is JSON it contain event and status.
-});
-```
-
-### Hangup
-
-This event will trigger when user reject or hangup incmoing call.
-
-```js
-piopiy.on("hangup", function (object) {
-        //  Data is JSON it contain event and status.
-});
-```
-
-#### Example
-
-```js
-piopiy.on("hangup", function (object) {
-        if (object.code == 200) {
-                //  to hangup the incoming and ongoing calls.
-        }
-});
-```
-
-#### List of event and status
-
-| code | status      | call_id                              |
-| ---- | ----------- | ------------------------------------ |
-| 200  | call hangup | 95ea3424-d77e-123b-0ca1-463d48e96190 |
-
-### Ended
-
-This event will trigger when ongoing call end.
-
-```js
-piopiy.on("ended", function (object) {
-        //  Data is JSON it contain event and status.
-});
-```
-
-#### Example
-
-```js
-piopiy.on("ended", function (object) {
-        if (object.code == 200) {
-                //  An incoming or outgoing call is ended.
-        }
-});
-```
-
-#### List of event and status
-
-| code | status                                     | call_id                              |
-| ---- | ------------------------------------------ | ------------------------------------ |
-| 200  | call ended , Unavailable , Busy & Canceled | 95ea3424-d77e-123b-0ca1-463d48e96190 |
-
-### Hold
-
-This event will trigger when ongoing call on hold.
-
-```js
-piopiy.on("hold", function (object) {
-        //  Data is JSON it contain event and status.
-});
-```
-
-#### Example
-
-```js
-piopiy.on("hold", function (object) {
-        if (object.code == 200) {
-                //  The call is now being hold.
-        }
-});
-```
-
-#### List of event and status
-
-| code | status       | whom   | call_id                              |
-| ---- | ------------ | ------ | ------------------------------------ |
-| 200  | call on hold | myself | 95ea3424-d77e-123b-0ca1-463d48e96190 |
-
-### UnHold
-
-This event will trigger when ongoing call on unhold.
-
-```js
-piopiy.on("unhold", function (object) {
-        //  Data is JSON it contain event and status.
-});
-```
-
-#### Example
-
-```js
-piopiy.on("unhold", function (object) {
-        if (object.code == 200) {
-                //  The call is now being released.
-        }
-});
-```
-
-#### List of event and status
-
-| code | status         | whom   | call_id                              |
-| ---- | -------------- | ------ | ------------------------------------ |
-| 200  | call on active | myself | 95ea3424-d77e-123b-0ca1-463d48e96190 |
-
-### Error
-
-This event will trigger when error will occurr.
-
-```js
-piopiy.on("error", function (object) {
-        //  Data is JSON it contain event and status.
-});
-```
-
-#### Example
-
-```js
-piopiy.on("error", function (object) {
-        if (object.code == 1001 || object.code == 1002) {
-                //  If there are any incorrect commands in the function, displays error.
-        }
-});
-```
-
-#### List of event and status
-
-| code        | status       |
-| ----------- | ------------ |
-| 1001 & 1002 | common error |
-
-### Logout
-
-This event will trigger when user logout .
-
-```js
-piopiy.on("logout", function (object) {
-        //  Data is JSON it contain event and status.
-});
-```
-
-#### Example
-
-```js
-piopiy.on("logout", function (object) {
-        if (object.code == 200) {
-                //  The user logged out successfully.
-        }
-});
-```
-
-#### List of event and status
-
-| code | status              |
-| ---- | ------------------- |
-| 200  | logout successfully |
+## License
+Apache-2.0 © [TeleCMI](https://telecmi.com)
