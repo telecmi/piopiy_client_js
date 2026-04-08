@@ -10,10 +10,6 @@ class SocketCMI {
             query: { token: token }
         } );
 
-        // this.socket = io( 'http://localhost:8181', {
-        //     query: { token: token }
-        // } );
-
 
 
 
@@ -71,12 +67,14 @@ class SocketCMI {
                     callback( data )
                 }
             } )
+        } else if ( typeof callback === 'function' ) {
+            callback( { error: "Socket is not connected" } )
         }
 
     }
 
     cancel ( uuid ) {
-        this.socket( 'agent-cancel-transfer', { uuid: uuid } )
+        this.socket.emit( 'agent-cancel-transfer', { uuid: uuid } )
     }
 
 

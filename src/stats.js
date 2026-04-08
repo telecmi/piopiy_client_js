@@ -1,4 +1,4 @@
-import _ from 'lodash';
+
 
 
 
@@ -9,10 +9,8 @@ export default class {
 
     getStats ( RTCPeer, _this ) {
 
-        let lastPacketsLost = 0;
-        let lastPacketsSent = 0;
         let lastTimestamp = Date.now();
-        let lastStats = null;
+        let lastPacketsLost = 0;
         let cmi_stats = {}
 
         _this.cmi_webrtc_stats = setInterval( () => {
@@ -91,9 +89,9 @@ export default class {
 
                         _this.emit( 'RTCStats', cmi_stats );
 
-                    } ).catch( function ( error ) {
+                    }).catch(function () {
 
-                    } );
+                    });
 
                 } else {
                     clearInterval( _this.cmi_webrtc_stats )
