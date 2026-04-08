@@ -12,11 +12,16 @@ export default class {
         xhr.onreadystatechange = function () {
             if ( xhr.readyState === 4 ) { // Check if request is complete
                 if ( xhr.status === 200 ) {
-                    var response = JSON.parse( xhr.responseText );
-                    if ( response.code === 200 ) {
+                    try {
+                        var response = JSON.parse( xhr.responseText );
+                        if ( response.code === 200 ) {
 
-                        callback( { code: 200, token: response.token } );
-                    } else {
+                            callback( { code: 200, token: response.token } );
+                        } else {
+                            callback( { code: 407 } );
+                        }
+                    } catch {
+                        // Ignore error
                         callback( { code: 407 } );
                     }
                 } else {

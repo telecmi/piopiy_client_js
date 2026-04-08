@@ -23,7 +23,7 @@ export default class extends EventEmitter {
         let option = options || {};
         EventEmitter.bind( this );
         this.name = 'PIOPIYJS';
-        this.version = '0.0.5';
+        this.version = '0.12.0';
         this.ice_servers = [
             { 'urls': 'stun:stunind.telecmi.com' }
         ]
@@ -71,6 +71,8 @@ export default class extends EventEmitter {
             RestCMI.getToken( user_id, password, ( data ) => {
                 if ( data.code == 200 ) {
                     _this.socketCMI = new SocketCMI( data.token, _this )
+                } else {
+                    _this.emit( 'loginFailed', { code: 407, status: 'Token generation failed' } );
                 }
             } )
         } else {
@@ -174,6 +176,12 @@ export default class extends EventEmitter {
 
     transfer ( to, callback ) {
         let _this = this;
+        if (!_this.socketCMI) {
+            if ( typeof callback === 'function' ) {
+                callback( { error: "SocketCMI is not initialized" } );
+            }
+            return;
+        }
         _this.socketCMI.transfer( userAgent.getCallId( _this ), to, ( data ) => {
             if ( typeof callback === 'function' ) {
                 callback( data )
