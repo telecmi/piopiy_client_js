@@ -14,7 +14,7 @@
     "piopiyjs": "^0.9.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.6.1",
+    "react-router-dom": "^6.30.3",
     "react-scripts": "5.0.1",
     "react-toastify": "^9.1.1",
     "socket.io-client": "^4.5.4",
