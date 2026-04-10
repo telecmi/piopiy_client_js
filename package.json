@@ -1,7 +1,7 @@
 {
   "name": "piopiyjs",
   "title": "PIOPIY WebRTC JavaScript Browser SDK",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "description": "Official PIOPIY WebRTC SDK for high-quality voice communication and telephony integration in the browser.",
   "main": "lib/index.js",
   "directories": {
