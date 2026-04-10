@@ -4,7 +4,15 @@
   "version": "0.14.0",
   "description": "Official PIOPIY WebRTC SDK for high-quality voice communication and telephony integration in the browser.",
   "main": "lib/index.js",
+  "files": [
+    "lib",
+    "dist",
+    "README.md",
+    "LICENSE.md",
+    "CHANGELOG.md"
+  ],
   "directories": {
+
     "lib": "lib"
   },
   "scripts": {
