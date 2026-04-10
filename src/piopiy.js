@@ -23,7 +23,7 @@ export default class extends EventEmitter {
         let option = options || {};
         EventEmitter.bind( this );
         this.name = 'PIOPIYJS';
-        this.version = '0.12.0';
+        this.version = '0.14.0';
         this.ice_servers = [
             { 'urls': 'stun:stunind.telecmi.com' }
         ]
@@ -182,12 +182,47 @@ export default class extends EventEmitter {
             }
             return;
         }
-        _this.socketCMI.transfer( userAgent.getCallId( _this ), to, ( data ) => {
+
+        let callId = userAgent.getCallId( _this );
+        if ( !callId ) {
+            if ( typeof callback === 'function' ) {
+                callback( { error: "No active call found" } );
+            }
+            return;
+        }
+
+        _this.socketCMI.transfer( callId, to, ( data ) => {
             if ( typeof callback === 'function' ) {
                 callback( data )
             }
         } )
     }
+
+    teamTransfer ( to, callback ) {
+        let _this = this;
+        if (!_this.socketCMI) {
+            if ( typeof callback === 'function' ) {
+                callback( { error: "SocketCMI is not initialized" } );
+            }
+            return;
+        }
+
+        let callId = userAgent.getCallId( _this );
+        if ( !callId ) {
+            if ( typeof callback === 'function' ) {
+                callback( { error: "No active call found" } );
+            }
+            return;
+        }
+
+        _this.socketCMI.teamTransfer( callId, to, ( data ) => {
+            if ( typeof callback === 'function' ) {
+                callback( data )
+            }
+        } )
+    }
+
+
 
     merge () {
         let _this = this;

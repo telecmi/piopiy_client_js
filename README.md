@@ -99,6 +99,10 @@ Sends a DTMF tone (0-9, *, #) to the remote party.
 ### `transfer(to)`
 Transfers the call to another agent or number.
 
+### `teamTransfer(to)`
+Transfers the call to a specific team or group.
+
+
 ### `logout()`
 Disconnects from the SBC session.
 
