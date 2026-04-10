@@ -421,31 +421,25 @@ export default class {
 
 
     getCallId(_this) {
-
         if (!_.isEmpty(cmi_ua)) {
-
             if (!cmi_ua.isRegistered()) {
-
                 return false;
             } else {
                 return cmi_session.getCallId(cmi_ua, _this);
             }
-
         }
+        return false;
     }
 
     getCallID(_this) {
-
         if (!_.isEmpty(cmi_ua)) {
-
             if (!cmi_ua.isRegistered()) {
-
                 return false;
             } else {
                 return cmi_session.getCallID(cmi_ua, _this);
             }
-
         }
+        return false;
     }
 
 
