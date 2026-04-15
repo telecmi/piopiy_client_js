@@ -395,7 +395,7 @@ export default class {
             return false;
         }
 
-        return cmi_session['call_ID'] || cmi_session['call_id'] || false;
+        return cmi_session['call_id'] || false;
 
     }
 
