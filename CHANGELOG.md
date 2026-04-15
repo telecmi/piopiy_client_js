@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
  
+## [0.15.0] - 2026-04-15
+ 
+### Fixed
+- **Call ID Key Standardization**: Standardized the `call_id` key in session object for consistency across API and internal state.
+ 
 ## [0.14.0] - 2026-04-10
  
 ### Added
