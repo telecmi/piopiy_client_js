@@ -1,9 +1,10 @@
 {
   "name": "piopiyjs",
-  "title": "PIOPIY WebRTC JavaScript Browser SDK",
-  "version": "0.15.0",
-  "description": "Official PIOPIY WebRTC SDK for high-quality voice communication and telephony integration in the browser.",
+  "title": "PIOPIY WebRTC JavaScript SDK for Web and Mobile",
+  "version": "0.16.0",
+  "description": "Official PIOPIY WebRTC SDK for high-quality voice communication and telephony integration in the browser, React Native, iOS, and Android.",
   "main": "lib/index.js",
+  "react-native": "lib/index.native.js",
   "files": [
     "lib",
     "dist",
@@ -12,7 +13,6 @@
     "CHANGELOG.md"
   ],
   "directories": {
-
     "lib": "lib"
   },
   "scripts": {
@@ -67,8 +67,25 @@
   },
   "dependencies": {
     "jssip": "^3.13.6",
+    "lodash": "^4.17.21",
     "lodash-es": "^4.17.21",
     "socket.io-client": "^4.8.1",
     "underscore": "^1.13.7"
+  },
+  "peerDependencies": {
+    "react-native": ">=0.60.0",
+    "react-native-webrtc": ">=106.0.0",
+    "react-native-incall-manager": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react-native": {
+      "optional": true
+    },
+    "react-native-webrtc": {
+      "optional": true
+    },
+    "react-native-incall-manager": {
+      "optional": true
+    }
   }
 }
