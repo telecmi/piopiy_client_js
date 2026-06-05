@@ -16,24 +16,24 @@ export default class extends EventEmitter {
 
 
 
-    constructor( options ) {
+    constructor(options) {
         super()
         this.piopiyOption = {};
         this.ua = {};
         let option = options || {};
-        EventEmitter.bind( this );
+        EventEmitter.bind(this);
         this.name = 'PIOPIYJS';
-        this.version = '0.14.0';
+        this.version = '0.16.0';
         this.ice_servers = [
             { 'urls': 'stun:stunind.telecmi.com' }
         ]
-        this.piopiyOption.debug = ( _.isBoolean( option.debug ) ) ? option.debug : false;
-        this.piopiyOption.autoplay = _.isBoolean( option.autoplay ) ? option.autoplay : true;
-        this.piopiyOption.autoReboot = _.isBoolean( option.autoReboot ) ? option.autoReboot : true;
-        this.piopiyOption.ringTime = _.isNumber( option.ringTime ) ? option.ringTime : 60;
-        this.piopiyOption.displayName = _.isString( option.name ) ? option.name : null;
+        this.piopiyOption.debug = (_.isBoolean(option.debug)) ? option.debug : false;
+        this.piopiyOption.autoplay = _.isBoolean(option.autoplay) ? option.autoplay : true;
+        this.piopiyOption.autoReboot = _.isBoolean(option.autoReboot) ? option.autoReboot : true;
+        this.piopiyOption.ringTime = _.isNumber(option.ringTime) ? option.ringTime : 60;
+        this.piopiyOption.displayName = _.isString(option.name) ? option.name : null;
 
-        if ( this.piopiyOption.autoplay ) {
+        if (this.piopiyOption.autoplay) {
 
             cmiAudio.audioTag();
         }
@@ -43,11 +43,11 @@ export default class extends EventEmitter {
 
 
 
-    login ( user_id, password, region ) {
+    login(user_id, password, region) {
 
         let _this = this;
         let sbc_region = region || 'sbcsg.telecmi.com';
-        if ( _.isString( user_id ) && _.isString( password ) ) {
+        if (_.isString(user_id) && _.isString(password)) {
 
 
             var credentials = {
@@ -62,194 +62,204 @@ export default class extends EventEmitter {
                 session_timers: false
             }
 
-            userAgent.start( credentials, _this );
+            userAgent.start(credentials, _this);
 
 
 
 
 
-            RestCMI.getToken( user_id, password, ( data ) => {
-                if ( data.code == 200 ) {
-                    _this.socketCMI = new SocketCMI( data.token, _this )
+            RestCMI.getToken(user_id, password, (data) => {
+                if (data.code == 200) {
+                    _this.socketCMI = new SocketCMI(data.token, _this)
                 } else {
-                    _this.emit( 'loginFailed', { code: 407, status: 'Token generation failed' } );
+                    _this.emit('loginFailed', { code: 407, status: 'Token generation failed' });
                 }
-            } )
+            })
         } else {
-            throw new Error( "invalid user_id or password" );
+            throw new Error("invalid user_id or password");
         }
     }
 
 
-    logout () {
+    logout() {
         let _this = this;
-        userAgent.stop( _this );
+        userAgent.stop(_this);
     }
 
-    call ( to, options ) {
+    call(to, options) {
         let _this = this;
-        if ( !_.isString( to ) ) {
-            _this.emit( 'error', { code: 1002, status: 'Invalid type to call' } )
+        if (!_.isString(to)) {
+            _this.emit('error', { code: 1002, status: 'Invalid type to call' })
             return;
         }
 
-        if ( _.isObject( options ) ) {
-            if ( !isString( options.extra_param ) ) {
-                _this.emit( 'error', { code: 1002, status: 'extra_param must be string' } );
+        if (_.isObject(options)) {
+            if (!isString(options.extra_param)) {
+                _this.emit('error', { code: 1002, status: 'extra_param must be string' });
                 return;
             }
         }
 
 
-        userAgent.make( to, _this, options );
+        userAgent.make(to, _this, options);
     }
 
-    terminate () {
+    terminate() {
         let _this = this;
-        userAgent.terminate( _this );
+        userAgent.terminate(_this);
     }
 
 
-    reRegister () {
+    reRegister() {
         userAgent.re_register();
     }
 
 
 
-    answer () {
+    answer() {
         let _this = this;
-        userAgent.answer( _this );
+        userAgent.answer(_this);
     }
-    reject () {
+    reject() {
         let _this = this;
-        userAgent.reject( _this );
-    }
-
-    sendDtmf ( no ) {
-        let _this = this;
-        userAgent.dtmf( no, _this );
+        userAgent.reject(_this);
     }
 
-    hold () {
+    sendDtmf(no) {
         let _this = this;
-        userAgent.hold( _this );
+        userAgent.dtmf(no, _this);
     }
 
-    unHold () {
+    hold() {
         let _this = this;
-        userAgent.unhold( _this );
+        userAgent.hold(_this);
     }
 
-    mute () {
-
+    unHold() {
         let _this = this;
-        userAgent.mute( _this );
-
+        userAgent.unhold(_this);
     }
 
-    unMute () {
+    mute() {
 
         let _this = this;
-        userAgent.unmute( _this );
+        userAgent.mute(_this);
 
     }
 
-    isLogedIn () {
+    unMute() {
+
         let _this = this;
-        return userAgent.islogedin( _this );
+        userAgent.unmute(_this);
+
     }
 
-    isConnected () {
+    speaker(on) {
         let _this = this;
-        return userAgent.isConnected( _this );
+        return userAgent.speaker(on, _this);
     }
 
-    onHold () {
+    isLogedIn() {
         let _this = this;
-        return userAgent.onhold( _this );
+        return userAgent.islogedin(_this);
     }
 
-    onMute () {
+    isConnected() {
         let _this = this;
-        return userAgent.onmute( _this );
+        return userAgent.isConnected(_this);
     }
 
-    transfer ( to, callback ) {
+    onHold() {
+        let _this = this;
+        return userAgent.onhold(_this);
+    }
+
+    onMute() {
+        let _this = this;
+        return userAgent.onmute(_this);
+    }
+
+    onSpeaker() {
+        let _this = this;
+        return userAgent.onspeaker(_this);
+    }
+
+    transfer(to, callback) {
         let _this = this;
         if (!_this.socketCMI) {
-            if ( typeof callback === 'function' ) {
-                callback( { error: "SocketCMI is not initialized" } );
+            if (typeof callback === 'function') {
+                callback({ error: "SocketCMI is not initialized" });
             }
             return;
         }
 
-        let callId = userAgent.getCallId( _this );
-        if ( !callId ) {
-            if ( typeof callback === 'function' ) {
-                callback( { error: "No active call found" } );
+        let callId = userAgent.getCallId(_this);
+        if (!callId) {
+            if (typeof callback === 'function') {
+                callback({ error: "No active call found" });
             }
             return;
         }
 
-        _this.socketCMI.transfer( callId, to, ( data ) => {
-            if ( typeof callback === 'function' ) {
-                callback( data )
+        _this.socketCMI.transfer(callId, to, (data) => {
+            if (typeof callback === 'function') {
+                callback(data)
             }
-        } )
+        })
     }
 
-    teamTransfer ( to, callback ) {
+    teamTransfer(to, callback) {
         let _this = this;
         if (!_this.socketCMI) {
-            if ( typeof callback === 'function' ) {
-                callback( { error: "SocketCMI is not initialized" } );
+            if (typeof callback === 'function') {
+                callback({ error: "SocketCMI is not initialized" });
             }
             return;
         }
 
-        let callId = userAgent.getCallId( _this );
-        if ( !callId ) {
-            if ( typeof callback === 'function' ) {
-                callback( { error: "No active call found" } );
+        let callId = userAgent.getCallId(_this);
+        if (!callId) {
+            if (typeof callback === 'function') {
+                callback({ error: "No active call found" });
             }
             return;
         }
 
-        _this.socketCMI.teamTransfer( callId, to, ( data ) => {
-            if ( typeof callback === 'function' ) {
-                callback( data )
+        _this.socketCMI.teamTransfer(callId, to, (data) => {
+            if (typeof callback === 'function') {
+                callback(data)
             }
-        } )
+        })
     }
 
 
 
-    merge () {
+    merge() {
         let _this = this;
-        userAgent.dtmf( '0', _this );
+        userAgent.dtmf('0', _this);
     }
 
-    cancel () {
+    cancel() {
         let _this = this;
-        userAgent.dtmf( '#', _this );
+        userAgent.dtmf('#', _this);
     }
 
 
-    getCallId () {
+    getCallId() {
         let _this = this;
-        return userAgent.getCallId( _this );
+        return userAgent.getCallId(_this);
 
     }
 
-    getCallID () {
+    getCallID() {
         let _this = this;
-        return userAgent.getCallID( _this );
+        return userAgent.getCallID(_this);
 
     }
 
 }
 
-const isString = ( value ) => {
+const isString = (value) => {
     return typeof value === 'string';
 }
 

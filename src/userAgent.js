@@ -420,6 +420,16 @@ export default class {
     }
 
 
+    speaker(on, _this) {
+        return cmi_session.speaker(on, cmi_ua, _this);
+    }
+
+
+    onspeaker(_this) {
+        return cmi_session.onspeaker(cmi_ua, _this);
+    }
+
+
     getCallId(_this) {
         if (!_.isEmpty(cmi_ua)) {
             if (!cmi_ua.isRegistered()) {

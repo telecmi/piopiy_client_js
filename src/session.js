@@ -387,6 +387,19 @@ export default class {
     }
 
 
+    // Speaker routing (earpiece vs loudspeaker) is a mobile concept. On the web
+    // the browser/OS owns the output device, so these are safe no-ops that let
+    // cross-platform code call piopiy.speaker() without branching per platform.
+    speaker() {
+        return false;
+    }
+
+
+    onspeaker() {
+        return false;
+    }
+
+
     getCallId(ua) {
 
         if (_.isEmpty(ua._sessions)) {
