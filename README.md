@@ -26,8 +26,9 @@ The **call API itself is identical** on both — it's documented in the
 
 | Platform | Setup guide |
 | :--- | :--- |
-| 🌐 **Web / Browser** | **→ [Web guide](README.web.md)** |
-| 📱 **React Native** (iOS & Android) | **→ [React Native guide](README.react-native.md)** |
+| 🌐 **Web & Electron** | **→ [Web & Electron guide](README.web.md)** |
+| 📱 **React Native iOS** | **→ [iOS guide](README.react-native-ios.md)** |
+| 🤖 **React Native Android** | **→ [Android guide](README.react-native-android.md)** |
 
 ```bash
 npm install piopiyjs
@@ -35,8 +36,8 @@ npm install piopiyjs
 
 > [!NOTE]
 > **React Native** additionally needs the native peers `react-native-webrtc` and
-> `react-native-incall-manager` — the [React Native guide](README.react-native.md)
-> covers them. **Web** users install only `piopiyjs`.
+> `react-native-incall-manager` — see the [iOS guide](README.react-native-ios.md) and [Android guide](README.react-native-android.md)
+> for details. **Web & Electron** users install only `piopiyjs`.
 
 > [!TIP]
 > A complete, runnable React Native example app (inbound + outbound calls) lives
