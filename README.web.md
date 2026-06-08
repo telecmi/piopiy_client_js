@@ -1,24 +1,24 @@
-# PIOPIY SDK — Web / Browser
+# PIOPIY SDK — Web & Electron
 
-**Platform:** 🌐 Web / Browser
+**Platforms:** 🌐 Web / Browser · 💻 Electron (Desktop)
 
-> 🌐 **This is the Web guide.** Building a **React Native** app instead?
+> 🌐 **This is the Web & Electron guide.** Building a **React Native** app instead?
 > → **[React Native guide](README.react-native.md)**
 
-High-quality WebRTC voice calling that runs directly in the browser — register
+High-quality WebRTC voice calling that runs directly in the browser or Electron window — register
 with the SBC, place and receive calls, with mute / hold / DTMF / transfer.
 
 > The **call API** (methods & events) is the same on every platform and is
 > documented once in the **[API reference](README.md#api-reference)**. This guide
-> covers only the **browser-specific** parts: install, secure-context, and audio.
+> covers the **browser and Electron** parts: install, secure-context, and audio.
 
 ---
 
 ## Requirements
 
-- A modern browser — Chrome, Edge, Firefox, or Safari.
+- A modern browser (Chrome, Edge, Firefox, or Safari) or an **Electron** desktop application.
 - **HTTPS.** Browsers only grant microphone access (`getUserMedia`) on a **secure
-  origin**: `https://…` in production, or `http://localhost` during development.
+  origin**: `https://…` in production, or `http://localhost` during development. (Electron apps using local file protocols or custom schemes are exempt).
 - A TeleCMI / PIOPIY SBC account (**username**, **password**, **domain**).
 
 ---
@@ -30,12 +30,15 @@ npm install piopiyjs
 ```
 
 > [!NOTE]
-> On the Web you install **only** `piopiyjs`. The `react-native-webrtc` /
-> `react-native-incall-manager` packages are for React Native — don't install
+> On Web and Electron you install **only** `piopiyjs`. The `react-native-webrtc` /
+> `react-native-incall-manager` packages are for React Native — do not install
 > them here.
 
 `import PIOPIY from 'piopiyjs'` automatically resolves the **browser build** (the
 package's `main` entry); browser WebRTC is used under the hood.
+
+> [!TIP]
+> **Electron Apps:** Remember to handle permission requests for the microphone in your Electron main process using `session.defaultSession.setPermissionRequestHandler()` to allow the renderer process access to audio devices.
 
 ---
 

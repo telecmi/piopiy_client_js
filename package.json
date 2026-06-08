@@ -5,12 +5,14 @@
   "description": "Official PIOPIY WebRTC SDK for high-quality voice communication and telephony integration in the browser, React Native, iOS, and Android.",
   "main": "lib/index.js",
   "react-native": "lib/index.native.js",
+  "types": "index.d.ts",
   "files": [
     "lib",
     "dist",
     "README.md",
     "LICENSE.md",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "index.d.ts"
   ],
   "directories": {
     "lib": "lib"
