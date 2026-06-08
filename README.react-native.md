@@ -5,9 +5,7 @@
 > 📱 **This is the React Native guide.** Building for the **Web** instead?
 > → **[Web guide](README.web.md)**
 
-Use the `piopiyjs` WebRTC voice SDK in a **bare React Native** app — register with
-the SBC, receive **inbound** calls, place outbound calls, with mute / hold / DTMF
-/ hang-up controls. Works on **iOS** and **Android**.
+Use the `piopiyjs` WebRTC voice SDK in a **bare React Native** app to place and receive calls. Under the hood, this WebRTC SDK registers with the TeleCMI SBC (Session Border Controller), allowing you to make and receive high-quality voice calls to **PSTN (Public Switched Telephone Network) numbers**, custom SIP extensions, and app-to-app configurations. Works on **iOS** and **Android**.
 
 > The **call API** (methods & events) is identical on every platform and is
 > documented once in the **[API reference](README.md#api-reference)**. This guide
@@ -155,6 +153,8 @@ rm -rf ~/Library/Developer/Xcode/DerivedData/ModuleCache.noindex
 <uses-permission android:name="android.permission.RECORD_AUDIO" />
 <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+<uses-permission android:name="android.permission.WAKE_LOCK" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 ```
 
 ### Request the microphone at runtime
@@ -198,32 +198,48 @@ audio works there — but verify on a **real device** before shipping.
 ```js
 import PIOPIY from 'piopiyjs';
 
+// 1. Initialize the client
+// NOTE: Importing 'piopiyjs' automatically handles registering the WebRTC globals under the hood.
 const piopiy = new PIOPIY({ name: 'Agent', debug: true, ringTime: 60 });
+
+// 2. Set up event listeners
+piopiy.on('login', () => console.log('Registered with SBC'));
+
+// Receive inbound calls from extensions or PSTN numbers
+piopiy.on('inComingCall', (data) => {
+  console.log('Incoming call from:', data.from);
+  
+  // Use these in your UI action buttons:
+  // piopiy.answer(); // To answer
+  // piopiy.reject(); // To reject
+});
+
+piopiy.on('ringing', () => console.log('Ringing...'));
+piopiy.on('answered', () => console.log('Call connected'));
+
+// 3. Authenticate with SBC
 piopiy.login('1001', 'secret', 'sbcind.telecmi.com');
 
-// Inbound
-piopiy.on('inComingCall', (d) => console.log('incoming from', d.from));
-piopiy.answer();   // on Answer
-piopiy.reject();   // on Reject
-
-// Outbound
+// 4. Place an outbound call to a PSTN number (or another extension)
+// The TeleCMI SBC automatically bridges this WebRTC call to the PSTN telephone network.
 piopiy.call('13158050050');
-piopiy.on('answered', () => console.log('connected'));
 ```
 
-For the full method & event list (`mute`, `hold`, `sendDtmf`, `transfer`,
-`terminate`, …) see the **[API reference](README.md#api-reference)**.
+For the full method & event list (`mute`, `hold`, `sendDtmf`, `transfer`, `terminate`, …) see the **[API reference](README.md#api-reference)**.
 
 ### Speaker / audio routing
 
-Call `speaker()` on your PIOPIY instance to switch between the loudspeaker and the
-earpiece — you don't touch `react-native-incall-manager` yourself:
+The SDK **automatically detects and integrates** with `react-native-incall-manager` if you have installed it. Call `speaker()` on your `piopiy` instance to switch between the loudspeaker and the earpiece — you do not need to call or wire `react-native-incall-manager` yourself:
 
 ```js
-piopiy.speaker(true);    // loudspeaker
-piopiy.speaker(false);   // earpiece
-piopiy.onSpeaker();      // current state (boolean)
+piopiy.speaker(true);    // Route call audio to loudspeaker
+piopiy.speaker(false);   // Route call audio to earpiece
+piopiy.onSpeaker();      // Get current speaker state (boolean)
 ```
+
+### No UI Components Required (Voice-Only)
+
+Since this is a **voice-only** SDK, remote and local audio tracks are routed automatically by the device. You **do not** need to include or render any `<RTCView>` components from `react-native-webrtc` in your React Native UI code.
 
 ---
 
