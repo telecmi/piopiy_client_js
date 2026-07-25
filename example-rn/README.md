@@ -2,13 +2,13 @@
 
 **Platforms:** 📱 iOS · 🤖 Android
 
-A minimal bare React Native app for testing the local `piopiyjs` SDK on a real
+A minimal bare React Native app for testing the local `@telecmi/piopiy-native` SDK on a real
 device — built around **inbound (incoming) calls**: login to the SBC, receive a
 call, and Answer / Reject, with mute / hold / hang-up / speaker / DTMF controls.
 
 This app lives **inside** the SDK repo and consumes the SDK straight from the
 parent folder via [`metro.config.js`](./metro.config.js) — there is no
-`npm install piopiyjs`. After you change SDK source in `../src`, rebuild the
+`npm install @telecmi/piopiy-native`. After you change SDK source in `../src`, rebuild the
 SDK (`cd .. && npm run build-node`) and reload the app.
 
 > Setting this up in your **own** app instead of this example? Follow the
@@ -125,7 +125,7 @@ your computer's mic, but verify on a real device before shipping.
 
 ## Troubleshooting
 
-- **`Unable to resolve module piopiyjs`** — rebuild the SDK from the repo root
+- **`Unable to resolve module @telecmi/piopiy-native`** — rebuild the SDK from the repo root
   (`npm run build-node`) and restart Metro with a clean cache:
   `yarn start --reset-cache`.
 - **No audio after answering** — confirm the mic permission was granted (iOS

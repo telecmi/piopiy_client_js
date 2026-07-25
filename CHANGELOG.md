@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.17.0] - 2026-07-24
+
+### Added
+- **Caller-Cancel Push Handling (SDK-level)**: `livekitIncoming()` now accepts a `{type: 'cancel_call', uuid}` payload — sent by the push gateway when the caller hangs up pre-answer — and dismisses the ringing CallKit/ConnectionService UI and pending call. Apps just forward the raw push payload.
+- **Ring Timeout for Push Calls**: a pending LiveKit inbound call now stops ringing after `ringTime` seconds even if the device is offline and the server's cancel push can never arrive (previously it rang until user interaction). Documented a native 45 s AppDelegate backstop for iOS, where the JS timer can be parked during a background wake.
+- **`missedCall` event**: emitted when a ringing call ends without user action (`reason: 'cancelled' | 'ring_timeout'`, with `uuid`/`from`) so apps can show a local missed-call notification — no server push required. A deliberate reject does not emit it.
+
+### Changed
+- **`ringTime` default lowered from 60 s to 40 s** (platform ring policy; applies to SIP `no_answer_timeout` and the new LiveKit push ring timeout).
+
+### Fixed
+- **In-app ringing UI now dismisses when a LiveKit inbound call is cancelled/rejected/times out.** A still-ringing call was ending without emitting a termination event, so the native CallKeep UI dismissed but an app's own `inComingCall`-driven screen kept ringing. `end()` now emits `ended` in that case (in addition to `callkeepCancel`/`missedCall`).
+
 ## [0.16.0] - 2026-06-05
  
 ### Added

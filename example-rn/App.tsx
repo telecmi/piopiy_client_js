@@ -16,6 +16,7 @@ import {
   Platform,
   SafeAreaView,
   ScrollView,
+  Share,
   StatusBar,
   StyleSheet,
   Text,
@@ -23,18 +24,33 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import PIOPIY from 'piopiyjs';
+import PIOPIY from '@telecmi/piopiy-native';
+import {mediaDevices} from '@livekit/react-native-webrtc';
+import pushCallService from './src/pushCallService';
 
 type CallState = 'idle' | 'incoming' | 'outgoing' | 'active';
 
-const DEFAULT_REGION = 'sbcind.telecmi.com';
+const DEFAULT_REGION = 'testsbc.telecmi.com';
 const DTMF_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'];
 
 async function requestMicPermission(): Promise<boolean> {
-  // iOS prompts automatically on the first getUserMedia call, as long as
-  // NSMicrophoneUsageDescription is present in Info.plist (it is).
-  if (Platform.OS !== 'android') {
-    return true;
+  // iOS: trigger the mic permission prompt NOW, while the app is foreground and
+  // UNLOCKED. The old code returned true and relied on "iOS prompts on the first
+  // getUserMedia" — but for a push-woken incoming call that first getUserMedia
+  // happens on the LOCK SCREEN, where iOS cannot present the prompt
+  // ("no presenter that can handle this alert item"). The call then comes up with
+  // no microphone, so no RTP flows and the server tears it down on media-timeout.
+  // Priming here (e.g. at app launch) grants the mic once so later locked-screen
+  // calls already have it. Opening + immediately stopping a track is enough to
+  // surface the prompt; if already granted it's a no-op.
+  if (Platform.OS === 'ios') {
+    try {
+      const stream = await mediaDevices.getUserMedia({audio: true});
+      stream.getTracks().forEach(track => track.stop());
+      return true;
+    } catch {
+      return false;
+    }
   }
   try {
     const granted = await PermissionsAndroid.request(
@@ -60,6 +76,7 @@ export default function App(): React.JSX.Element {
   const [dialNumber, setDialNumber] = useState('');
 
   const [registered, setRegistered] = useState(false);
+  const [booting, setBooting] = useState(true); // true while we try auto-login from storage
   const [status, setStatus] = useState('Not logged in');
   const [callState, setCallState] = useState<CallState>('idle');
   const [incomingFrom, setIncomingFrom] = useState<string | null>(null);
@@ -73,10 +90,19 @@ export default function App(): React.JSX.Element {
     setLogs(prev => [`${ts}  ${line}`, ...prev].slice(0, 200));
   }, []);
 
-  // Create the PIOPIY instance and wire all events exactly once.
+  // The PIOPIY instance is owned by pushCallService — it must live outside the
+  // React tree so background/killed push wake-ups can drive it. init() is idempotent.
   useEffect(() => {
-    const piopiy = new PIOPIY({name: 'RN Test', debug: true, ringTime: 60});
+    pushCallService.init();
+    const piopiy = pushCallService.getClient();
     piopiyRef.current = piopiy;
+
+    // Prime the iOS mic permission up front, while the app is foreground and the
+    // screen is unlocked. A later push-woken call answered on the LOCK SCREEN
+    // can't surface the permission prompt, so without this the first call after a
+    // fresh install has no microphone (no RTP -> remote media-timeout drop).
+    // Fire-and-forget; no-op if already granted.
+    requestMicPermission();
 
     const resetCall = () => {
       setCallState('idle');
@@ -97,73 +123,99 @@ export default function App(): React.JSX.Element {
       setStatus(loggedIn ? 'Registered — ready for calls' : 'Call ended');
     };
 
-    // ---- Authentication ----
-    piopiy.on('login', () => {
-      setRegistered(true);
-      setStatus('Registered — ready for calls');
-      log('login: registered with SBC');
-    });
-    piopiy.on('loginFailed', (d: any) => {
-      setRegistered(false);
-      setStatus(`Login failed (${d?.code}): ${d?.status}`);
-      log(`loginFailed: ${JSON.stringify(d)}`);
-    });
-    piopiy.on('logout', () => {
-      setRegistered(false);
-      setStatus('Logged out');
-      resetCall();
-      log('logout');
-    });
-    piopiy.on('connected', () => log('connected: SBC socket up'));
-    piopiy.on('disconnected', () => log('disconnected: SBC socket down'));
+    // All UI event handlers, kept as a list so we can detach exactly these on
+    // cleanup. (Do NOT use removeAllListeners — the same instance also carries
+    // pushCallService's CallKeep bridge listeners, which must survive remounts.)
+    const handlers: Array<[string, (d?: any) => void]> = [
+      // ---- Authentication ----
+      ['login', () => {
+        setRegistered(true);
+        setBooting(false);
+        setStatus('Registered — ready for calls');
+        log('login: registered with SBC');
+      }],
+      ['loginFailed', (d: any) => {
+        setRegistered(false);
+        setBooting(false);
+        setStatus(`Login failed (${d?.code}): ${d?.status}`);
+        log(`loginFailed: ${JSON.stringify(d)}`);
+      }],
+      ['logout', () => {
+        setRegistered(false);
+        setStatus('Logged out');
+        resetCall();
+        log('logout');
+      }],
+      ['connected', () => log('connected: SBC socket up')],
+      ['disconnected', () => log('disconnected: SBC socket down')],
+      // ---- INBOUND (the important part) ----
+      ['inComingCall', (d: any) => {
+        setCallState('incoming');
+        setIncomingFrom(d?.from ?? 'Unknown');
+        setStatus(`Incoming call from ${d?.from ?? 'Unknown'}`);
+        log(`inComingCall: ${JSON.stringify(d)}`);
+      }],
+      // ---- Call lifecycle ----
+      ['trying', (d: any) => log(`trying: ${JSON.stringify(d)}`)],
+      ['ringing', (d: any) => {
+        if (d?.type === 'outgoing') {
+          setStatus('Ringing…');
+        }
+        log(`ringing: ${JSON.stringify(d)}`);
+      }],
+      ['answered', () => {
+        setCallState('active');
+        setStatus('In call');
+        log('answered: media connected');
+      }],
+      ['callStream', () => log('callStream: remote audio stream ready')],
+      ['mediaFailed', (d: any) => {
+        Alert.alert('Microphone error', 'Could not access the microphone.');
+        log(`mediaFailed: ${JSON.stringify(d)}`);
+      }],
+      ['hold', (d: any) => log(`hold: ${JSON.stringify(d)}`)],
+      ['unhold', (d: any) => log(`unhold: ${JSON.stringify(d)}`)],
+      ['dtmf', (d: any) => log(`dtmf: ${JSON.stringify(d)}`)],
+      ['ended', (d: any) => {
+        resetCall();
+        readyStatus();
+        log(`ended: ${JSON.stringify(d)}`);
+      }],
+      ['hangup', (d: any) => {
+        resetCall();
+        readyStatus();
+        log(`hangup: ${JSON.stringify(d)}`);
+      }],
+      ['error', (d: any) => log(`error: ${JSON.stringify(d)}`)],
+    ];
+    handlers.forEach(([evt, fn]) => piopiy.on(evt, fn));
 
-    // ---- INBOUND (the important part) ----
-    piopiy.on('inComingCall', (d: any) => {
-      setCallState('incoming');
-      setIncomingFrom(d?.from ?? 'Unknown');
-      setStatus(`Incoming call from ${d?.from ?? 'Unknown'}`);
-      log(`inComingCall: ${JSON.stringify(d)}`);
-    });
+    // Surface push / CallKeep diagnostics in the same on-screen log.
+    pushCallService.on('log', log);
 
-    // ---- Call lifecycle ----
-    piopiy.on('trying', (d: any) => log(`trying: ${JSON.stringify(d)}`));
-    piopiy.on('ringing', (d: any) => {
-      if (d?.type === 'outgoing') {
-        setStatus('Ringing…');
-      }
-      log(`ringing: ${JSON.stringify(d)}`);
-    });
-    piopiy.on('answered', () => {
-      setCallState('active');
-      setStatus('In call');
-      log('answered: media connected');
-    });
-    piopiy.on('callStream', () => log('callStream: remote audio stream ready'));
-    piopiy.on('mediaFailed', (d: any) => {
-      Alert.alert('Microphone error', 'Could not access the microphone.');
-      log(`mediaFailed: ${JSON.stringify(d)}`);
-    });
-    piopiy.on('hold', (d: any) => log(`hold: ${JSON.stringify(d)}`));
-    piopiy.on('unhold', (d: any) => log(`unhold: ${JSON.stringify(d)}`));
-    piopiy.on('dtmf', (d: any) => log(`dtmf: ${JSON.stringify(d)}`));
-    piopiy.on('ended', (d: any) => {
-      resetCall();
-      readyStatus();
-      log(`ended: ${JSON.stringify(d)}`);
-    });
-    piopiy.on('hangup', (d: any) => {
-      resetCall();
-      readyStatus();
-      log(`hangup: ${JSON.stringify(d)}`);
-    });
-    piopiy.on('error', (d: any) => log(`error: ${JSON.stringify(d)}`));
+    // Auto-login from saved credentials so reopening the app re-registers
+    // automatically — no need to re-enter anything. 'login'/'loginFailed' clear
+    // the booting state; if nothing is stored we drop straight to the login form.
+    pushCallService
+      .tryAutoLogin()
+      .then(creds => {
+        if (creds) {
+          setUserId(creds.user);
+          setRegion(creds.region);
+          setStatus('Restoring session…');
+        } else {
+          setBooting(false);
+        }
+      })
+      .catch(() => setBooting(false));
+
+    // Safety net: never get stuck on the spinner if no login event ever arrives.
+    const bootFallback = setTimeout(() => setBooting(false), 8000);
 
     return () => {
-      try {
-        piopiy.removeAllListeners();
-      } catch {
-        // ignore
-      }
+      clearTimeout(bootFallback);
+      handlers.forEach(([evt, fn]) => piopiy.off(evt, fn));
+      pushCallService.off('log', log);
     };
   }, [log]);
 
@@ -180,27 +232,29 @@ export default function App(): React.JSX.Element {
     }
     setStatus('Logging in…');
     log(`login attempt: ${userId.trim()} @ ${region.trim()}`);
-    piopiyRef.current?.login(userId.trim(), password, region.trim());
+    // Route through the service so the push token is attached to the REGISTER and
+    // credentials are persisted for background wake-ups.
+    pushCallService.login(userId.trim(), password, region.trim());
   }, [userId, password, region, log]);
 
   const onLogout = useCallback(() => {
     log('logout pressed');
-    piopiyRef.current?.logout();
+    pushCallService.logout();
   }, [log]);
 
   const onAnswer = useCallback(() => {
     log('answer pressed');
-    piopiyRef.current?.answer();
+    pushCallService.answer();
   }, [log]);
 
   const onReject = useCallback(() => {
     log('reject pressed');
-    piopiyRef.current?.reject();
+    pushCallService.reject();
   }, [log]);
 
   const onHangup = useCallback(() => {
     log('hangup pressed');
-    piopiyRef.current?.terminate();
+    pushCallService.hangup();
   }, [log]);
 
   const onToggleMute = useCallback(() => {
@@ -266,6 +320,25 @@ export default function App(): React.JSX.Element {
     [log],
   );
 
+  // Killed/locked-call capture: share the persisted sequence after a test.
+  const onShareDebugLog = useCallback(async () => {
+    try {
+      const text = await pushCallService.getDebugLog();
+      if (!text) {
+        Alert.alert('Capture', 'The capture is empty.');
+        return;
+      }
+      await Share.share({message: text});
+    } catch (e: any) {
+      Alert.alert('Capture', `Could not read log: ${e?.message ?? e}`);
+    }
+  }, []);
+
+  const onClearDebugCapture = useCallback(async () => {
+    await pushCallService.clearDebugLog();
+    log('capture cleared — ready for a killed-state test');
+  }, [log]);
+
   // ---- UI ----
   return (
     <SafeAreaView style={styles.safe}>
@@ -279,7 +352,12 @@ export default function App(): React.JSX.Element {
         style={styles.body}
         contentContainerStyle={styles.bodyContent}
         keyboardShouldPersistTaps="handled">
-        {!registered ? (
+        {booting ? (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Restoring session…</Text>
+            <Text style={styles.muted}>Signing you back in automatically.</Text>
+          </View>
+        ) : !registered ? (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Login</Text>
             <TextInput
@@ -301,7 +379,7 @@ export default function App(): React.JSX.Element {
             />
             <TextInput
               style={styles.input}
-              placeholder="Domain (e.g. sbcind.telecmi.com)"
+              placeholder="Domain (e.g. testsbc.telecmi.com)"
               autoCapitalize="none"
               autoCorrect={false}
               value={region}
@@ -413,6 +491,26 @@ export default function App(): React.JSX.Element {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* Killed/locked-call capture — survives the cold-launch in storage */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Killed-call capture</Text>
+          <Text style={styles.muted}>
+            1. Tap Clear · 2. Kill the app + lock · 3. Receive & answer a call · 4.
+            Unlock, then Share the captured push→register→INVITE→answer→audio
+            sequence.
+          </Text>
+          <View style={styles.controlRow}>
+            <TouchableOpacity
+              style={styles.ctrlBtn}
+              onPress={onClearDebugCapture}>
+              <Text style={styles.ctrlBtnText}>Clear</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.ctrlBtn} onPress={onShareDebugLog}>
+              <Text style={styles.ctrlBtnText}>Share capture</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {/* Event log */}
         <View style={styles.card}>

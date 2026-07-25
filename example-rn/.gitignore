@@ -72,3 +72,10 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+# Your private Firebase config (drop in android/app/ for FCM push) — not committed
+google-services.json
+
+# SIP infra config — contains DB/Redis credentials, never commit
+kamailio.cfg
+*.cfg

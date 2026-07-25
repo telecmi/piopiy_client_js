@@ -117,3 +117,10 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+// Firebase (FCM push wake-ups). Applied only when you have dropped YOUR
+// google-services.json into android/app/ — the example still builds without
+// Firebase, but Android push wake-ups need it (see README.push-notifications.md).
+if (file('google-services.json').exists()) {
+    apply plugin: 'com.google.gms.google-services'
+}

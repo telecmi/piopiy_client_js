@@ -3,6 +3,28 @@ import cmisession from './session';
 import offline from './offline';
 import SIP from 'jssip';
 
+// React Native sets navigator.product === 'ReactNative'. Use a distinct SIP
+// User-Agent header on mobile so the SBC/Kamailio can identify RN clients.
+const IS_REACT_NATIVE = typeof navigator !== 'undefined' && navigator.product === 'ReactNative';
+
+// SDK-level signaling debug. TEMP: enabled to trace the register/call flow —
+// lines appear in the Metro console as [piopiy:ua] and are also mirrored to the
+// optional persistent sink (globalThis.__piopiyLog) so the app's Share-capture
+// contains the full trace even when Metro/Console.app aren't attached.
+// Set UA_DEBUG = false before publishing the SDK.
+const UA_DEBUG = false;
+const dbg = ( ...args ) => {
+    if ( !UA_DEBUG ) return;
+    const line = args.map( ( a ) => ( typeof a === 'string' ? a : JSON.stringify( a ) ) ).join( ' ' );
+    console.log( '[piopiy:ua]', line );
+    try {
+        const g = ( typeof globalThis !== 'undefined' ) ? globalThis : null;
+        if ( g && typeof g.__piopiyLog === 'function' ) {
+            g.__piopiyLog( '[ua] ' + line );
+        }
+    } catch { /* ignore */ }
+};
+
 
 let cmi_ua = {}
 let isConnected = false;
@@ -39,6 +61,20 @@ export default class {
 
         if (credentials.debug === true) {
             SIP.debug.enable('JsSIP:*');
+            // Route jsSIP's own protocol logs (REGISTER/INVITE and every SIP
+            // message) into the persistent sink too, so the app's Share-capture
+            // holds the complete SIP trace, not just SDK lifecycle lines.
+            try {
+                SIP.debug.log = (...args) => {
+                    console.log(...args);
+                    try {
+                        const g = (typeof globalThis !== 'undefined') ? globalThis : null;
+                        if (g && typeof g.__piopiyLog === 'function') {
+                            g.__piopiyLog('[jssip] ' + args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' '));
+                        }
+                    } catch { /* ignore */ }
+                };
+            } catch { /* ignore */ }
 
         } else {
 
@@ -53,8 +89,11 @@ export default class {
 
 
         }
+        dbg('start(): user', credentials.authorization_user,
+            '→ wss://' + (credentials['region'] || 'sbcsg.telecmi.com'),
+            'register_expires:', credentials.register_expires);
         credentials['sockets'] = [socket];
-        credentials['user_agent'] = 'PIOPIYJS'
+        credentials['user_agent'] = IS_REACT_NATIVE ? 'piopiy_mobile' : 'PIOPIYJS'
         credentials['use_preloaded_route'] = true
 
 
@@ -68,6 +107,7 @@ export default class {
 
 
         cmi_ua.on('registered', () => {
+            dbg('REGISTERED — 200 OK to REGISTER');
             _this.emit('login', { code: 200, status: 'login successfully' })
         });
 
@@ -75,20 +115,23 @@ export default class {
 
         cmi_ua.on('unregistered', () => {
 
-
+            dbg('UNREGISTERED');
             _this.emit('logout', { code: 200, status: 'logout successfully' })
         });
 
         cmi_ua.on('connected', () => {
+            dbg('transport CONNECTED — WSS socket up');
             _this.emit('connected', { code: 200, status: 'SBC connected' })
         });
 
-        cmi_ua.on('disconnected', () => {
+        cmi_ua.on('disconnected', (e) => {
+            dbg('transport DISCONNECTED', e && e.code, e && e.reason, e && e.error ? '(error)' : '');
             _this.emit('disconnected', { code: 1000, status: 'SBC disconneced' })
         });
 
 
         cmi_ua.on('registrationFailed', (e) => {
+            dbg('REGISTRATION FAILED —', e && e.response ? 'status ' + e.response.status_code : 'cause ' + (e && e.cause));
             if (e.response) {
 
                 if (e.response.status_code === 401) {
@@ -111,10 +154,13 @@ export default class {
         _this.on('net_changed', () => {
 
             if (cmi_ua) {
-                if (cmi_ua.isRegistered() & cmi_ua.isConnected()) {
-                    cmi_ua.transport.disconnect()
-                    //cmi_ua.transport._reconnect()
-                    cmi_ua.transport.connect()
+                if (cmi_ua.isRegistered()) {
+                    if (cmi_ua.transport) {
+                        if (cmi_ua.isConnected()) {
+                            cmi_ua.transport.disconnect()
+                        }
+                        cmi_ua.transport.connect()
+                    }
                     cmi_ua.start();
                 }
             }
@@ -126,7 +172,11 @@ export default class {
 
         cmi_ua.on('newRTCSession', (session) => {
 
-
+            try {
+                dbg('newRTCSession —', session.originator === 'local'
+                    ? 'OUTGOING to ' + (session.request && session.request.ruri ? session.request.ruri.toString() : '?')
+                    : 'INCOMING from ' + (session.request && session.request.from ? session.request.from.toString() : '?'));
+            } catch { dbg('newRTCSession —', session.originator); }
 
             if (session.originator != "local") {
                 if (!_.isEmpty(cmi_ua._sessions)) {
@@ -195,13 +245,14 @@ export default class {
         if (!_.isEmpty(cmi_ua)) {
 
             if (!cmi_ua.isRegistered()) {
+                dbg('make() BLOCKED — not registered (login first)');
                 _this.emit('error', { code: 1002, status: 'Please login to call' });
                 return;
             }
 
         }
 
-
+        dbg('make() →', to, '| connected:', cmi_ua.isConnected ? cmi_ua.isConnected() : '?');
 
         cmi_session.make(to, cmi_ua, _this, options);
 

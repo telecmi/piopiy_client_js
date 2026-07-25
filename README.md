@@ -6,9 +6,25 @@ The PIOPIY WebRTC SDK for JavaScript enables high-quality voice communication �
 make and receive calls to PSTN (Public Switched Telephone Network), App-to-App,
 and Browser-to-Browser.
 
-**One package, every platform.** The same SDK runs on the **Web**, **Electron (Desktop)**, and on **React
-Native** (iOS & Android); your bundler automatically selects the right build, so
-you write the same call code everywhere.
+**One API, two packages.** The SDK ships as two packages that share the **same
+call API** — pick the one for your platform:
+
+| Platform | Package |
+| :--- | :--- |
+| 🌐 **Web & Electron** | [`@telecmi/piopiyjs`](https://www.npmjs.com/package/@telecmi/piopiyjs) |
+| 📱 **React Native** (iOS & Android) | [`@telecmi/piopiy-native`](https://www.npmjs.com/package/@telecmi/piopiy-native) |
+
+> [!IMPORTANT]
+> **Migrating from the old `piopiyjs` package?** The unscoped `piopiyjs` on npm is
+> **deprecated** and no longer maintained. Move to the scoped packages above:
+>
+> | Old (deprecated) | New |
+> | :--- | :--- |
+> | `npm install piopiyjs` (web) | `npm install @telecmi/piopiyjs` |
+> | `import PIOPIY from 'piopiyjs'` (React Native) | `npm install @telecmi/piopiy-native` → `import PIOPIY from '@telecmi/piopiy-native'` |
+>
+> The call API is unchanged — only the package name and (on React Native) the
+> import path change.
 
 ## Key Features
 - **Crystal Clear Audio**: High-fidelity WebRTC-based voice.
@@ -27,17 +43,22 @@ The **call API itself is identical** on both — it's documented in the
 | Platform | Setup guide |
 | :--- | :--- |
 | 🌐 **Web & Electron** | **→ [Web & Electron guide](README.web.md)** |
+| 📱 **React Native (Shared)** | **→ [React Native guide](README.react-native.md)** |
 | 📱 **React Native iOS** | **→ [iOS guide](README.react-native-ios.md)** |
 | 🤖 **React Native Android** | **→ [Android guide](README.react-native-android.md)** |
+| 🔔 **Push Notifications** | **→ [Push Notifications guide](README.push-notifications.md)** |
 
 ```bash
-npm install piopiyjs
+# Web & Electron — pure JS, no native dependencies
+npm install @telecmi/piopiyjs
+
+# React Native — SDK core + bundled native WebRTC engine
+npm install @telecmi/piopiy-native react-native-callkeep react-native-incall-manager
 ```
 
 > [!NOTE]
-> **React Native** additionally needs the native peers `react-native-webrtc` and
-> `react-native-incall-manager` — see the [iOS guide](README.react-native-ios.md) and [Android guide](README.react-native-android.md)
-> for details. **Web & Electron** users install only `piopiyjs`.
+> Same API on every platform — React Native imports from `@telecmi/piopiy-native`,
+> Web/Electron from `@telecmi/piopiyjs`. See the [React Native guide](README.react-native.md).
 
 > [!TIP]
 > A complete, runnable React Native example app (inbound + outbound calls) lives
@@ -46,19 +67,48 @@ npm install piopiyjs
 
 ---
 
-## Quick Start Example
+## The 30-second version
 
-Here is a complete example of initializing, connecting, placing/answering calls, and handling events. This works on both Web and React Native.
+Log in, then make or receive a call. That's the whole happy path.
 
 ```javascript
-import PIOPIY from 'piopiyjs';
+import PIOPIY from '@telecmi/piopiyjs'; // React Native: '@telecmi/piopiy-native'
+
+const piopiy = new PIOPIY({ name: 'Agent' });
+
+// --- MAKE a call ---
+piopiy.on('login', () => piopiy.call('13158050050'));   // dial once registered
+piopiy.login('user_id', 'password', 'sbcind.telecmi.com');
+
+// --- RECEIVE a call ---
+piopiy.on('inComingCall', (call) => {
+  console.log('Incoming call from', call.from);
+  piopiy.answer();   // or piopiy.reject()
+});
+
+// --- know when it ends ---
+piopiy.on('ended', () => console.log('call ended'));
+```
+
+That's it for the web. On **React Native** you also need microphone permission before
+calling, and — to receive calls while backgrounded/killed — the one-time
+[push-notification setup](README.push-notifications.md). The full API is below.
+
+---
+
+## Quick Start Example
+
+Here is a complete example of initializing, connecting, placing/answering calls, and handling events. This works on both Web and React Native — on React Native just import from `@telecmi/piopiy-native` instead of `@telecmi/piopiyjs` (identical API).
+
+```javascript
+import PIOPIY from '@telecmi/piopiyjs';   // React Native: import PIOPIY from '@telecmi/piopiy-native';
 
 // 1. Initialize the client
 const piopiy = new PIOPIY({
     name: "Agent Name",
     debug: true,
     autoplay: true,
-    ringTime: 60,
+    ringTime: 40,
 });
 
 // 2. Attach Event Handlers
@@ -114,14 +164,14 @@ piopiy.login("user_id", "password", "sbcind.telecmi.com");
 Create a PIOPIY instance with your configuration. This is the same on every platform.
 
 ```javascript
-import PIOPIY from 'piopiyjs';
+import PIOPIY from '@telecmi/piopiyjs';   // React Native: import PIOPIY from '@telecmi/piopiy-native';
 
 const piopiy = new PIOPIY({
     name: "Display Name",
     debug: false,
     autoplay: true,
     autoReboot: true,
-    ringTime: 60,
+    ringTime: 40,
 });
 ```
 
@@ -132,21 +182,29 @@ const piopiy = new PIOPIY({
 | `debug` | Enable detailed console logging for troubleshooting | boolean | `false` |
 | `autoplay` | Automatically handle and play remote audio streams | boolean | `true` |
 | `autoReboot` | Automatically attempt reconnection on session drop | boolean | `true` |
-| `ringTime` | Maximum duration for an incoming call to ring (seconds) | number | `60` |
+| `ringTime` | Maximum duration for an incoming call to ring (seconds) | number | `40` |
+| `registerExpires` | SIP registration lifetime (seconds). Shorter values clear a killed app's stale registration faster, so background calls fall through to push sooner | number | `120` |
+
+> **React Native only:** two extra options — `callKeep` (native incoming-call UI config) and `livekit` (a fallback media URL; normally unset, since the URL arrives in the push). See the [Push Notifications guide](README.push-notifications.md).
 
 ## Authentication
 
-Connect to the PIOPIY SBC using your account credentials.
+Connect to the PIOPIY Session Border Controller (SBC) using your TeleCMI credentials.
 
 ```javascript
-//        username   password    domain
+//              username     password          domain / SBC URI
 piopiy.login("user_id", "password", "sbcind.telecmi.com");
 ```
 
+#### Parameters of `login(userId, password, region)`
+- **`userId`** (string): Your TeleCMI user ID or agent SIP extension.
+- **`password`** (string): Your extension password.
+- **`region`** (string, optional): The regional SBC Domain/URI. If omitted, defaults to the Asia region (`sbcsg.telecmi.com`).
+
 #### Regional SBC Endpoints
-| Region | SBC URI |
+| Region | SBC URI (Domain) |
 | :--- | :--- |
-| **Asia** | `sbcsg.telecmi.com` |
+| **Asia (Default)** | `sbcsg.telecmi.com` |
 | **Europe** | `sbcuk.telecmi.com` |
 | **America** | `sbcus.telecmi.com` |
 | **India** | `sbcind.telecmi.com`, `sbcindncr.telecmi.com` |
@@ -160,81 +218,102 @@ piopiy.login("user_id", "password", "sbcind.telecmi.com");
 ### Methods
 
 #### `call(phone_number, options)`
-Initiates an outgoing call to a PSTN number or another extension.
-- **`phone_number`**: The target number in E.164 format (e.g., `13158050050`).
-- **`options`**: (Optional) JSON object containing `extra_param` for custom webhook headers.
+Initiates an outgoing call to a PSTN number or another agent extension.
+- **`phone_number`** (string): The target number in E.164 format (e.g., `"13158050050"`) or extension (e.g., `"1002"`).
+- **`options`** (optional): JSON object containing:
+  - **`extra_param`** (string): Custom metadata. This gets attached to the outbound SIP request as the header `X-cmi-extra_param: custom_value`, allowing you to pass metadata to TeleCMI webhooks and routing rules.
   ```javascript
-  piopiy.call("13158050050", { extra_param: "custom_header_value" });
+  piopiy.call("13158050050", { extra_param: "my_custom_tracking_id_123" });
   ```
 
-#### `getCallId()` / `getCallID()`
-Returns the unique identifier for the current active call.
-- **Returns**: A `string` (UUID or SIP ID) or `false` if no active call exists.
-> [!TIP]
-> Use this method to track calls or interact with the PIOPIY REST API.
+#### `getCallId()`
+Returns the local WebRTC/SIP standard session identifier.
+- **Returns**: A standard `SIP Call-ID` `string`, or `false` if no call is active.
+- **Availability**: Available immediately when the call is initiated or received.
+
+#### `getCallID()`
+Returns the unique server-side TeleCMI session UUID for the current active PSTN call leg.
+- **Returns**: A TeleCMI unique UUID `string`, or `false` if no call is active.
+- **Availability**: Available only after the call session is in progress (ringing) or established (answered). Use this identifier when querying status or recording logs via the TeleCMI REST API.
 
 #### `answer()`
 Answers an incoming call.
 
 #### `reject()`
-Rejects/Disconnects an incoming call.
+Rejects/disconnects an incoming call.
 
 #### `terminate()`
-Hangs up an ongoing call.
+Hangs up an ongoing active call.
 
 #### `hold()` / `unHold()`
 Places the active call on hold or resumes it.
 
 #### `mute()` / `unMute()`
-Mutes or unmutes your local microphone.
+Mutes or unmutes your local microphone audio.
 
 #### `speaker(on)` · _React Native only_
-Routes call audio to the **loudspeaker** (`true`) or **earpiece** (`false`) and returns the new state. On the **Web** this is a safe no-op.
+Routes call audio to the **loudspeaker** (`true`) or **earpiece** (`false`) and returns the final state (boolean). On the **Web** this is a safe no-op returning `false`.
 
 #### `sendDtmf(tone)`
 Sends a DTMF tone (0-9, *, #) to the remote party.
 
 #### `transfer(to, callback)`
 Transfers the active call to another agent or phone number.
-- **`to`**: Target extension or E.164 number.
-- **`callback`**: (Optional) Function triggered when the transfer request is processed, receiving status/error data.
+- **`to`** (string): Target extension or E.164 number.
+- **`callback`** (optional): Function triggered when the transfer request is processed by the server, receiving status or error objects.
+  ```javascript
+  piopiy.transfer("1002", (res) => {
+      if (res.error) {
+          console.error("Transfer failed:", res.error);
+      } else {
+          console.log("Transfer response:", res); // e.g. { code: 200, status: "transfer success" }
+      }
+  });
+  ```
 
 #### `teamTransfer(to, callback)`
-Transfers the active call to a specific team or group.
-- **`to`**: Target team identifier.
-- **`callback`**: (Optional) Function triggered when the transfer request is processed, receiving status/error data.
+Transfers the active call to a specific team group.
+- **`to`** (string): Target team identifier/name.
+- **`callback`** (optional): Function triggered when the transfer request is processed, receiving status or error objects.
 
 #### `merge()`
-Shortcut helper method that sends the DTMF tone `'0'`. Primarily used to bridge/merge calls during transfer flows.
+Shortcut helper method that sends the DTMF tone `'0'`. Commonly used to bridge/merge the caller with the transfer target agent during warm transfer flows.
 
 #### `cancel()`
-Shortcut helper method that sends the DTMF tone `'#'`. Primarily used to cancel a transfer attempt.
+Shortcut helper method that sends the DTMF tone `'#'`. Commonly used to cancel a transfer attempt and retrieve the original call.
 
 #### `reRegister()`
-Manually triggers registration with the SBC. Useful for recovering from network connection changes or dropouts on mobile devices.
+Manually triggers registration with the SBC. Useful for recovering from network connection changes (e.g. WiFi to LTE) or dropouts on mobile devices.
 
 #### `isLogedIn()`
-Check if the client is currently authenticated and registered with the SBC.
+Checks if the client is currently authenticated and registered with the SBC.
 - **Returns**: `boolean`
 
 #### `isConnected()`
-Check if the WebSocket connection to the SBC is currently active.
+Checks if the WebSocket connection to the SBC is currently active.
 - **Returns**: `boolean`
 
 #### `onHold()`
-Check if the active call is currently on hold.
+Checks if the active call is currently placed on hold locally.
 - **Returns**: `boolean`
 
 #### `onMute()`
-Check if the microphone is currently muted.
+Checks if the local microphone is currently muted.
 - **Returns**: `boolean`
 
 #### `onSpeaker()`
-Check if the loudspeaker is currently turned on (React Native only).
+Checks if the loudspeaker is currently turned on (React Native only).
 - **Returns**: `boolean`
 
 #### `logout()`
 Disconnects from the SBC session.
+
+#### Push-notification methods · _React Native only_
+For receiving calls while backgrounded or killed. Full setup in the [Push Notifications guide](README.push-notifications.md). No-ops on Web.
+
+- **`registerToken(push, callback?)`** — register this device's push token so TeleCMI can wake it for incoming calls. Call after `login()`. `push` = `{ provider: 'apns' | 'fcm', token, platform? }`. Queued automatically if called before login completes.
+- **`unregisterToken(callback?)`** — remove the device's push token (e.g. on logout or Do-Not-Disturb).
+- **`livekitIncoming(pushData)`** — hand a received call push to the SDK. It shows the incoming-call UI and connects the call on answer. Accepts the invite payload `{ uuid, room, token, url?, from? }` or a cancel payload `{ type: 'cancel_call', uuid }` (caller hung up while ringing).
 
 ### Event Handlers
 
@@ -251,7 +330,7 @@ The SDK uses an event-driven architecture. Listen for events using `.on(eventNam
   * **Payload**: `{ code: 1000, status: "SBC disconneced" }`
 
 * **`login`**
-  Triggered upon successful registration.
+  Triggered upon successful registration with the SBC.
   * **Payload**: `{ code: 200, status: "login successfully" }`
 
 * **`loginFailed`**
@@ -263,59 +342,80 @@ The SDK uses an event-driven architecture. Listen for events using `.on(eventNam
   Triggered when the user logs out successfully.
   * **Payload**: `{ code: 200, status: "logout successfully" }`
 
+* **`sbc_logout`**
+  Triggered when the SBC forces a logout (e.g. concurrent registration from another location).
+  * **Payload**: `{ code: number, reason: string }` (e.g., `{ reason: "login from other device" }`)
+
+* **`net_changed`**
+  Triggered when the transport connection is dropped due to network switches/disconnects. The SDK automatically attempts reconnects under the hood.
+  * **Payload**: `{ code: 400, msg: "network changed" }`
+
 #### Call Lifecycle Events
 
 * **`inComingCall`**
-  Triggered when a new call arrives.
-  * **Payload**:
+  Triggered when a new incoming call arrives.
+  * **Payload Keys & Header Mappings**:
+    | Payload Key | Source Header | Description |
+    | :--- | :--- | :--- |
+    | `from` | `From` | Display name of the calling party. |
+    | `call_id` | `X-Call-ID` / `X-cmi-uuid` | Unique server-side TeleCMI UUID for the call. Falls back to SIP Call-ID. |
+    | `team_name` | `X-Team-Name` | Name of the team routing the call. |
+    | `to_number` | `X-To-Number` | The destination number called. |
+    | `transfer_from` | `X-Transfer-From` | Extension of the agent who initiated the transfer (if transferred). |
+    | `transfer` | `X-Transfer` | Additional transfer routing parameters. |
+  * **Payload Schema**:
     ```json
     {
       "from": "1001",
+      "call_id": "a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6",
       "team_name": "Support",
       "to_number": "13158050050",
-      "call_id": "a1b2c3d4-e5f6...",
       "transfer_from": "1002",
-      "transfer_to": "1001"
+      "transfer": "1001"
     }
     ```
 
 * **`trying`**
   Triggered when an outgoing call is being initiated.
-  * **Payload**: `{ code: 100, status: "trying", type: "outbound" }`
+  * **Payload**: `{ code: 100, status: "trying", type: "outbound" | "incoming" }`
 
 * **`ringing`**
   Triggered when the call is currently ringing.
-  * **Payload**: `{ code: 183, status: "ringing", type: "outbound" | "inbound" }`
+  * **Payload**: `{ code: 183, status: "ringing", type: "outbound" | "incoming" }`
 
 * **`answered`**
-  Triggered when the call has been answered.
+  Triggered when the call has been answered and is now active.
   * **Payload**: `{ code: 200, status: "answered" }`
 
 * **`hold`**
   Triggered when the call status changes to hold.
-  * **Payload**: `{ code: 200, status: "call on hold", whom: "local" | "remote" }`
+  * **Payload**: `{ code: 200, status: "call on hold", whom: "myself" | "other" }`
 
 * **`unhold`**
-  Triggered when the call status returns to active.
-  * **Payload**: `{ code: 200, status: "call on active", whom: "local" | "remote" }`
+  Triggered when the call status returns to active from hold.
+  * **Payload**: `{ code: 200, status: "call on active", whom: "myself" | "other" }`
 
 * **`ended`**
-  Triggered when a connected call is hung up.
+  Triggered when a connected call is hung up by the remote party.
   * **Payload**: `{ code: number, status: string }` (e.g. `{ code: 200, status: "call ended" }`)
 
 * **`hangup`**
-  Triggered when an incoming or outgoing call is rejected/canceled before answering.
+  Triggered when an incoming or outgoing call is rejected or canceled before answering.
   * **Payload**: `{ code: number, status: string }` (e.g. `{ code: 200, status: "call hangup" }`)
 
+* **`missedCall`** · _React Native push calls_
+  Triggered when a ringing inbound call ends **without the user acting on it** — the caller hung up, or ringing timed out (e.g. the device was offline). Use it to show a local "missed call" notification. A deliberate `reject()` does **not** fire this.
+  * **Payload**: `{ uuid: string, from: string | null, reason: "cancelled" | "ring_timeout", transport: "livekit" }`
+
 * **`error`**
-  Triggered when a call action fails or an invalid parameter is provided.
+  Triggered when a call action fails or invalid options are supplied.
   * **Payload**: `{ code: number, status: string }`
 
 #### Media & In-Call Events
 
 * **`callStream`**
   Triggered when the remote media stream is established.
-  * **Payload**: `{ code: 200, status: MediaStream }`
+  * **Payload**: `{ code: 200, status: MediaStream }` (where `status` is the WebRTC `MediaStream` object)
 
 * **`mediaFailed`**
   Triggered if the SDK cannot access local audio devices (e.g., microphone permission denied).
@@ -323,11 +423,19 @@ The SDK uses an event-driven architecture. Listen for events using `.on(eventNam
 
 * **`dtmf`**
   Triggered when a DTMF tone is sent or received.
-  * **Payload**: `{ code: 200, dtmf: string, type: "local" | "remote" }`
+  * **Payload**: `{ code: 200, dtmf: string, type: "incoming" | "outgoing" }`
 
 * **`NETStats`**
   Triggered upon network issues during a session (e.g. gateway timeouts).
   * **Payload**: `{ code: 408, msg: "Request timeout" }`
+
+* **`transfer`**
+  Triggered when there is a transfer event status change via the socket notification layer.
+  * **Payload**: `{ state: "init" | "trying" | "answered" | "failed" | "ended", ... }`
+
+* **`record`**
+  Triggered when a call recording event/status notification is received from the server.
+  * **Payload**: `{ state: "start" | "stop", ... }`
 
 ---
 
