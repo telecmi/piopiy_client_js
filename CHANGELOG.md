@@ -1,8 +1,66 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to this project are documented here. This project follows
+[Semantic Versioning](https://semver.org/) — while on `0.x`, a **minor** bump
+may contain breaking changes, which are always listed under **Upgrading** with
+the exact action required.
+
+**Quick compare:** [0.16.0 → 0.17.0](https://github.com/telecmi/piopiy_client_js/compare/v0.16.0...v0.17.0) ·
+[all releases](https://github.com/telecmi/piopiy_client_js/releases)
+
+| Version | Date | Headline |
+| :--- | :--- | :--- |
+| [0.17.0](#0170---2026-07-24) | 2026-07-24 | Scoped packages, push-call reliability (cancel, ring timeout, missed calls) |
+| [0.16.0](#0160---2026-06-05) | 2026-06-05 | React Native support (iOS & Android) |
+| [0.15.0](#0150---2026-04-15) | 2026-04-15 | `call_id` key standardization |
+| [0.14.0](#0140---2026-04-10) | 2026-04-10 | Team transfer |
+| [0.13.0](#0130---2026-04-08) | 2026-04-08 | Call metadata extraction, tooling upgrade |
 
 ## [0.17.0] - 2026-07-24
+
+### ⚠️ Upgrading from 0.16.x
+
+Four things changed that can affect existing code. Only **#1** is required.
+
+| # | What changed | Do you need to act? |
+| :--- | :--- | :--- |
+| 1 | **Package renamed and scoped** | **Yes** — update your dependency and import |
+| 2 | `livekitIncoming()` → `handleIncomingPush()` | No — old name still works (deprecated) |
+| 3 | `ringTime` default `60` → `40` seconds | Only if you relied on the 60 s default — pass `ringTime: 60` to keep it |
+| 4 | Some event `status` **text** changed | Only if you compared status strings — match the event name instead |
+
+**1. Package rename** — the unscoped `piopiyjs` is deprecated:
+
+```diff
+- npm install piopiyjs
++ npm install @telecmi/piopiyjs          # Web & Electron
++ npm install @telecmi/piopiy-native     # React Native
+
+- import PIOPIY from 'piopiyjs';
++ import PIOPIY from '@telecmi/piopiyjs';       // Web & Electron
++ import PIOPIY from '@telecmi/piopiy-native';  // React Native
+```
+
+**2. Method rename** (optional, but preferred going forward):
+
+```diff
+- piopiy.livekitIncoming(pushData);
++ piopiy.handleIncomingPush(pushData);
+```
+
+**4. Changed status text** — the event names are unchanged; only the human-readable `status` differs:
+
+| Event | Before | After |
+| :--- | :--- | :--- |
+| `connected` | `"SBC connected"` | `"connected"` |
+| `disconnected` | `"SBC disconneced"` *(typo)* | `"disconnected"` |
+| `loginFailed` (405) | `"too many connection"` | `"too many connections"` |
+| `error` (1009/1010) | `"livekit url missing"` / `"livekit connect failed"` | `"call connection URL missing"` / `"call connection failed"` |
+
+```diff
+- piopiy.on('connected', (d) => { if (d.status === 'SBC connected') { … } });
++ piopiy.on('connected', () => { … });   // match the event, not the text
+```
 
 ### Added
 - **Caller-Cancel Push Handling**: `handleIncomingPush()` (renamed from `livekitIncoming()`, which remains as a deprecated alias) now also accepts a `{type: 'cancel_call', uuid}` payload — sent when the caller hangs up before you answer — and dismisses the ringing CallKit/ConnectionService UI. Apps just forward the raw push payload.
@@ -64,3 +122,10 @@ All notable changes to this project will be documented in this file.
 
 ### Removed
 - **Legacy Support**: Removed `bower.json` and ended official support for Bower.
+
+---
+
+[0.17.0]: https://github.com/telecmi/piopiy_client_js/compare/v0.16.0...v0.17.0
+[0.16.0]: https://github.com/telecmi/piopiy_client_js/compare/v0.15.0...v0.16.0
+[0.15.0]: https://github.com/telecmi/piopiy_client_js/compare/v0.14.0...v0.15.0
+[0.14.0]: https://github.com/telecmi/piopiy_client_js/compare/v0.13.0...v0.14.0
