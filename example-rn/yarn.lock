@@ -2397,9 +2397,9 @@
   resolved "https://registry.npmjs.org/@socket.io/component-emitter/-/component-emitter-3.1.2.tgz"
   integrity sha512-9BCxFwvbGg/RsZK9tjXd8s4UcwR0MWeFQ1XEKIQVVvAGJyINdrqKMcTRyLoK8Rse1GjzLV9cwjWV1olXRWEXVA==
 
-"@telecmi/piopiy-native@file:../native-pkg/telecmi-piopiy-native-0.18.0.tgz":
+"@telecmi/piopiy-native@^0.18.0":
   version "0.18.0"
-  resolved "file:../native-pkg/telecmi-piopiy-native-0.18.0.tgz"
+  resolved "https://registry.npmjs.org/@telecmi/piopiy-native/-/piopiy-native-0.18.0.tgz"
   integrity sha512-elFMEgkKDhEIz5ncCZYBZqLkD6ouC9gy1+gt1P62Epu657AtrhudsENdVZxBuskgXsWei5I5YJdnp+lklzgOhA==
   dependencies:
     "@livekit/react-native" ">=2.8.0"

@@ -18,7 +18,7 @@
     "@react-native-async-storage/async-storage": "^2.1.0",
     "@react-native-firebase/app": "^21.6.1",
     "@react-native-firebase/messaging": "^21.6.1",
-    "@telecmi/piopiy-native": "file:../native-pkg/telecmi-piopiy-native-0.18.0.tgz",
+    "@telecmi/piopiy-native": "^0.18.0",
     "events": "^3.3.0",
     "react": "18.3.1",
     "react-native": "0.76.9",
