@@ -15,6 +15,7 @@ import { Platform } from 'react-native';
 // SDK modules. Set LK_DEBUG = false before publishing the SDK.
 const LK_DEBUG = false;
 const dbg = ( ...args ) => {
+    // eslint-disable-next-line no-console -- gated debug logging
     if ( LK_DEBUG ) { console.log( '[piopiy:livekit]', ...args ); }
     try {
         const g = ( typeof globalThis !== 'undefined' ) ? globalThis : null;

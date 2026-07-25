@@ -15,9 +15,14 @@ export default [
   {
     ignores: [
       "node_modules/",
+      // Build output — lib/ and dist/ are compiled, native-pkg/ is the
+      // generated @telecmi/piopiy-native staging dir (npm run stage:native).
       "dist/",
       "lib/",
+      "native-pkg/",
+      // Example apps have their own toolchains and lint configs.
       "example/",
+      "example-rn/",
       "webpack.config.js",
     ],
   },
@@ -44,6 +49,29 @@ export default [
       "no-unused-vars": "warn",
       "no-console": "error",
       "no-undef": "error",
+    },
+  },
+  {
+    // Build/release scripts are plain Node ESM.
+    files: ["scripts/**/*.mjs", "scripts/**/*.js"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: sanitizeGlobals(globals.node),
+    },
+    rules: {
+      // Scripts report progress on stdout by design.
+      "no-console": "off",
+    },
+  },
+  {
+    // Jest test suite.
+    files: ["test/**/*.js"],
+    languageOptions: {
+      globals: {
+        ...sanitizeGlobals(globals.node),
+        ...sanitizeGlobals(globals.jest),
+      },
     },
   },
 ];

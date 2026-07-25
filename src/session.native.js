@@ -26,6 +26,7 @@ var cmi_timeout;
 // Set CK_DEBUG = false (or restore the no-op) before publishing the SDK.
 const CK_DEBUG = false;
 const dbg = ( ...args ) => {
+    // eslint-disable-next-line no-console -- gated debug logging
     if ( CK_DEBUG ) { console.log( '[piopiy:audio]', ...args ); }
     // Optional persistent sink (set by the host app as globalThis.__piopiyLog) so
     // the killed/locked cold-launch sequence can be read from on-device storage
