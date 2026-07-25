@@ -185,6 +185,7 @@ const piopiy = new PIOPIY({
 | `autoplay` | Automatically handle and play remote audio streams | boolean | `true` |
 | `autoReboot` | Automatically attempt reconnection on session drop | boolean | `true` |
 | `ringTime` | Maximum duration for an incoming call to ring (seconds) | number | `40` |
+| `apiBase` | TeleCMI API base URL for login and push-token registration. Override only to test against staging — e.g. `https://stagerest.telecmi.com/v2` | string | `https://rest.telecmi.com/v2` |
 | `autoPushToken` | *(React Native)* Fetch this device's push token and register it with TeleCMI automatically, re-registering when the OS rotates it. Set `false` to manage it yourself with `registerToken()` | boolean | `true` |
 | `registerExpires` | How long the device stays registered (seconds). Shorter values clear a killed app's stale registration faster, so background calls fall through to push sooner | number | `120` |
 
