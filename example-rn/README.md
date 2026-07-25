@@ -2,14 +2,27 @@
 
 **Platforms:** 📱 iOS · 🤖 Android
 
-A minimal bare React Native app for testing the local `@telecmi/piopiy-native` SDK on a real
-device — built around **inbound (incoming) calls**: login to the SBC, receive a
-call, and Answer / Reject, with mute / hold / hang-up / speaker / DTMF controls.
+A minimal bare React Native app for testing `@telecmi/piopiy-native` on a real
+device — built around **inbound (incoming) calls**: sign in, receive a call, and
+Answer / Reject, with mute / hold / hang-up / speaker / DTMF controls.
 
-This app lives **inside** the SDK repo and consumes the SDK straight from the
-parent folder via [`metro.config.js`](./metro.config.js) — there is no
-`npm install @telecmi/piopiy-native`. After you change SDK source in `../src`, rebuild the
-SDK (`cd .. && npm run build-node`) and reload the app.
+The SDK is a **normal dependency** here, resolved from `node_modules` exactly as
+it is in your app — so what you run is what npm ships.
+
+**Testing un-published SDK changes?** Build a tarball and install it, rather than
+aliasing back to the source:
+
+```bash
+# from the repo root
+npm run build-node && npm run stage:native
+cd native-pkg && npm pack
+
+# then in example-rn/
+npm install ../native-pkg/telecmi-piopiy-native-<version>.tgz
+```
+
+That exercises the real npm resolution path (package entry points, transitive
+dependencies, autolinking) without publishing a version.
 
 > Setting this up in your **own** app instead of this example? Follow the
 > [React Native guide](../README.react-native.md).
@@ -23,7 +36,7 @@ SDK (`cd .. && npm run build-node`) and reload the app.
 - **Android:** Android Studio / SDK and **JDK 17** (the emulator can use your
   computer's mic; a real device is best).
 - Node 18+, Yarn, and — for iOS — CocoaPods (via Bundler, see below).
-- A TeleCMI / PIOPIY SBC account (user ID + password).
+- A TeleCMI account (user ID + password).
 
 ## 1. Build the SDK (once, from the repo root)
 

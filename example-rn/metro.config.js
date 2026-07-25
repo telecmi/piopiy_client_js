@@ -1,36 +1,26 @@
 const path = require('path');
 const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
 
-// This example app lives *inside* the SDK repo and consumes the SDK directly
-// from the parent folder (no `npm install @telecmi/piopiy-native`). Metro is told:
+// This example consumes the SDK the same way your app does: `@telecmi/piopiy-native`
+// is a normal dependency in package.json, resolved from node_modules. There is no
+// alias back to the repo source, so what you run here is exactly what npm ships.
 //
-//   * watchFolders -> also read the SDK's built `lib/` and its runtime deps
-//     (lodash, jssip, socket.io-client, underscore) from the parent
-//     node_modules.
-//   * extraNodeModules -> resolve the bare import `@telecmi/piopiy-native` to the repo root.
-//     Metro then honours the package's "react-native" field
-//     (lib/index.native.js). Any other bare import the SDK needs but the parent
-//     does not provide (react-native-webrtc, react-native-incall-manager,
-//     react, react-native, events, ...) falls back to THIS app's node_modules.
+// To test un-published SDK changes, build a tarball and install it:
+//   (repo root)   npm run build-node && npm run stage:native
+//                 cd native-pkg && npm pack
+//   (example-rn)  npm install ../native-pkg/telecmi-piopiy-native-<version>.tgz
 const projectRoot = __dirname;
-const sdkRoot = path.resolve(projectRoot, '..');
 const nm = name => path.join(projectRoot, 'node_modules', name);
 
 /** @type {import('metro-config').MetroConfig} */
 const config = {
-  watchFolders: [sdkRoot],
   resolver: {
     extraNodeModules: new Proxy(
       {
-        // RN apps install `@telecmi/piopiy-native`; this example consumes the SDK source
-        // from the parent repo, so alias the package name to the repo root
-        // (Metro reads its `react-native` field → lib/index.native.js).
-        '@telecmi/piopiy-native': sdkRoot,
-        // The SDK still `require()`s the old package names. Alias them to
-        // LiveKit's forks so jsSIP + the CallKeep bridge resolve onto LiveKit's
-        // WebRTC/CallKeep without rewriting the published SDK. (@livekit/
-        // react-native-webrtc is API-compatible for registerGlobals/mediaDevices;
-        // @livekit/react-native-callkeep is a drop-in fork of react-native-callkeep.)
+        // This example installs LiveKit's forks rather than the upstream
+        // packages, so point the upstream names at them. The SDK accepts either
+        // (it tries both), and a normal app installing `react-native-callkeep`
+        // straight from npm needs none of this.
         'react-native-webrtc': nm('@livekit/react-native-webrtc'),
         'react-native-callkeep': nm('@livekit/react-native-callkeep'),
       },

@@ -24,7 +24,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import PIOPIY from '@telecmi/piopiy-native';
+import PIOPIY, {type PiopiyEventName} from '@telecmi/piopiy-native';
 import {mediaDevices} from '@livekit/react-native-webrtc';
 import pushCallService from './src/pushCallService';
 
@@ -126,7 +126,9 @@ export default function App(): React.JSX.Element {
     // All UI event handlers, kept as a list so we can detach exactly these on
     // cleanup. (Do NOT use removeAllListeners — the same instance also carries
     // pushCallService's CallKeep bridge listeners, which must survive remounts.)
-    const handlers: Array<[string, (d?: any) => void]> = [
+    // PiopiyEventName keeps this list honest — a typo'd event name is a
+    // compile error rather than a listener that silently never fires.
+    const handlers: Array<[PiopiyEventName, (d?: any) => void]> = [
       // ---- Authentication ----
       ['login', () => {
         setRegistered(true);
