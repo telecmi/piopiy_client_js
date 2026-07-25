@@ -5,10 +5,10 @@ export interface PiopiyOptions {
   autoReboot?: boolean;
   ringTime?: number;
   /**
-   * SIP registration lifetime in seconds (default 120; jsSIP's own default is 600).
-   * A shorter expiry means a stale contact from a killed/backgrounded app clears from
-   * the SBC faster, so incoming calls fall through to the push-notification path sooner
-   * instead of being relayed to a dead socket. 60–120 is a good mobile range.
+   * How long the device stays registered, in seconds (default 120). A shorter
+   * value clears a killed/backgrounded app's stale registration faster, so
+   * incoming calls fall through to the push path sooner instead of being sent
+   * to a device that can no longer answer. 60–120 suits most mobile apps.
    */
   registerExpires?: number;
   /**
@@ -28,8 +28,9 @@ export interface PiopiyOptions {
 }
 
 /**
- * Device push descriptor passed to `registerToken()`. The SDK POSTs it to the
- * backend push API so the SBC can wake this device when a call arrives offline.
+ * Device push descriptor passed to `registerToken()`. The SDK registers it with
+ * TeleCMI so this device can be woken when a call arrives while the app is
+ * backgrounded or killed.
  * **React Native only** — a no-op on the web build (browsers have no APNs/FCM).
  */
 export interface PiopiyPushOptions {
@@ -47,9 +48,9 @@ export default class PIOPIY {
   login(userId: string, password: string, region?: string): void;
   logout(): void;
 
-  /** Register the device push token with the backend (POST /push/register). Call after login(). React Native only; no-op on web. */
+  /** Register the device push token with TeleCMI so this device can be woken for incoming calls. Call after login(). React Native only; no-op on web. */
   registerToken(push: PiopiyPushOptions, callback?: (data: any) => void): void;
-  /** Remove the device push token from the backend (POST /push/unregister). React Native only; no-op on web. */
+  /** Remove the device push token (e.g. on logout or Do-Not-Disturb). React Native only; no-op on web. */
   unregisterToken(callback?: (data: any) => void): void;
 
   call(to: string, options?: { extra_param?: string }): void;
