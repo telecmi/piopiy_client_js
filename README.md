@@ -23,7 +23,9 @@ call API** — pick the one for your platform:
 > | `import PIOPIY from 'piopiyjs'` (React Native) | `npm install @telecmi/piopiy-native` → `import PIOPIY from '@telecmi/piopiy-native'` |
 >
 > The call API is unchanged — only the package name and (on React Native) the
-> import path change.
+> import path change. See the
+> [upgrade guide in the changelog](CHANGELOG.md#-upgrading-from-016x) for the
+> full before/after.
 
 ## Key Features
 - **Crystal Clear Audio**: High-fidelity WebRTC-based voice.
@@ -46,6 +48,7 @@ The **call API itself is identical** on both — it's documented in the
 | 📱 **React Native iOS** | **→ [iOS guide](README.react-native-ios.md)** |
 | 🤖 **React Native Android** | **→ [Android guide](README.react-native-android.md)** |
 | 🔔 **Push Notifications** | **→ [Push Notifications guide](README.push-notifications.md)** |
+| 📝 **Changes & upgrading** | **→ [Changelog](CHANGELOG.md)** |
 
 ```bash
 # Web & Electron — pure JS, no native dependencies
