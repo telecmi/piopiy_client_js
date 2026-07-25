@@ -185,6 +185,7 @@ const piopiy = new PIOPIY({
 | `autoplay` | Automatically handle and play remote audio streams | boolean | `true` |
 | `autoReboot` | Automatically attempt reconnection on session drop | boolean | `true` |
 | `ringTime` | Maximum duration for an incoming call to ring (seconds) | number | `40` |
+| `autoPushToken` | *(React Native)* Fetch this device's push token and register it with TeleCMI automatically, re-registering when the OS rotates it. Set `false` to manage it yourself with `registerToken()` | boolean | `true` |
 | `registerExpires` | How long the device stays registered (seconds). Shorter values clear a killed app's stale registration faster, so background calls fall through to push sooner | number | `120` |
 
 > **React Native only:** an extra `callKeep` option configures the native incoming-call UI (e.g. `{ ios: { appName: 'YourApp' } }`). See the [Push Notifications guide](README.push-notifications.md).
@@ -313,7 +314,7 @@ Signs out and disconnects.
 #### Push-notification methods · _React Native only_
 For receiving calls while backgrounded or killed. Full setup in the [Push Notifications guide](README.push-notifications.md). No-ops on Web.
 
-- **`registerToken(push, callback?)`** — register this device's push token so TeleCMI can wake it for incoming calls. Call after `login()`. `push` = `{ provider: 'apns' | 'fcm', token, platform? }`. Queued automatically if called before login completes.
+- **`registerToken(push, callback?)`** — register this device's push token so TeleCMI can wake it for incoming calls. **Usually unnecessary** — the SDK does this automatically (`autoPushToken`, on by default). Use it only with `autoPushToken: false`. `push` = `{ provider: 'apns' | 'fcm', token, platform? }`. Queued automatically if called before login completes.
 - **`unregisterToken(callback?)`** — remove the device's push token (e.g. on logout or Do-Not-Disturb).
 - **`handleIncomingPush(pushData)`** — hand a received call push to the SDK. It shows the incoming-call UI and connects the call on answer. Accepts the invite payload `{ uuid, room, token, url?, from? }` or a cancel payload `{ type: 'cancel_call', uuid }` (caller hung up while ringing).
 

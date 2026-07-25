@@ -15,9 +15,11 @@ Setting up push notifications is **required** to receive incoming calls when you
 > Your responsibilities are only:
 > 1. **Upload your push credentials to the [Connly dashboard](https://connle.telecmi.com)** — your Apple **APNs auth key** (`.p8`) for iOS and your Firebase **FCM service account** JSON for Android (see *Getting your push credentials* below). TeleCMI uses these to send the wake-up push to your devices.
 > 2. **Do the native wiring** in this guide (PushKit/CallKit on iOS, FCM + ConnectionService on Android).
-> 3. **Call `registerToken()`** after login so TeleCMI knows which device to wake.
+> 3. **Forward received pushes** to `handleIncomingPush()`.
 >
-> That's it. No `wss://` URLs, no server hostnames, no network config — those are TeleCMI's side.
+> The device push token is fetched and registered **automatically** by the SDK —
+> you don't write any token code. No `wss://` URLs, no server hostnames, no
+> network config either; those are TeleCMI's side.
 
 ---
 
@@ -98,26 +100,39 @@ cd ..
 
 ---
 
-## Step 2: SDK API Methods
+## Step 2: Push tokens — handled for you
 
-The SDK provides two methods for token registration. Both are React Native only (safe no-ops on web).
+**There is nothing to write here.** The SDK fetches this device's push token
+(PushKit on iOS, FCM on Android), registers it with TeleCMI after `login()`, and
+re-registers automatically whenever the OS rotates the token:
 
-```typescript
-// Register the device push token with TeleCMI. Call after login().
-piopiy.registerToken(options: PiopiyPushOptions, callback?: (res) => void);
-
-// Unregister the push token (e.g., on logout or Do-Not-Disturb toggles).
-piopiy.unregisterToken(callback?: (res) => void);
+```javascript
+const piopiy = new PIOPIY({ name: 'Mobile Agent' });   // autoPushToken is on by default
+piopiy.login(userId, password, region);                 // token registered automatically
 ```
 
-Under the hood the SDK **registers the token with the TeleCMI platform** (`POST /push/register` and `/push/unregister`) — this is what tells TeleCMI which device to wake when a call arrives:
+Listen for `pushRegistered` if you want to confirm it happened:
 
-* **You don't configure any URL or backend** — the endpoint is TeleCMI's hosted REST, built into the SDK. You just call `registerToken()`.
-* **Auth** reuses the session token the SDK obtained at `login()` — there's no JWT to pass.
-* **Timing-safe**: if you call `registerToken()` before the login token is ready, it's **queued** and sent automatically once login completes.
-* The optional **`callback`** receives the backend response — `{ code: 200, ... }` on success, or an error code (`1006` = bad args, `1007` = request failed).
+```javascript
+piopiy.on('pushRegistered', (res) => console.log('device ready for push calls', res));
+```
 
-### `PiopiyPushOptions` Schema
+### Managing the token yourself (optional)
+
+Set `autoPushToken: false` and call `registerToken()` when you have a token —
+useful if your app already owns the push lifecycle:
+
+```javascript
+const piopiy = new PIOPIY({ name: 'Mobile Agent', autoPushToken: false });
+piopiy.registerToken({ provider: 'apns', token, platform: 'ios' });
+```
+
+* **Timing-safe**: calling it before login completes is fine — it's **queued** and sent once login finishes.
+* **No URL or backend to configure** — the endpoint is TeleCMI's hosted REST, built into the SDK.
+* An optional **`callback`** receives the response — `{ code: 200, ... }` on success, or an error code (`1006` = bad args, `1007` = request failed).
+* `unregisterToken(callback?)` removes the token.
+
+### `PiopiyPushOptions` Schema (for manual registration)
 
 | Property | Type | Description |
 | :--- | :--- | :--- |

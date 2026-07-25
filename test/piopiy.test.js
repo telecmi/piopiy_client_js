@@ -11,7 +11,7 @@ describe('PIOPIY constructor options', () => {
   });
 
   test('reports the package version', () => {
-    expect(new PIOPIY().version).toBe('0.17.0');
+    expect(new PIOPIY().version).toBe('0.18.0');
   });
 
   test('honours overrides', () => {

@@ -8,6 +8,8 @@ import { SocketCMI } from './socket';
 import CallKeepBridge from './callkeep';
 // Platform-resolved: livekitCall.native.js on React Native, livekitCall.js (no-op) on web.
 import LiveKitCall from './livekitCall';
+// Platform-resolved: pushToken.native.js on React Native, pushToken.js (no-op) on web.
+import PushTokenManager from './pushToken';
 
 
 
@@ -34,7 +36,7 @@ export default class extends EventEmitter {
         let option = options || {};
         EventEmitter.bind(this);
         this.name = 'PIOPIYJS';
-        this.version = '0.17.0';
+        this.version = '0.18.0';
         this.ice_servers = [
             { 'urls': 'stun:stunind.telecmi.com' }
         ]
@@ -54,6 +56,10 @@ export default class extends EventEmitter {
         // Optional LiveKit inbound config ({url}). React Native only: inbound calls
         // can arrive as a LiveKit room held server-side (see livekitIncoming()).
         this.piopiyOption.livekit = _.isObject(option.livekit) ? option.livekit : {};
+        // Fetch and register the device push token automatically (React Native).
+        // On by default — it is what an app needs for background calls. Set false
+        // to manage the token yourself with registerToken().
+        this.piopiyOption.autoPushToken = _.isBoolean(option.autoPushToken) ? option.autoPushToken : true;
 
         if (this.piopiyOption.autoplay) {
 
@@ -64,6 +70,13 @@ export default class extends EventEmitter {
         this._livekit = new LiveKitCall(this, this.piopiyOption.livekit);
         // Native incoming-call UI bridge (no-op on web / when callkeep isn't installed).
         this._callkeep = new CallKeepBridge(this, this.piopiyOption.callKeep);
+        // Automatic device push-token registration (no-op on web / when the push
+        // libraries aren't installed). Starts watching immediately; the token is
+        // queued by registerToken() until login() completes.
+        this._pushToken_mgr = new PushTokenManager(this);
+        if (this.piopiyOption.autoPushToken) {
+            this._pushToken_mgr.start();
+        }
 
     }
 

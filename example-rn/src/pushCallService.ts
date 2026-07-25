@@ -48,7 +48,6 @@ class PushCallService extends EventEmitter {
   private piopiy: PIOPIY | null = null;
   private initialised = false;
   private lifecycleWired = false;
-  private pushToken: string | null = null;
   private pendingWakeCallUUID: string | null = null;
   private pendingWakeTimer: ReturnType<typeof setTimeout> | null = null;
   private wakeKeepAlive: ReturnType<typeof setInterval> | null = null;
@@ -201,87 +200,39 @@ class PushCallService extends EventEmitter {
   // ---------------------------------------------------------------------------
   // Push tokens -> SDK.registerToken
   // ---------------------------------------------------------------------------
+  // The SDK fetches this device's push token and registers it with TeleCMI on
+  // its own (autoPushToken, on by default), including re-registering when the OS
+  // rotates it — so there is NO token code here any more. What remains is the
+  // one thing the app must still do: forward received call pushes to the SDK.
   private setupPushTokens(): void {
-    this.log(`setupPushTokens on ${Platform.OS}`);
+    this.log(`listening for call pushes on ${Platform.OS}`);
 
     if (Platform.OS === 'ios') {
       try {
-        VoipPushNotification.addEventListener('register', (token: string) => {
-          this.log(`iOS VoIP 'register' fired — token: ${this.short(token)}`);
-          this.onPushToken(token);
-        });
         VoipPushNotification.addEventListener('notification', (payload: any) => {
           this.log('iOS VoIP push received');
           this.onIncomingPush(payload?.data ?? payload);
         });
+        // A push delivered while the app was killed is replayed here on launch.
         VoipPushNotification.addEventListener('didLoadWithEvents', (events: any[]) => {
           this.log(`iOS didLoadWithEvents: ${JSON.stringify((events || []).map(e => e?.name))}`);
           (events || []).forEach(evt => {
             if (evt?.name === 'RNVoipPushRemoteNotificationReceivedEvent') {
               this.onIncomingPush(evt.data?.data ?? evt.data);
-            } else if (evt?.name === 'RNVoipPushRemoteNotificationsRegisteredEvent') {
-              this.onPushToken(evt.data);
             }
           });
         });
-        VoipPushNotification.registerVoipToken();
-        this.log("iOS registerVoipToken() called — waiting for the 'register' event…");
-
-        // No 'register' event = iOS issued no token (usually a setup gap, not a JS error).
-        setTimeout(() => {
-          if (!this.pushToken) {
-            this.log(
-              '⚠️ NO VoIP token after 10s. Likely causes: (1) AppDelegate PushKit not wired ' +
-                '([RNVoipPushNotificationManager voipRegistration] + the pushRegistry: methods); ' +
-                '(2) missing Push Notifications / Voice-over-IP capability in Xcode; ' +
-                '(3) Push not enabled on the App ID (com.telecmi.piopirn) in your Apple Developer account; ' +
-                '(4) running on a Simulator (VoIP push needs a real device).',
-            );
-          }
-        }, 10000);
       } catch (e: any) {
-        this.log(`iOS VoIP setup error: ${e?.message ?? e}`);
+        this.log(`iOS VoIP listener error: ${e?.message ?? e}`);
       }
     } else {
       try {
         const messaging = require('@react-native-firebase/messaging').default;
-        messaging()
-          .getToken()
-          .then((token: string) => {
-            this.log(`FCM getToken → ${this.short(token)}`);
-            this.onPushToken(token);
-          })
-          .catch((e: any) => this.log(`FCM getToken failed: ${e?.message ?? e}`));
-        messaging().onTokenRefresh((token: string) => this.onPushToken(token));
         messaging().onMessage(async (msg: any) => this.onIncomingPush(msg?.data));
       } catch (e: any) {
-        this.log(`Android FCM setup error: ${e?.message ?? e}`);
+        this.log(`Android FCM listener error: ${e?.message ?? e}`);
       }
     }
-  }
-
-  private onPushToken(token: string | undefined | null): void {
-    if (!token) {
-      this.log('onPushToken called with an empty token — ignoring');
-      return;
-    }
-    this.pushToken = token;
-    this.log(`registering token with SBC (${Platform.OS})…`);
-    // registerToken() queues until the login token is ready, so this is timing-safe.
-    this.getClient().registerToken(this.pushDescriptor(token), (res: any) =>
-      this.log(`registerToken → ${JSON.stringify(res)}`),
-    );
-  }
-
-  /** Truncate a token for readable logs. */
-  private short(token: string): string {
-    return token ? `${token.slice(0, 10)}…(${token.length} chars)` : '(empty)';
-  }
-
-  private pushDescriptor(token: string) {
-    return Platform.OS === 'ios'
-      ? {provider: 'apns', token, platform: 'ios'}
-      : {provider: 'fcm', token, platform: 'android'};
   }
 
   // ---------------------------------------------------------------------------
@@ -502,10 +453,9 @@ class PushCallService extends EventEmitter {
     await this.saveCreds(creds);
     await this.requestPermissions();
     const piopiy = this.getClient();
+    // The SDK registers this device's push token automatically once login
+    // completes (autoPushToken) — nothing to do here.
     piopiy.login(creds.user, creds.password, creds.region);
-    if (this.pushToken) {
-      piopiy.registerToken(this.pushDescriptor(this.pushToken));
-    }
   }
 
   // The native CallKeep UI is wired by the SDK; these back the in-app buttons.

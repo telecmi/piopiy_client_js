@@ -19,6 +19,15 @@ export interface PiopiyOptions {
    */
   callKeep?: { ios?: Record<string, any>; android?: Record<string, any> };
   /**
+   * Automatically fetch this device's push token and register it with TeleCMI,
+   * re-registering whenever the OS rotates it (React Native only; **default
+   * `true`**). Requires `react-native-voip-push-notification` (iOS) and
+   * `@react-native-firebase/messaging` (Android) — if they aren't installed the
+   * SDK stays inert. Set `false` to manage the token yourself via
+   * `registerToken()`.
+   */
+  autoPushToken?: boolean;
+  /**
    * @internal Advanced/testing only — normally omitted. Fallback media server
    * URL used if an inbound-call push arrives without one. In production the
    * platform delivers the URL inside the push and the SDK connects
