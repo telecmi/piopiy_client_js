@@ -16,6 +16,7 @@ const UA_DEBUG = false;
 const dbg = ( ...args ) => {
     if ( !UA_DEBUG ) return;
     const line = args.map( ( a ) => ( typeof a === 'string' ? a : JSON.stringify( a ) ) ).join( ' ' );
+    // eslint-disable-next-line no-console -- gated debug logging
     console.log( '[piopiy:ua]', line );
     try {
         const g = ( typeof globalThis !== 'undefined' ) ? globalThis : null;
@@ -66,6 +67,7 @@ export default class {
             // holds the complete SIP trace, not just SDK lifecycle lines.
             try {
                 SIP.debug.log = (...args) => {
+                    // eslint-disable-next-line no-console -- gated debug logging
                     console.log(...args);
                     try {
                         const g = (typeof globalThis !== 'undefined') ? globalThis : null;
