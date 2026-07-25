@@ -1,7 +1,7 @@
 
 // Base URL for login (/user/login) and push tokens (/push/register, /push/unregister).
 // The value already includes the /v2 prefix.
-const PUSH_API_BASE = 'https://rest.telecmi.com/v2';
+const PUSH_API_BASE = 'https://stagerest.telecmi.com/v2';
 
 export default class {
 

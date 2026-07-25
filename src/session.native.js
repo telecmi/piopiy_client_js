@@ -57,7 +57,16 @@ const incall = {
     start () {
         try {
             dbg( 'incall.start() — InCallManager', InCallManager ? 'present, calling start({media:audio})' : 'MISSING (no-op)' );
-            if ( InCallManager ) InCallManager.start( { media: 'audio' } );
+            if ( InCallManager ) {
+                InCallManager.start( { media: 'audio' } );
+                // Re-assert the output route on every call. The bundled WebRTC
+                // engine installs a GLOBAL audio config that defaults to the
+                // loudspeaker (it targets video chat), which would make every
+                // voice call answer on speaker. Honour the current preference —
+                // earpiece unless the user turned the speaker on.
+                InCallManager.setForceSpeakerphoneOn( !!speakerOn );
+                dbg( 'incall.start() — route forced to', speakerOn ? 'speaker' : 'earpiece' );
+            }
         } catch ( e ) {
             dbg( 'incall.start() ERROR', e && e.message );
         }
