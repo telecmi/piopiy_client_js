@@ -57,14 +57,25 @@ Open `ios/<YourApp>/Info.plist` and add the microphone permission string (requir
 
 ---
 
-## 4. Podfile configuration — Disable New Architecture
+## 4. Podfile configuration — Disable New Architecture (required)
 
-WebRTC native modules build most reliably on iOS with the **New Architecture disabled**. 
-Near the top of your `ios/Podfile` (before the `target` block), verify or add:
+The SDK's native pods do **not** build on iOS with the New Architecture enabled —
+which RN 0.76+ turns on by default. Near the top of your `ios/Podfile` (before the
+`target` block), add:
 
 ```ruby
 ENV['RCT_NEW_ARCH_ENABLED'] = '0'
 ```
+
+> [!WARNING]
+> Skip this and the build fails at link time with
+> `module map file '…/livekit_react_native.modulemap' not found`
+> (or the same error naming another Swift pod). After adding it, re-run
+> `pod install` **and delete DerivedData** — a stale build directory keeps the
+> old architecture's artifacts and the error persists.
+>
+> This applies to **iOS only**. Android runs fine on the New Architecture — see
+> the CallKeep patch in the [Push guide](README.push-notifications.md).
 
 ---
 
@@ -175,6 +186,7 @@ Follow the **[Push Notifications guide](README.push-notifications.md)** for the 
 | **`pod install` fails on `SocketRocket` / deployment target** | Set `platform :ios, '15.1'` in your `Podfile`, then run `pod install --repo-update`. |
 | **`Unicode Normalization` errors during `pod install`** | Locale isn't UTF-8: prefix command with `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 pod install`. |
 | **`fmt` / `consteval` compiler error (Xcode 26)** | Apply the `post_install` patch inside your Podfile, then clear DerivedData and rebuild. |
+| **`Command Ld failed` / `module map file '…modulemap' not found`** (naming `livekit_react_native`, `AsyncStorage`, or another Swift pod) | The New Architecture is enabled. Add `ENV['RCT_NEW_ARCH_ENABLED'] = '0'` to your `Podfile` (**Step 4**), re-run `pod install`, then **delete DerivedData** and rebuild. |
 | **Native build errors after upgrading packages** | Re-run `pod install`; ensure `RCT_NEW_ARCH_ENABLED=0` is configured in the `Podfile`. |
 
 ---
