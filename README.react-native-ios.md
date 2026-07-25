@@ -171,6 +171,7 @@ Follow the **[Push Notifications guide](README.push-notifications.md)** for the 
 | :--- | :--- |
 | **No audio after answering** | Running on iOS Simulator (no mic input device). Run on a real iOS device. |
 | **`mediaFailed` event** | Microphone permission was denied by the user. Verify app microphone permissions in Settings. |
+| **`Unable to open base configuration reference file … Pods-<App>.debug.xcconfig`**<br>or **`Unable to load contents of file list: '/Target Support Files/…xcfilelist'`** | Either `pod install` hasn't been run (there is no `ios/Pods/`), or you opened `ios/<App>.xcodeproj` instead of **`ios/<App>.xcworkspace`**. Run `cd ios && bundle exec pod install`, then close Xcode and reopen the **`.xcworkspace`** — the `.xcodeproj` alone knows nothing about CocoaPods. |
 | **`pod install` fails on `SocketRocket` / deployment target** | Set `platform :ios, '15.1'` in your `Podfile`, then run `pod install --repo-update`. |
 | **`Unicode Normalization` errors during `pod install`** | Locale isn't UTF-8: prefix command with `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 pod install`. |
 | **`fmt` / `consteval` compiler error (Xcode 26)** | Apply the `post_install` patch inside your Podfile, then clear DerivedData and rebuild. |
