@@ -4,6 +4,10 @@ import ua from './userAgent';
 import Audio from './audio';
 import rest from './rest';
 import { SocketCMI } from './socket';
+// Platform-resolved: callkeep.native.js on React Native, callkeep.js (no-op) on web.
+import CallKeepBridge from './callkeep';
+// Platform-resolved: livekitCall.native.js on React Native, livekitCall.js (no-op) on web.
+import LiveKitCall from './livekitCall';
 
 
 
@@ -12,6 +16,9 @@ import { SocketCMI } from './socket';
 let userAgent = new ua();
 let cmiAudio = new Audio();
 let RestCMI = new rest();
+
+// registerToken/unregisterToken are React Native only — a no-op on web/Node.
+const IS_REACT_NATIVE = typeof navigator !== 'undefined' && navigator.product === 'ReactNative';
 export default class extends EventEmitter {
 
 
@@ -20,24 +27,43 @@ export default class extends EventEmitter {
         super()
         this.piopiyOption = {};
         this.ua = {};
+        this._token = null;       // backend session token (from login), used as the push API bearer
+        this._pushToken = null;   // last registered device push token (so unregisterToken knows which)
+        this._pendingRegister = null; // registerToken() call queued before the login token arrived
+        this._region = null;      // SBC host/region from login(), sent with the push registration
         let option = options || {};
         EventEmitter.bind(this);
         this.name = 'PIOPIYJS';
-        this.version = '0.16.0';
+        this.version = '0.17.0';
         this.ice_servers = [
             { 'urls': 'stun:stunind.telecmi.com' }
         ]
         this.piopiyOption.debug = (_.isBoolean(option.debug)) ? option.debug : false;
         this.piopiyOption.autoplay = _.isBoolean(option.autoplay) ? option.autoplay : true;
         this.piopiyOption.autoReboot = _.isBoolean(option.autoReboot) ? option.autoReboot : true;
-        this.piopiyOption.ringTime = _.isNumber(option.ringTime) ? option.ringTime : 60;
+        this.piopiyOption.ringTime = _.isNumber(option.ringTime) ? option.ringTime : 40;
         this.piopiyOption.displayName = _.isString(option.name) ? option.name : null;
+        // SIP registration lifetime in seconds. Shorter = a stale contact (from a
+        // killed/backgrounded app) clears from the SBC faster, so incoming calls fall
+        // through to the push path sooner instead of being relayed to a dead socket.
+        // Default 120s (jsSIP's own default is 600s); 60–120 is the mobile sweet spot.
+        this.piopiyOption.registerExpires = _.isNumber(option.registerExpires) ? option.registerExpires : 120;
+        // Optional CallKeep config (appName, android channel, ...). The built-in
+        // bridge auto-activates on React Native when react-native-callkeep is installed.
+        this.piopiyOption.callKeep = _.isObject(option.callKeep) ? option.callKeep : {};
+        // Optional LiveKit inbound config ({url}). React Native only: inbound calls
+        // can arrive as a LiveKit room held server-side (see livekitIncoming()).
+        this.piopiyOption.livekit = _.isObject(option.livekit) ? option.livekit : {};
 
         if (this.piopiyOption.autoplay) {
 
             cmiAudio.audioTag();
         }
 
+        // LiveKit inbound engine (inert on web / when @livekit/react-native isn't installed).
+        this._livekit = new LiveKitCall(this, this.piopiyOption.livekit);
+        // Native incoming-call UI bridge (no-op on web / when callkeep isn't installed).
+        this._callkeep = new CallKeepBridge(this, this.piopiyOption.callKeep);
 
     }
 
@@ -49,15 +75,18 @@ export default class extends EventEmitter {
         let sbc_region = region || 'sbcsg.telecmi.com';
         if (_.isString(user_id) && _.isString(password)) {
 
+            // Remember the SBC/region so the push registration can include it.
+            _this._region = sbc_region;
 
             var credentials = {
-                uri: user_id + '@' + region,
+                uri: user_id + '@' + sbc_region,
                 authorization_user: user_id,
                 password: password,
                 debug: this.piopiyOption.debug,
                 display_name: this.piopiyOption.displayName,
                 no_answer_timeout: this.piopiyOption.ringTime,
                 register: true,
+                register_expires: this.piopiyOption.registerExpires,
                 region: sbc_region,
                 session_timers: false
             }
@@ -70,9 +99,26 @@ export default class extends EventEmitter {
 
             RestCMI.getToken(user_id, password, (data) => {
                 if (data.code == 200) {
+                    _this._token = data.token;
                     _this.socketCMI = new SocketCMI(data.token, _this)
+
+                    // Flush a push registration that was queued before the token arrived.
+                    if (_this._pendingRegister) {
+                        let pending = _this._pendingRegister;
+                        _this._pendingRegister = null;
+                        _this.registerToken(pending.push, pending.callback);
+                    }
                 } else {
                     _this.emit('loginFailed', { code: 407, status: 'Token generation failed' });
+
+                    // Auth token unavailable — fail any queued push registration's callback.
+                    if (_this._pendingRegister) {
+                        let pending = _this._pendingRegister;
+                        _this._pendingRegister = null;
+                        if (typeof pending.callback === 'function') {
+                            pending.callback({ code: 1008, status: 'auth token unavailable' });
+                        }
+                    }
                 }
             })
         } else {
@@ -106,7 +152,38 @@ export default class extends EventEmitter {
 
     terminate() {
         let _this = this;
+        // An active (or still-ringing) LiveKit inbound call — leave the room.
+        if (_this._livekit && _this._livekit.isCall(null)) {
+            _this._livekit.end('terminate');
+            return;
+        }
         userAgent.terminate(_this);
+    }
+
+    /**
+     * Feed an inbound-call VoIP push to the SDK. Two payload shapes:
+     *  - invite  {uuid, room, token, url?, from?} — emits 'inComingCall' (same
+     *    surface as SIP) and joins the room when the user answers.
+     *  - cancel  {type: 'cancel_call', uuid} — the caller hung up while this
+     *    device was still ringing; dismisses the CallKit UI and drops the
+     *    pending call. React Native only.
+     * @param {{uuid: string, room?: string, token?: string, url?: string, from?: string, type?: string}} info
+     * @returns {boolean} true if the push was accepted for handling
+     */
+    livekitIncoming(info) {
+        if (info && info.type === 'cancel_call' && info.uuid) {
+            const uuid = String(info.uuid).toLowerCase();
+            if (this._livekit && this._livekit.isCall(uuid)) {
+                this._livekit.end('caller cancelled');
+            } else {
+                // No pending call in the engine (e.g. cold start where only the
+                // native CallKit report happened) — dismiss the UI directly.
+                try { this.emit('callkeepCancel', { uuid, reason: 'caller cancelled' }); } catch { /* ignore */ }
+                try { this.emit('missedCall', { uuid, from: info.from || null, reason: 'cancelled', transport: 'livekit' }); } catch { /* ignore */ }
+            }
+            return true;
+        }
+        return this._livekit ? this._livekit.setPending(info) : false;
     }
 
 
@@ -114,14 +191,112 @@ export default class extends EventEmitter {
         userAgent.re_register();
     }
 
+    /**
+     * Register the device push token with the backend (POST /push/register).
+     * The backend stores it so the SBC can wake this device with a VoIP/FCM push when
+     * a call arrives while the app is offline. Call after login(); call again to update
+     * a rotated token. If called before the login auth token is ready, it is queued
+     * and sent automatically once login completes. React Native only; no-op on web.
+     * @param {{provider: string, token: string, platform?: string}} push
+     * @param {(data: any) => void} [callback]
+     */
+    registerToken(push, callback) {
+        let _this = this;
+        const done = (data) => { if (typeof callback === 'function') callback(data); };
+
+        if (!IS_REACT_NATIVE) {
+            return;
+        }
+        if (!_.isObject(push) || !isString(push.provider) || !isString(push.token)) {
+            const err = { code: 1006, status: 'invalid push options: provider and token are required' };
+            _this.emit('error', err);
+            done(err);
+            return;
+        }
+
+        // The login auth token is fetched asynchronously; if it isn't ready yet,
+        // queue this registration and flush it from the login token callback.
+        if (!_this._token) {
+            _this._pendingRegister = { push, callback };
+            return;
+        }
+
+        _this._pushToken = push.token;
+
+        RestCMI.registerPush(
+            _this._token,
+            { token: push.token, provider: push.provider, platform: push.platform, sbc: _this._region },
+            (data) => {
+                if (data && data.code === 200) {
+                    _this.emit('pushRegistered', data);
+                } else {
+                    _this.emit('error', { code: 1007, status: 'push token register failed', data });
+                }
+                done(data);
+            }
+        );
+    }
+
+    /**
+     * Remove the device push token from the backend (POST /push/unregister),
+     * stopping push wake-ups. Uses the last token passed to registerToken().
+     * React Native only; no-op on web.
+     * @param {(data: any) => void} [callback]
+     */
+    unregisterToken(callback) {
+        let _this = this;
+        const done = (data) => { if (typeof callback === 'function') callback(data); };
+
+        if (!IS_REACT_NATIVE) {
+            return;
+        }
+        if (!_this._pushToken) {
+            const err = { code: 1008, status: 'no push token registered' };
+            _this.emit('error', err);
+            done(err);
+            return;
+        }
+
+        RestCMI.unregisterPush(
+            _this._token,
+            { token: _this._pushToken },
+            (data) => {
+                if (data && data.code === 200) {
+                    _this._pushToken = null;
+                    _this.emit('pushUnregistered', data);
+                } else {
+                    _this.emit('error', { code: 1007, status: 'push token unregister failed', data });
+                }
+                done(data);
+            }
+        );
+    }
+
 
 
     answer() {
         let _this = this;
+        // If CallKit is showing this call (iOS), answer THROUGH CallKit so its UI
+        // leaves the ringing state and the audio session activates. The resulting
+        // answerCall event re-enters the bridge, which routes to LiveKit or SIP.
+        if (_this._callkeep && typeof _this._callkeep.answerFromApp === 'function' && _this._callkeep.answerFromApp()) {
+            return;
+        }
+        // LiveKit inbound answered from the app UI with no CallKit in play
+        // (e.g. Android): join the held room directly.
+        if (_this._livekit && _this._livekit.hasPending()) {
+            _this._livekit.answer();
+            return;
+        }
         userAgent.answer(_this);
     }
     reject() {
         let _this = this;
+        // A ringing LiveKit inbound call — decline it (dismisses CallKit too).
+        if (_this._livekit && _this._livekit.hasPending()) {
+            _this._livekit.end('rejected');
+            return;
+        }
         userAgent.reject(_this);
     }
 
@@ -156,6 +331,11 @@ export default class extends EventEmitter {
 
     speaker(on) {
         let _this = this;
+        // LiveKit inbound call: route via the LiveKit audio session (the SIP
+        // path's InCallManager isn't driving this call's audio).
+        if (_this._livekit && typeof _this._livekit.setSpeaker === 'function' && _this._livekit.isCall && _this._livekit.isCall(null)) {
+            return _this._livekit.setSpeaker(on);
+        }
         return userAgent.speaker(on, _this);
     }
 
@@ -262,5 +442,4 @@ export default class extends EventEmitter {
 const isString = (value) => {
     return typeof value === 'string';
 }
-
 

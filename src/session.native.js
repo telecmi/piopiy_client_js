@@ -9,6 +9,7 @@
 //   * alert() is removed; failures already surface through emitted events.
 //   * react-native-incall-manager (optional) manages the audio session.
 import _ from 'lodash';
+import { Platform, NativeModules } from 'react-native';
 import rtcpeer from './RTCPeer';
 
 
@@ -20,15 +21,33 @@ var timeout;
 var cmi_timeout;
 
 
+// Internal debug hook. TEMP: enabled to trace the answer/audio flow during
+// debugging — the lines appear in the Metro console as [piopiy:audio] …
+// Set CK_DEBUG = false (or restore the no-op) before publishing the SDK.
+const CK_DEBUG = false;
+const dbg = ( ...args ) => {
+    if ( CK_DEBUG ) { console.log( '[piopiy:audio]', ...args ); }
+    // Optional persistent sink (set by the host app as globalThis.__piopiyLog) so
+    // the killed/locked cold-launch sequence can be read from on-device storage
+    // after unlocking — Console.app/Metro aren't usable on a locked cold-launch.
+    try {
+        const g = ( typeof globalThis !== 'undefined' ) ? globalThis : null;
+        if ( g && typeof g.__piopiyLog === 'function' ) {
+            g.__piopiyLog( '[audio] ' + args.map( ( a ) => ( typeof a === 'string' ? a : JSON.stringify( a ) ) ).join( ' ' ) );
+        }
+    } catch { /* ignore */ }
+};
+
 // Optional native audio-session manager. Soft-required so the SDK still works
 // when the host app has not installed it (calls then use the default route).
 let InCallManager = null;
 try {
     const mod = require( 'react-native-incall-manager' );
     InCallManager = mod && ( mod.default || mod );
-} catch ( e ) {
+} catch {
     InCallManager = null;
 }
+dbg( 'react-native-incall-manager:', InCallManager ? 'LOADED' : 'NOT INSTALLED (audio will not route on iOS)' );
 
 // Tracks the current loudspeaker preference; reset when the audio session stops.
 let speakerOn = false;
@@ -36,15 +55,17 @@ let speakerOn = false;
 const incall = {
     start () {
         try {
+            dbg( 'incall.start() — InCallManager', InCallManager ? 'present, calling start({media:audio})' : 'MISSING (no-op)' );
             if ( InCallManager ) InCallManager.start( { media: 'audio' } );
         } catch ( e ) {
-            // ignore
+            dbg( 'incall.start() ERROR', e && e.message );
         }
     },
     stop () {
         try {
+            dbg( 'incall.stop()' );
             if ( InCallManager ) InCallManager.stop();
-        } catch ( e ) {
+        } catch {
             // ignore
         }
         // InCallManager.stop() restores the default route, so clear our flag too.
@@ -54,10 +75,85 @@ const incall = {
         try {
             if ( InCallManager ) InCallManager.setForceSpeakerphoneOn( !!on );
             speakerOn = !!on;
-        } catch ( e ) {
+        } catch {
             // ignore
         }
         return speakerOn;
+    }
+};
+
+
+// iOS CallKit owns the AVAudioSession and activates it only AFTER the answer
+// action is fulfilled. Starting WebRTC audio before that (the old behaviour)
+// leaves the audio unit detached from CallKit's session -> the call connects but
+// is silent. The CallKeep bridge sets this flag so answer() defers the audio
+// start to CallKit's `didActivateAudioSession` event, which the bridge drives via
+// the exported `callAudio` controls below.
+let callKitAudioManaged = false;
+export function setCallKitAudioManaged ( v ) {
+    callKitAudioManaged = !!v;
+}
+// Shared audio-session controls so the CallKeep bridge starts/stops the SAME
+// InCallManager instance on the CallKit audio-session events.
+export const callAudio = incall;
+
+
+// iOS CallKit + react-native-webrtc MANUAL audio. In WebRTC's default (automatic)
+// mode the VoIP audio unit starts as soon as a track is ready — which races
+// CallKit's didActivateAudioSession on push-woken/locked answers and leaves the
+// call silent (the -12985 "cannot interrupt others" fight seen in the logs). In
+// manual mode WebRTC only runs its audio unit when we call setAudioEnabled(true),
+// which the CallKeep bridge drives from CallKit's activate/deactivate events — so
+// audio start is deterministic regardless of track-vs-activation timing.
+//
+// Requires the native methods added by the app's react-native-webrtc patch
+// (example-rn/patches/react-native-webrtc+124.0.7.patch). If the patch is absent
+// these are no-ops and WebRTC stays in automatic mode (today's behaviour), so this
+// can never break a build that hasn't applied the patch.
+const WebRTCModule = ( NativeModules && NativeModules.WebRTCModule ) || null;
+const hasManualAudio = !!( WebRTCModule
+    && typeof WebRTCModule.setManualAudio === 'function'
+    && typeof WebRTCModule.setAudioEnabled === 'function' );
+
+export const webrtcAudio = {
+    available: hasManualAudio,
+    // Put WebRTC in manual mode with the audio unit OFF. Call once at startup.
+    initManual () {
+        if ( Platform.OS !== 'ios' || !hasManualAudio ) {
+            dbg( 'webrtcAudio.initManual skipped — ios:', Platform.OS === 'ios', 'patched:', hasManualAudio );
+            return;
+        }
+        try {
+            WebRTCModule.setManualAudio( true );
+            WebRTCModule.setAudioEnabled( false );
+            dbg( 'webrtcAudio: MANUAL mode ON, audio unit held OFF' );
+        } catch ( e ) {
+            dbg( 'webrtcAudio.initManual ERROR', e && e.message );
+        }
+    },
+    // CallKit activated the AVAudioSession -> sync + start the audio unit.
+    // Fully inert unless the manual-audio patch is present, so an unpatched build
+    // keeps today's behaviour (InCallManager only) with no change.
+    enable () {
+        if ( Platform.OS !== 'ios' || !hasManualAudio ) return;
+        try {
+            WebRTCModule.audioSessionDidActivate();
+            WebRTCModule.setAudioEnabled( true );
+            dbg( 'webrtcAudio: ENABLED (CallKit session active)' );
+        } catch ( e ) {
+            dbg( 'webrtcAudio.enable ERROR', e && e.message );
+        }
+    },
+    // CallKit deactivated the AVAudioSession -> stop the audio unit + sync.
+    disable () {
+        if ( Platform.OS !== 'ios' || !hasManualAudio ) return;
+        try {
+            WebRTCModule.setAudioEnabled( false );
+            WebRTCModule.audioSessionDidDeactivate();
+            dbg( 'webrtcAudio: DISABLED (CallKit session inactive)' );
+        } catch ( e ) {
+            dbg( 'webrtcAudio.disable ERROR', e && e.message );
+        }
     }
 };
 
@@ -70,12 +166,14 @@ const attachRemoteStream = ( pc, _this ) => {
     try {
         pc.addEventListener( 'track', ( event ) => {
             const stream = ( event && event.streams && event.streams[ 0 ] ) || null;
+            const kind = event && event.track && event.track.kind;
+            dbg( 'remote track received — kind:', kind, 'stream:', stream ? 'yes' : 'no' );
             if ( stream ) {
                 _this.emit( 'callStream', { code: 200, status: stream } );
             }
         } );
     } catch ( e ) {
-        // ignore
+        dbg( 'attachRemoteStream ERROR', e && e.message );
     }
 };
 
@@ -102,9 +200,12 @@ export default class {
 
         var eventHandlers = {
             'progress': function () {
-
+                dbg( 'outgoing: PROGRESS (1xx) received — remote is ringing' );
             },
             'failed': function ( e ) {
+                dbg( 'outgoing: FAILED — cause:', e && e.cause,
+                    'status:', e && e.message && e.message.status_code,
+                    'originator:', e && e.originator );
                 if ( timeout ) {
                     clearTimeout( timeout );
                     clearTimeout( cmi_timeout );
@@ -118,12 +219,14 @@ export default class {
                 }
             },
             'ended': function () {
+                dbg( 'outgoing: ENDED' );
                 if ( timeout ) {
                     clearTimeout( timeout );
                     clearTimeout( cmi_timeout );
                 }
             },
             'confirmed': function () {
+                dbg( 'outgoing: CONFIRMED (ACK) — call established' );
                 if ( timeout ) {
                     clearTimeout( timeout );
                     clearTimeout( cmi_timeout );
@@ -137,6 +240,11 @@ export default class {
         const call_options = {
             'eventHandlers': eventHandlers,
             mediaConstraints: cmi_media_cons,
+            // jsSIP defaults rtcOfferConstraints to null and passes it straight to
+            // createOffer(). The LiveKit react-native-webrtc fork throws
+            // "Cannot convert null value to object" on null options — always hand
+            // it a real object (harmless on stock react-native-webrtc too).
+            rtcOfferConstraints: { offerToReceiveAudio: true, offerToReceiveVideo: false },
             pcConfig: {
                 'iceServers': _this.ice_servers
             }
@@ -155,14 +263,22 @@ export default class {
 
 
 
+        dbg( 'make(): dialing', to, '— creating session (getUserMedia + SDP next)' );
         cmi_session = ua.call( to, call_options )
+        dbg( 'make(): session object created — INVITE goes out once SDP is ready' );
 
         incall.start();
+        // Outgoing calls are not CallKit-managed, so no didActivateAudioSession
+        // fires for them. InCallManager activated the session above; in manual
+        // audio mode we must explicitly start WebRTC's audio unit here, or the
+        // call would be silent. No-op if the webrtc patch isn't applied.
+        webrtcAudio.enable();
 
 
         cmi_timeout = setTimeout( function () {
 
             if ( cmi_session && ( cmi_session.status === 1 ) ) {
+                dbg( 'make(): 5s and still no SIP response (status 1) → NETStats 408' );
                 _this.emit( 'NETStats', { code: 408, msg: 'Request timeout' } )
             }
         }, 5000 );
@@ -172,6 +288,7 @@ export default class {
 
             if ( cmi_session && ( cmi_session.status === 1 ) ) {
 
+                dbg( 'make(): 10s WATCHDOG — no response to INVITE → terminating call + restarting UA (this is the auto-hangup)' );
                 cmi_session.terminate();
                 ua.stop();
                 ua.start();
@@ -247,10 +364,21 @@ export default class {
         }
 
 
-        incall.start();
+        // On the CallKit path (iOS) the bridge starts audio on
+        // `didActivateAudioSession`; starting here would be too early and the call
+        // would answer silent. Off that path (Android, or no CallKit) start now.
+        if ( !callKitAudioManaged ) {
+            incall.start();
+        }
 
         cmi_session.answer( {
-            mediaConstraints: { 'audio': true, 'video': false }, pcConfig: {
+            mediaConstraints: { 'audio': true, 'video': false },
+            // Non-null constraints for the LiveKit webrtc fork: createAnswer (and
+            // any later hold/renegotiate createOffer) reject null options with
+            // "Cannot convert null value to object".
+            rtcAnswerConstraints: {},
+            rtcOfferConstraints: { offerToReceiveAudio: true, offerToReceiveVideo: false },
+            pcConfig: {
                 'iceServers': _this.ice_servers
             }
         } );
@@ -262,13 +390,14 @@ export default class {
     reject ( ua, _this ) {
 
         if ( _.isEmpty( ua._sessions ) ) {
-
-            _this.emit( 'error', { code: 1002, status: 'call not found' } )
+            // No live session (e.g. a push "ghost" call that never got an INVITE, or
+            // a call that already ended). Hanging up nothing is a no-op, not an error.
+            dbg( 'reject(): no active session — nothing to reject' );
             return;
         }
 
         if ( cmi_session.isEnded() ) {
-            _this.emit( 'error', { code: 1002, status: 'call already ended' } )
+            dbg( 'reject(): session already ended — nothing to reject' );
             return;
         }
 
@@ -279,13 +408,13 @@ export default class {
     terminate ( ua, _this ) {
 
         if ( _.isEmpty( ua._sessions ) ) {
-
-            _this.emit( 'error', { code: 1002, status: 'call not found' } )
+            // No live session — hanging up nothing is a no-op, not an error.
+            dbg( 'terminate(): no active session — nothing to terminate' );
             return;
         }
 
         if ( cmi_session.isEnded() ) {
-            _this.emit( 'error', { code: 1002, status: 'call already ended' } )
+            dbg( 'terminate(): session already ended — nothing to terminate' );
             return;
         }
 
@@ -294,9 +423,10 @@ export default class {
     }
 
     hangup ( ua, _this ) {
-        if ( _.isEmpty( ua.sessions ) ) {
-
-            _this.emit( 'error', { code: 1002, status: 'call not found' } )
+        // NOTE: must be `_sessions` (the previous `ua.sessions` was always undefined,
+        // so this guard never worked).
+        if ( _.isEmpty( ua._sessions ) ) {
+            dbg( 'hangup(): no active session — nothing to hang up' );
             return;
         }
 
@@ -505,6 +635,7 @@ export default class {
         cmisession.on( 'failed', ( e ) => {
 
             incall.stop();
+            webrtcAudio.disable();
 
             if ( e.originator == "local" ) {
 
@@ -537,7 +668,7 @@ export default class {
             if ( cmisession.connection ) {
                 try {
                     RTCPeer.connections( cmisession, cmisession.connection, _this )
-                } catch ( e ) {
+                } catch {
                     // ignore
                 }
 
@@ -555,7 +686,7 @@ export default class {
                 attachRemoteStream( cmisession.connection, _this );
                 try {
                     RTCPeer.connections( cmisession, cmisession.connection, _this )
-                } catch ( e ) {
+                } catch {
                     // ignore
                 }
 
@@ -564,35 +695,33 @@ export default class {
 
         } );
 
-        cmisession.on( 'accepted', ( e ) => {
-
-            if ( e.originator == "local" ) {
-                return;
-            }
-
-            _this.emit( 'answered', { code: 200, status: 'answered' } )
-        } );
-
-        cmisession.on( 'confirmed', ( e ) => {
-
-
-            if ( e.originator == "local" ) {
-                return;
-            }
-
+        const emitAnswered = () => {
+            if ( cmisession.__cmiAnsweredEmitted ) return;
+            cmisession.__cmiAnsweredEmitted = true;
 
             if ( cmisession._request ) {
-
                 _this.call_id = cmisession._request.call_id;
             }
 
-            _this.emit( 'answered', { code: 200, status: 'answered' } )
+            _this.emit( 'answered', { code: 200, status: 'answered' } );
+        };
+
+        cmisession.on( 'accepted', () => {
+            // Incoming calls are answered locally, so jsSIP can report
+            // originator="local" even though this is the moment the app should move
+            // to active-call UI. Emit once for both incoming and outgoing calls.
+            emitAnswered();
+        } );
+
+        cmisession.on( 'confirmed', () => {
+            emitAnswered();
         } );
 
 
         cmisession.on( 'getusermediafailed', ( e ) => {
 
             incall.stop();
+            webrtcAudio.disable();
 
             _this.emit( 'mediaFailed', { code: 415, status: e || 'user media failed' } )
         } );
@@ -604,19 +733,38 @@ export default class {
             // server-reflexive candidate via `event.candidate.type` always fails
             // and `ready()` is never called — jsSIP then blocks the answer SDP
             // until full ICE gathering completes, noticeably delaying inbound
-            // audio. Fall back to parsing the raw candidate string so the answer
-            // is sent as soon as a srflx (STUN) candidate is found.
+            // audio. Fall back to parsing the raw candidate string. If no srflx
+            // appears quickly during an iOS push wake-up, release the SDP anyway so
+            // the SIP answer is not lost to the caller-side no-answer timer.
             try {
                 const candidate = event && event.candidate;
-                if ( !candidate ) return;
+                const ready = () => {
+                    if ( cmisession.__cmiIceReadyCalled ) return;
+                    cmisession.__cmiIceReadyCalled = true;
+                    if ( cmisession.__cmiIceReadyTimer ) {
+                        clearTimeout( cmisession.__cmiIceReadyTimer );
+                        cmisession.__cmiIceReadyTimer = null;
+                    }
+                    event.ready();
+                };
+
+                if ( !candidate ) {
+                    ready();
+                    return;
+                }
 
                 const candidateStr = ( typeof candidate.candidate === 'string' ) ? candidate.candidate : '';
                 const type = candidate.type || ( /(?:^|\s)typ\s+(\w+)/.exec( candidateStr ) || [] )[ 1 ];
 
-                if ( type === 'srflx' ) {
-                    event.ready();
+                if ( type === 'srflx' || type === 'relay' ) {
+                    ready();
+                    return;
                 }
-            } catch ( e ) {
+
+                if ( !cmisession.__cmiIceReadyTimer ) {
+                    cmisession.__cmiIceReadyTimer = setTimeout( ready, 1200 );
+                }
+            } catch {
                 // ignore
             }
         } );
@@ -647,6 +795,7 @@ export default class {
         cmisession.on( 'ended', ( e ) => {
 
             incall.stop();
+            webrtcAudio.disable();
 
             if ( _this.cmi_webrtc_stats ) {
                 clearInterval( _this.cmi_webrtc_stats )

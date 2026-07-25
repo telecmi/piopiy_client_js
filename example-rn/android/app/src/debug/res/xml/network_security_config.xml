@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  DEBUG builds only. Permits cleartext broadly so the app can reach the Metro dev
+  server (any LAN IP) and a ws:///http:// dev backend. This overrides the scoped
+  src/main config for debug builds; release keeps the locked-down main config.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

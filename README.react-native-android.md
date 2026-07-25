@@ -5,7 +5,7 @@
 > 🤖 **This is the Android guide.** Building for **iOS** or **Web / Electron**?
 > → **[iOS guide](README.react-native-ios.md)** · **[Web & Electron guide](README.web.md)**
 
-Use the `piopiyjs` WebRTC voice SDK in a **bare React Native** Android app to place and receive calls. Under the hood, this WebRTC SDK registers with the TeleCMI SBC (Session Border Controller), allowing you to make and receive high-quality voice calls to **PSTN (Public Switched Telephone Network) numbers**, custom SIP extensions, and app-to-app configurations.
+Use the `@telecmi/piopiy-native` WebRTC voice SDK in a **bare React Native** Android app to place and receive calls. Under the hood, this WebRTC SDK registers with the TeleCMI SBC (Session Border Controller), allowing you to make and receive high-quality voice calls to **PSTN (Public Switched Telephone Network) numbers**, custom SIP extensions, and app-to-app configurations.
 
 ---
 
@@ -18,21 +18,11 @@ Use the `piopiyjs` WebRTC voice SDK in a **bare React Native** Android app to pl
 
 ---
 
-## 1. Install the SDK and its native peers
+## 1. Install the SDK
 
-```bash
-npm install piopiyjs react-native-webrtc react-native-incall-manager
-```
-
-| Package | Why it's needed |
-| :--- | :--- |
-| `piopiyjs` | The PIOPIY SDK (SIP + WebRTC call control). |
-| `react-native-webrtc` | The native WebRTC APIs the SDK runs on. **Required.** |
-| `react-native-incall-manager` | Audio session / routing (speaker, ringback, proximity). **Required** for speaker toggle. |
-
-> [!IMPORTANT]
-> Install all three packages in **your own app's root** (not nested inside another package) — `react-native-webrtc` and `react-native-incall-manager` are native modules your app must register.
-> Note that importing `piopiyjs` automatically injects WebRTC globals into your global scope.
+Follow **Step 1 of the [React Native guide](README.react-native.md)** — one install
+command plus a small `react-native.config.js`, then come back here for the Android
+native setup.
 
 ---
 
@@ -80,7 +70,7 @@ async function requestAndroidMicPermission() {
 
 ## 4. Gradle Configuration
 
-- `react-native-webrtc` requires **`minSdkVersion` 24+** (Android 7.0). Confirm this setting in `android/build.gradle` (or `android/app/build.gradle` depending on your React Native version).
+- The bundled WebRTC engine requires **`minSdkVersion` 24+** (Android 7.0). Confirm this setting in `android/build.gradle` (or `android/app/build.gradle` depending on your React Native version).
 - Build the project using **JDK 17** (the React Native 0.76+ default).
 
 ---
@@ -99,10 +89,10 @@ If you compile release builds with minification enabled, add the following line 
 
 ```js
 import { PermissionsAndroid } from 'react-native';
-import PIOPIY from 'piopiyjs';
+import PIOPIY from '@telecmi/piopiy-native';
 
 // 1. Initialize the client
-const piopiy = new PIOPIY({ name: 'Android Agent', debug: true, ringTime: 60 });
+const piopiy = new PIOPIY({ name: 'Android Agent', debug: true, ringTime: 40 });
 
 // 2. Set up event listeners
 piopiy.on('login', () => console.log('Registered with SBC'));
@@ -168,10 +158,9 @@ Since this is a **voice-only** SDK, remote and local audio tracks are routed aut
 
 ## Inbound calls while backgrounded (important)
 
-Inbound calls ring and connect while the app is in the **foreground**. Receiving a call while the app is **backgrounded or killed** requires platform push + a native call UI:
-- **Android:** a high-priority **FCM** data message + a foreground service / **ConnectionService**.
+Inbound calls ring and connect while the app is in the **foreground**. Receiving a call while the app is **backgrounded or killed** requires a high-priority **FCM** data message + **ConnectionService** — the SDK drives the call UI once wired up.
 
-That integration is **not** part of this SDK — add it on top of this package for an always-on softphone.
+Follow the **[Push Notifications guide](README.push-notifications.md)** for the complete setup.
 
 ---
 

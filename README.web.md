@@ -26,15 +26,15 @@ with the SBC, place and receive calls, with mute / hold / DTMF / transfer.
 ## 1. Install
 
 ```bash
-npm install piopiyjs
+npm install @telecmi/piopiyjs
 ```
 
 > [!NOTE]
-> On Web and Electron you install **only** `piopiyjs`. The `react-native-webrtc` /
-> `react-native-incall-manager` packages are for React Native — do not install
-> them here.
+> On Web and Electron you install **only** `@telecmi/piopiyjs` — it's pure JS with
+> no native dependencies. The React Native packages (`@telecmi/piopiy-native`,
+> `react-native-callkeep`, `react-native-incall-manager`) are not used here.
 
-`import PIOPIY from 'piopiyjs'` automatically resolves the **browser build** (the
+`import PIOPIY from '@telecmi/piopiyjs'` automatically resolves the **browser build** (the
 package's `main` entry); browser WebRTC is used under the hood.
 
 > [!TIP]
@@ -45,9 +45,9 @@ package's `main` entry); browser WebRTC is used under the hood.
 ## 2. Initialize and log in
 
 ```js
-import PIOPIY from 'piopiyjs';
+import PIOPIY from '@telecmi/piopiyjs';
 
-const piopiy = new PIOPIY({ name: 'Agent', debug: true, autoplay: true, ringTime: 60 });
+const piopiy = new PIOPIY({ name: 'Agent', debug: true, autoplay: true, ringTime: 40 });
 
 //        username   password    domain
 piopiy.login('1001', 'secret', 'sbcind.telecmi.com');
