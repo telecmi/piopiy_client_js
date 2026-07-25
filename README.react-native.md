@@ -20,9 +20,30 @@ npm install @telecmi/piopiy-native react-native-callkeep react-native-incall-man
 | `react-native-callkeep` | Native incoming-call UI (CallKit / ConnectionService). |
 | `react-native-incall-manager` | Audio routing (speaker, ringback, earpiece). |
 
-The SDK bundles its own audio/WebRTC engine, which React Native links
-automatically when you install the package — **no extra configuration needed.**
-Just install the iOS pods:
+### Register the SDK's engine for autolinking (required)
+
+The SDK ships its own audio/WebRTC engine. React Native's autolinking only scans
+your app's **direct** dependencies, so it will not find an engine that lives
+inside the SDK — you must list it once. Create `react-native.config.js` at your
+project root:
+
+```javascript
+// react-native.config.js
+module.exports = {
+  dependencies: {
+    '@livekit/react-native': {},
+    '@livekit/react-native-webrtc': {},
+  },
+};
+```
+
+> [!WARNING]
+> Skip this and the app builds, but the native WebRTC module is missing — calls
+> fail at runtime with *"WebRTC engine could not be loaded"*. You don't install
+> these packages yourself; they arrive with the SDK. This file only tells
+> autolinking they exist.
+
+Then install the iOS pods:
 
 ```bash
 cd ios && bundle exec pod install && cd ..
@@ -155,7 +176,7 @@ Because this is a **voice-only** SDK, remote and local audio tracks are automati
 | Problem | Solution |
 | :--- | :--- |
 | **`Unable to resolve module @telecmi/piopiy-native`** | Re-run `npm install`, then restart Metro with a cleared cache (`npx react-native start --reset-cache`). |
-| **Native module / WebRTC not found at launch** | Rare — autolinking didn't pick up the SDK's bundled engine. Add a `react-native.config.js` at your project root, then re-run `pod install` and rebuild:<br>`module.exports = { dependencies: { '@livekit/react-native': {}, '@livekit/react-native-webrtc': {} } };` |
+| **Native module / WebRTC not found at launch** | The `react-native.config.js` from Step 1 is missing or incomplete. Add it, then re-run `pod install` (iOS) and rebuild. |
 | **No remote audio on iOS Simulator** | The iOS Simulator does not support WebRTC microphone capture. You **must** run and test voice calls on a physical iOS device. |
 | **`mediaFailed` event triggers** | The user did not grant microphone permission. Ensure you prompt for permission at runtime (Android) or verify the `NSMicrophoneUsageDescription` configuration in Xcode/`Info.plist` (iOS). |
 

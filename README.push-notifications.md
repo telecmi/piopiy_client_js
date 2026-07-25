@@ -244,15 +244,24 @@ export default new PushCallService();
 ## Step 4a: Configure iOS Native Wiring (PushKit + CallKit)
 
 ### 0. Create `react-native.config.js` (required)
-One file at your **project root**. It keeps **your** Firebase packages off the
-iOS build — iOS uses PushKit, not FCM, and without this the iOS build fails with
-`Module 'FirebaseCore' not found`:
+One file at your **project root**, doing two required jobs:
+
+1. **Registers the SDK's bundled audio/WebRTC engine** for autolinking.
+   Autolinking only scans your app's *direct* dependencies, so it can't see an
+   engine that ships inside the SDK. Without these two lines the app builds but
+   calls fail at runtime with *"WebRTC engine could not be loaded"*. You don't
+   install these packages — they arrive with the SDK.
+2. **Keeps your Firebase packages off the iOS build** — iOS uses PushKit, not
+   FCM, and without this the iOS build fails with `Module 'FirebaseCore' not found`.
 
 ```javascript
 // react-native.config.js
 module.exports = {
   dependencies: {
-    // Firebase is Android-only here — exclude it from iOS
+    // 1. the SDK's bundled engine — required for calls to work
+    '@livekit/react-native': {},
+    '@livekit/react-native-webrtc': {},
+    // 2. Firebase is Android-only here — exclude it from iOS
     '@react-native-firebase/app': {platforms: {ios: null}},
     '@react-native-firebase/messaging': {platforms: {ios: null}},
   },
