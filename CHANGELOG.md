@@ -10,11 +10,23 @@ the exact action required.
 
 | Version | Date | Headline |
 | :--- | :--- | :--- |
+| [0.18.0](#0180---2026-07-25) | 2026-07-25 | Automatic push-token registration |
 | [0.17.0](#0170---2026-07-24) | 2026-07-24 | Scoped packages, push-call reliability (cancel, ring timeout, missed calls) |
 | [0.16.0](#0160---2026-06-05) | 2026-06-05 | React Native support (iOS & Android) |
 | [0.15.0](#0150---2026-04-15) | 2026-04-15 | `call_id` key standardization |
 | [0.14.0](#0140---2026-04-10) | 2026-04-10 | Team transfer |
 | [0.13.0](#0130---2026-04-08) | 2026-04-08 | Call metadata extraction, tooling upgrade |
+
+## [0.18.0] - 2026-07-25
+
+### Added
+- **Automatic push-token registration** (`autoPushToken`, **on by default**, React Native). The SDK now fetches this device's push token itself — PushKit on iOS, FCM on Android — registers it with TeleCMI after `login()`, and **re-registers automatically when the OS rotates the token**. This removes ~40 lines of identical boilerplate from every integration; the example app's push service shrank by ~75 lines.
+  - Uses the same soft-require approach as the CallKeep bridge: **no new dependencies**, and the SDK stays inert if the push libraries aren't installed.
+  - `@react-native-firebase/messaging` is required lazily and only on Android, so it can never break an iOS build with `Module 'FirebaseCore' not found`.
+  - The same token is never re-sent, so enabling this alongside your own `registerToken()` calls causes no duplicate requests.
+
+### Changed
+- `registerToken()` is now optional for most apps — it remains public for anyone setting `autoPushToken: false`. `unregisterToken()` is unchanged.
 
 ## [0.17.0] - 2026-07-24
 
