@@ -5,7 +5,7 @@
 > 🤖 **This is the Android guide.** Building for **iOS** or **Web / Electron**?
 > → **[iOS guide](README.react-native-ios.md)** · **[Web & Electron guide](README.web.md)**
 
-Use the `@telecmi/piopiy-native` React Native voice SDK in a **bare React Native** Android app to place and receive calls. Under the hood, the SDK registers (via WebRTC) with the TeleCMI SBC (Session Border Controller), allowing you to make and receive high-quality voice calls to **PSTN (Public Switched Telephone Network) numbers**, custom SIP extensions, and app-to-app configurations.
+Use the `@telecmi/piopiy-native` React Native voice SDK in a **bare React Native** Android app to place and receive calls. It connects your app to TeleCMI so you can make and receive high-quality voice calls — to **real phone numbers**, to other agent extensions, or app-to-app.
 
 ---
 
@@ -14,7 +14,7 @@ Use the `@telecmi/piopiy-native` React Native voice SDK in a **bare React Native
 - **Node 18+**.
 - **Android Studio / Android SDK** and **JDK 17**.
 - A physical Android device is recommended, though the Android emulator can use your computer's microphone.
-- A TeleCMI / PIOPIY SBC account (**username**, **password**, **domain**).
+- A TeleCMI account (**username**, **password**, **region**).
 
 ---
 
@@ -95,7 +95,7 @@ import PIOPIY from '@telecmi/piopiy-native';
 const piopiy = new PIOPIY({ name: 'Android Agent', debug: true, ringTime: 40 });
 
 // 2. Set up event listeners
-piopiy.on('login', () => console.log('Registered with SBC'));
+piopiy.on('login', () => console.log('Signed in — ready for calls'));
 
 // Receive inbound calls
 piopiy.on('inComingCall', (data) => {
@@ -133,8 +133,8 @@ async function handleLogin() {
   piopiy.login('1001', 'secret', 'sbcind.telecmi.com');
 }
 
-// 4. Place an outbound call to a PSTN number (or another extension)
-// The TeleCMI SBC automatically bridges this WebRTC call to the PSTN telephone network.
+// 4. Place an outbound call to a phone number (or another extension)
+// TeleCMI connects the call through to the phone network.
 async function makeCall() {
   piopiy.call('13158050050');
 }

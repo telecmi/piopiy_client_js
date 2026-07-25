@@ -6,7 +6,7 @@
 > → **[React Native guide](README.react-native.md)**
 
 High-quality WebRTC voice calling that runs directly in the browser or Electron window — register
-with the SBC, place and receive calls, with mute / hold / DTMF / transfer.
+with TeleCMI, place and receive calls, with mute / hold / DTMF / transfer.
 
 > The **call API** (methods & events) is the same on every platform and is
 > documented once in the **[API reference](README.md#api-reference)**. This guide
@@ -19,7 +19,7 @@ with the SBC, place and receive calls, with mute / hold / DTMF / transfer.
 - A modern browser (Chrome, Edge, Firefox, or Safari) or an **Electron** desktop application.
 - **HTTPS.** Browsers only grant microphone access (`getUserMedia`) on a **secure
   origin**: `https://…` in production, or `http://localhost` during development. (Electron apps using local file protocols or custom schemes are exempt).
-- A TeleCMI / PIOPIY SBC account (**username**, **password**, **domain**).
+- A TeleCMI account (**username**, **password**, **region**).
 
 ---
 
@@ -49,14 +49,14 @@ import PIOPIY from '@telecmi/piopiyjs';
 
 const piopiy = new PIOPIY({ name: 'Agent', debug: true, autoplay: true, ringTime: 40 });
 
-//        username   password    domain
+//        username   password    region
 piopiy.login('1001', 'secret', 'sbcind.telecmi.com');
 
 piopiy.on('login',       () => console.log('registered — ready for calls'));
 piopiy.on('loginFailed', (d) => console.log('login failed', d?.code, d?.status));
 ```
 
-See [Regional SBC endpoints](README.md#authentication) for the right domain.
+See [Regional endpoints](README.md#authentication) for the right region.
 
 ---
 
