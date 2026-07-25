@@ -186,7 +186,7 @@ Follow the **[Push Notifications guide](README.push-notifications.md)** for the 
 | **`pod install` fails on `SocketRocket` / deployment target** | Set `platform :ios, '15.1'` in your `Podfile`, then run `pod install --repo-update`. |
 | **`Unicode Normalization` errors during `pod install`** | Locale isn't UTF-8: prefix command with `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 pod install`. |
 | **`fmt` / `consteval` compiler error (Xcode 26)** | Apply the `post_install` patch inside your Podfile, then clear DerivedData and rebuild. |
-| **`Command Ld failed` / `module map file '…modulemap' not found`** (naming `livekit_react_native`, `AsyncStorage`, or another Swift pod) | The New Architecture is enabled. Add `ENV['RCT_NEW_ARCH_ENABLED'] = '0'` to your `Podfile` (**Step 4**), re-run `pod install`, then **delete DerivedData** and rebuild. |
+| **`module map file '…modulemap' not found`** (naming `livekit_react_native`, `AsyncStorage`, or another Swift pod) | **Usually a cascade, not the real error.** A pod failed to compile, so its module map was never produced. Scroll up to the **first** `error:` in the build log — most often the `fmt` / `consteval` failure below. Fix that and these disappear. If there is no earlier error, check `ENV['RCT_NEW_ARCH_ENABLED'] = '0'` (**Step 4**), re-run `pod install`, delete DerivedData, rebuild. |
 | **Native build errors after upgrading packages** | Re-run `pod install`; ensure `RCT_NEW_ARCH_ENABLED=0` is configured in the `Podfile`. |
 
 ---
