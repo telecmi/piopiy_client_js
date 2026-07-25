@@ -83,8 +83,23 @@ Step 1: Install Peer Libraries
 One command — the SDK plus the native push and telephony libraries:
 
 ```bash
-npm install @telecmi/piopiy-native react-native-callkeep react-native-incall-manager react-native-voip-push-notification @react-native-firebase/app @react-native-firebase/messaging @react-native-async-storage/async-storage
+npm install @telecmi/piopiy-native react-native-callkeep react-native-incall-manager react-native-voip-push-notification @react-native-firebase/app @react-native-firebase/messaging
 ```
+
+| Package | Why |
+| :--- | :--- |
+| `@telecmi/piopiy-native` | The SDK (ships its own WebRTC engine) |
+| `react-native-callkeep` | Native incoming-call UI (CallKit / ConnectionService) |
+| `react-native-incall-manager` | Audio routing (speaker / earpiece) |
+| `react-native-voip-push-notification` | iOS VoIP push (PushKit) |
+| `@react-native-firebase/app` + `/messaging` | Android FCM — **Android only**, excluded from iOS in Step 4a·0 |
+
+> [!NOTE]
+> **Storage is your choice.** The SDK does not require any storage library. If
+> you want to persist credentials so a killed-state push can re-login, add one
+> yourself — e.g. `react-native-keychain` (recommended for credentials) or
+> `@react-native-async-storage/async-storage`. Pin whichever you pick to a
+> version compatible with your React Native release.
 
 Then add the `react-native.config.js` from **Step 4a · 0** and install the iOS pods. Use the project's **bundler** (the system `pod` can crash on
 newer macOS with `ffi`/Unicode errors) and a UTF-8 locale:
