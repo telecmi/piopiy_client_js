@@ -40,7 +40,7 @@ nothing else about the push server is yours to configure.
 
 ## How it works
 
-1. **Foreground**: The SDK keeps a persistent WebSocket connection to the SBC. Incoming calls trigger the `inComingCall` event directly—**no push notifications needed**.
+1. **Foreground**: The SDK keeps a live connection to TeleCMI. Incoming calls trigger the `inComingCall` event directly—**no push notifications needed**.
 2. **Background / Killed**: The OS terminates background WebSockets. When a call arrives, the TeleCMI platform detects the device is offline and sends a high-priority push (VoIP Push via APNs on iOS, FCM on Android) using the certificates you submitted on the portal. The push carries everything the SDK needs to connect the call.
 3. **App Wakeup**: The push wakes your app; the SDK instantly displays the native incoming-call UI (CallKit/ConnectionService), connects the call using the details in the push, and fires the `inComingCall` event.
 
@@ -200,13 +200,13 @@ class PushCallService {
   // iOS already reports CallKit synchronously in AppDelegate. Android reaches
   // this path from FCM, so JS displays CallKeep there.
   async handleIncomingPush(data) {
-    const uuid = data?.uuid; // your SBC should send a valid v4 UUID in the payload
+    const uuid = data?.uuid; // TeleCMI sends a v4 UUID in the push payload
     const caller = data?.from || 'Incoming Call';
     if (Platform.OS === 'android') {
       RNCallKeep.displayIncomingCall(uuid, caller, caller);
     }
 
-    // Re-register so the SIP INVITE can be delivered.
+    // Re-register so the incoming call can be delivered.
     if (!this.piopiy.isLogedIn() || !this.piopiy.isConnected()) {
       const saved = await AsyncStorage.getItem(CREDS_KEY);
       if (saved) {

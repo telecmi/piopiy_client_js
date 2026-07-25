@@ -4,7 +4,7 @@
 
 This is the unified landing page for setting up the `@telecmi/piopiy-native` React Native voice SDK in a **bare React Native** application. 
 
-Under the hood, the SDK uses WebRTC to register with the TeleCMI SBC (Session Border Controller), allowing you to make and receive high-quality voice calls to PSTN numbers, SIP extensions, and app-to-app configurations.
+It connects your app to TeleCMI so you can make and receive high-quality voice calls — to real phone numbers, to other agent extensions, or app-to-app.
 
 ---
 
@@ -60,8 +60,8 @@ export default function App() {
 
   useEffect(() => {
     // 2. Attach Event Listeners
-    piopiy.on('connected', () => console.log('SBC connected'));
-    piopiy.on('login', () => console.log('Successfully registered with SBC'));
+    piopiy.on('connected', () => console.log('connected'));
+    piopiy.on('login', () => console.log('Signed in — ready for calls'));
     piopiy.on('loginFailed', (err) => console.error('Registration failed:', err));
     
     piopiy.on('inComingCall', (data) => {
@@ -97,12 +97,12 @@ export default function App() {
       }
     }
 
-    // Connect to SBC (regional domain)
+    // Sign in (see the regional endpoints table)
     piopiy.login('1001', 'password123', 'sbcind.telecmi.com');
   };
 
   const makeCall = () => {
-    piopiy.call('13158050050'); // Place outgoing call (PSTN or extension)
+    piopiy.call('13158050050'); // Place outgoing call (phone number or extension)
   };
 
   const endCall = () => {

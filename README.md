@@ -3,8 +3,7 @@
 **Platforms:** 🌐 Web · 💻 Electron · 📱 iOS · 🤖 Android
 
 The PIOPIY WebRTC SDK for JavaScript enables high-quality voice communication —
-make and receive calls to PSTN (Public Switched Telephone Network), App-to-App,
-and Browser-to-Browser.
+make and receive real phone calls, app-to-app calls, and browser-to-browser calls.
 
 **One API, two packages.** The SDK ships as two packages that share the **same
 call API** — pick the one for your platform:
@@ -30,7 +29,7 @@ call API** — pick the one for your platform:
 - **Crystal Clear Audio**: High-fidelity WebRTC-based voice.
 - **Cross-Platform**: One SDK for Web, Electron, and React Native (iOS & Android).
 - **Rich Call Control**: Mute, Hold, Transfer, and DTMF support.
-- **Metadata Support**: Extract custom SIP headers and transfer information.
+- **Call Metadata**: Read caller info and transfer details, and attach your own data to calls.
 
 ---
 
@@ -113,11 +112,11 @@ const piopiy = new PIOPIY({
 
 // 2. Attach Event Handlers
 piopiy.on("connected", (data) => {
-    console.log("Connected to SBC:", data);
+    console.log("Connected:", data);
 });
 
 piopiy.on("disconnected", (data) => {
-    console.log("Disconnected from SBC:", data);
+    console.log("Disconnected:", data);
 });
 
 piopiy.on("login", (data) => {
@@ -183,26 +182,26 @@ const piopiy = new PIOPIY({
 | `autoplay` | Automatically handle and play remote audio streams | boolean | `true` |
 | `autoReboot` | Automatically attempt reconnection on session drop | boolean | `true` |
 | `ringTime` | Maximum duration for an incoming call to ring (seconds) | number | `40` |
-| `registerExpires` | SIP registration lifetime (seconds). Shorter values clear a killed app's stale registration faster, so background calls fall through to push sooner | number | `120` |
+| `registerExpires` | How long the device stays registered (seconds). Shorter values clear a killed app's stale registration faster, so background calls fall through to push sooner | number | `120` |
 
 > **React Native only:** an extra `callKeep` option configures the native incoming-call UI (e.g. `{ ios: { appName: 'YourApp' } }`). See the [Push Notifications guide](README.push-notifications.md).
 
 ## Authentication
 
-Connect to the PIOPIY Session Border Controller (SBC) using your TeleCMI credentials.
+Sign in with the TeleCMI credentials for the extension you want to place and receive calls on.
 
 ```javascript
-//              username     password          domain / SBC URI
+//              username     password          region
 piopiy.login("user_id", "password", "sbcind.telecmi.com");
 ```
 
 #### Parameters of `login(userId, password, region)`
-- **`userId`** (string): Your TeleCMI user ID or agent SIP extension.
+- **`userId`** (string): Your TeleCMI user ID or agent extension.
 - **`password`** (string): Your extension password.
-- **`region`** (string, optional): The regional SBC Domain/URI. If omitted, defaults to the Asia region (`sbcsg.telecmi.com`).
+- **`region`** (string, optional): The TeleCMI region your account belongs to (see the table below). Defaults to Asia (`sbcsg.telecmi.com`).
 
-#### Regional SBC Endpoints
-| Region | SBC URI (Domain) |
+#### Regional Endpoints
+| Region | Endpoint |
 | :--- | :--- |
 | **Asia (Default)** | `sbcsg.telecmi.com` |
 | **Europe** | `sbcuk.telecmi.com` |
@@ -218,21 +217,21 @@ piopiy.login("user_id", "password", "sbcind.telecmi.com");
 ### Methods
 
 #### `call(phone_number, options)`
-Initiates an outgoing call to a PSTN number or another agent extension.
+Places an outgoing call to a phone number or another agent extension.
 - **`phone_number`** (string): The target number in E.164 format (e.g., `"13158050050"`) or extension (e.g., `"1002"`).
 - **`options`** (optional): JSON object containing:
-  - **`extra_param`** (string): Custom metadata. This gets attached to the outbound SIP request as the header `X-cmi-extra_param: custom_value`, allowing you to pass metadata to TeleCMI webhooks and routing rules.
+  - **`extra_param`** (string): Custom metadata. Sent with the call as `X-cmi-extra_param`, so you can pass your own data through to TeleCMI webhooks and routing rules.
   ```javascript
   piopiy.call("13158050050", { extra_param: "my_custom_tracking_id_123" });
   ```
 
 #### `getCallId()`
-Returns the local WebRTC/SIP standard session identifier.
-- **Returns**: A standard `SIP Call-ID` `string`, or `false` if no call is active.
+Returns the local session identifier for the current call.
+- **Returns**: A `string` call ID, or `false` if no call is active.
 - **Availability**: Available immediately when the call is initiated or received.
 
 #### `getCallID()`
-Returns the unique server-side TeleCMI session UUID for the current active PSTN call leg.
+Returns the unique TeleCMI session UUID for the current call.
 - **Returns**: A TeleCMI unique UUID `string`, or `false` if no call is active.
 - **Availability**: Available only after the call session is in progress (ringing) or established (answered). Use this identifier when querying status or recording logs via the TeleCMI REST API.
 
@@ -283,14 +282,14 @@ Shortcut helper method that sends the DTMF tone `'0'`. Commonly used to bridge/m
 Shortcut helper method that sends the DTMF tone `'#'`. Commonly used to cancel a transfer attempt and retrieve the original call.
 
 #### `reRegister()`
-Manually triggers registration with the SBC. Useful for recovering from network connection changes (e.g. WiFi to LTE) or dropouts on mobile devices.
+Manually re-registers the device with TeleCMI. Useful for recovering from network connection changes (e.g. WiFi to LTE) or dropouts on mobile devices.
 
 #### `isLogedIn()`
-Checks if the client is currently authenticated and registered with the SBC.
+Checks if the client is signed in and ready to make or receive calls.
 - **Returns**: `boolean`
 
 #### `isConnected()`
-Checks if the WebSocket connection to the SBC is currently active.
+Checks if the connection to TeleCMI is currently active.
 - **Returns**: `boolean`
 
 #### `onHold()`
@@ -306,7 +305,7 @@ Checks if the loudspeaker is currently turned on (React Native only).
 - **Returns**: `boolean`
 
 #### `logout()`
-Disconnects from the SBC session.
+Signs out and disconnects.
 
 #### Push-notification methods · _React Native only_
 For receiving calls while backgrounded or killed. Full setup in the [Push Notifications guide](README.push-notifications.md). No-ops on Web.
@@ -322,15 +321,15 @@ The SDK uses an event-driven architecture. Listen for events using `.on(eventNam
 #### Connection & Registration Events
 
 * **`connected`**
-  Triggered when the WebSocket connection to the SBC is successfully established.
+  Triggered when the connection to TeleCMI is established.
   * **Payload**: `{ code: 200, status: "SBC connected" }`
 
 * **`disconnected`**
-  Triggered when the WebSocket connection to the SBC drops or is closed.
+  Triggered when the connection to TeleCMI drops or is closed.
   * **Payload**: `{ code: 1000, status: "SBC disconneced" }`
 
 * **`login`**
-  Triggered upon successful registration with the SBC.
+  Triggered when sign-in succeeds and the device is ready for calls.
   * **Payload**: `{ code: 200, status: "login successfully" }`
 
 * **`loginFailed`**
@@ -343,7 +342,7 @@ The SDK uses an event-driven architecture. Listen for events using `.on(eventNam
   * **Payload**: `{ code: 200, status: "logout successfully" }`
 
 * **`sbc_logout`**
-  Triggered when the SBC forces a logout (e.g. concurrent registration from another location).
+  Triggered when the server forces a logout (e.g. the same extension signed in elsewhere).
   * **Payload**: `{ code: number, reason: string }` (e.g., `{ reason: "login from other device" }`)
 
 * **`net_changed`**
@@ -358,7 +357,7 @@ The SDK uses an event-driven architecture. Listen for events using `.on(eventNam
     | Payload Key | Source Header | Description |
     | :--- | :--- | :--- |
     | `from` | `From` | Display name of the calling party. |
-    | `call_id` | `X-Call-ID` / `X-cmi-uuid` | Unique server-side TeleCMI UUID for the call. Falls back to SIP Call-ID. |
+    | `call_id` | `X-Call-ID` / `X-cmi-uuid` | Unique TeleCMI UUID for the call. |
     | `team_name` | `X-Team-Name` | Name of the team routing the call. |
     | `to_number` | `X-To-Number` | The destination number called. |
     | `transfer_from` | `X-Transfer-From` | Extension of the agent who initiated the transfer (if transferred). |
