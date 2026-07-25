@@ -121,12 +121,12 @@ export default class {
 
         cmi_ua.on('connected', () => {
             dbg('transport CONNECTED — WSS socket up');
-            _this.emit('connected', { code: 200, status: 'SBC connected' })
+            _this.emit('connected', { code: 200, status: 'connected' })
         });
 
         cmi_ua.on('disconnected', (e) => {
             dbg('transport DISCONNECTED', e && e.code, e && e.reason, e && e.error ? '(error)' : '');
-            _this.emit('disconnected', { code: 1000, status: 'SBC disconneced' })
+            _this.emit('disconnected', { code: 1000, status: 'disconnected' })
         });
 
 
@@ -139,7 +139,7 @@ export default class {
                 }
 
                 if (e.response.status_code === 503) {
-                    _this.emit('loginFailed', { code: 405, status: 'too many connection' })
+                    _this.emit('loginFailed', { code: 405, status: 'too many connections' })
                 }
 
                 if (e.response.status_code === 407) {
@@ -263,7 +263,7 @@ export default class {
         if (!_.isEmpty(cmi_ua)) {
 
             if (!cmi_ua.isRegistered()) {
-                _this.emit('error', { code: 1002, status: 'Please login ' });
+                _this.emit('error', { code: 1002, status: 'Please login' });
                 return;
             }
 
@@ -278,7 +278,7 @@ export default class {
         if (!_.isEmpty(cmi_ua)) {
 
             if (!cmi_ua.isRegistered()) {
-                _this.emit('error', { code: 1002, status: 'Please login ' });
+                _this.emit('error', { code: 1002, status: 'Please login' });
                 return;
             }
 
@@ -293,7 +293,7 @@ export default class {
         if (!_.isEmpty(cmi_ua)) {
 
             if (!cmi_ua.isRegistered()) {
-                _this.emit('error', { code: 1002, status: 'Please login ' });
+                _this.emit('error', { code: 1002, status: 'Please login' });
                 return;
             }
 
@@ -308,7 +308,7 @@ export default class {
         if (!_.isEmpty(cmi_ua)) {
 
             if (!cmi_ua.isRegistered()) {
-                _this.emit('error', { code: 1002, status: 'Please login ' });
+                _this.emit('error', { code: 1002, status: 'Please login' });
                 return;
             }
 
@@ -324,14 +324,14 @@ export default class {
         if (!_.isEmpty(cmi_ua)) {
 
             if (!cmi_ua.isRegistered()) {
-                _this.emit('error', { code: 1002, status: 'Please login ' });
+                _this.emit('error', { code: 1002, status: 'Please login' });
                 return;
             }
 
         }
 
         if (_.isEmpty(no) && (!_.isNumber(no))) {
-            _this.emit('error', { code: 1005, status: 'invalid dtmf type ' });
+            _this.emit('error', { code: 1005, status: 'invalid dtmf type' });
             return;
         }
 
@@ -344,7 +344,7 @@ export default class {
         if (!_.isEmpty(cmi_ua)) {
 
             if (!cmi_ua.isRegistered()) {
-                _this.emit('error', { code: 1002, status: 'Please login ' });
+                _this.emit('error', { code: 1002, status: 'Please login' });
                 return;
             }
 
@@ -360,7 +360,7 @@ export default class {
         if (!_.isEmpty(cmi_ua)) {
 
             if (!cmi_ua.isRegistered()) {
-                _this.emit('error', { code: 1002, status: 'Please login ' });
+                _this.emit('error', { code: 1002, status: 'Please login' });
                 return;
             }
 
@@ -377,7 +377,7 @@ export default class {
         if (!_.isEmpty(cmi_ua)) {
 
             if (!cmi_ua.isRegistered()) {
-                _this.emit('error', { code: 1002, status: 'Please login ' });
+                _this.emit('error', { code: 1002, status: 'Please login' });
                 return;
             }
 
@@ -393,7 +393,7 @@ export default class {
         if (!_.isEmpty(cmi_ua)) {
 
             if (!cmi_ua.isRegistered()) {
-                _this.emit('error', { code: 1002, status: 'Please login ' });
+                _this.emit('error', { code: 1002, status: 'Please login' });
                 return;
             }
 

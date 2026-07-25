@@ -359,7 +359,7 @@ export default class {
         }
 
         if ( cmi_session.isEstablished() ) {
-            _this.emit( 'error', { code: 1002, status: 'call already  answered' } )
+            _this.emit( 'error', { code: 1002, status: 'call already answered' } )
             return;
         }
 

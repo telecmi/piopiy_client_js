@@ -322,11 +322,11 @@ The SDK uses an event-driven architecture. Listen for events using `.on(eventNam
 
 * **`connected`**
   Triggered when the connection to TeleCMI is established.
-  * **Payload**: `{ code: 200, status: "SBC connected" }`
+  * **Payload**: `{ code: 200, status: "connected" }`
 
 * **`disconnected`**
   Triggered when the connection to TeleCMI drops or is closed.
-  * **Payload**: `{ code: 1000, status: "SBC disconneced" }`
+  * **Payload**: `{ code: 1000, status: "disconnected" }`
 
 * **`login`**
   Triggered when sign-in succeeds and the device is ready for calls.
