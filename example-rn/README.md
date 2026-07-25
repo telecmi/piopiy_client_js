@@ -59,8 +59,8 @@ cd ..
 
 > On a bleeding-edge toolchain (**Xcode 26 / Clang 21**) the bundled `fmt`
 > library can fail to compile; the `Podfile`'s `post_install` already patches it.
-> See the [React Native guide](../README.react-native.md) (section *"Known issue
-> — Xcode 26 / Apple Clang 21"*) for the details.
+> See the [iOS guide](../README.react-native-ios.md) (section *"Known Xcode 26 /
+> Apple Clang 21 compiler issues"*) for the details.
 
 ## 4. Run on your iPhone
 
