@@ -218,6 +218,19 @@ piopiy.login("user_id", "password", "sbcind.telecmi.com");
 
 > ✅ The methods and events below are **identical on Web and React Native** — both platform guides link back here, so the API lives in one place.
 
+> [!TIP]
+> **Fully typed.** Both packages ship TypeScript definitions, so event names and
+> payloads autocomplete and typos are caught at compile time:
+> ```ts
+> piopiy.on('inComingCall', (call) => {
+>   call.from;        // ✅ string
+>   call.team_name;   // ✅ string | undefined
+> });
+> piopiy.on('incomingCall', …);   // ❌ compile error — wrong casing
+> ```
+> Payload types are exported too (`PiopiyIncomingCall`, `PiopiyMissedCall`,
+> `PiopiyEventMap`, …) if you want to reference them directly.
+
 ### Methods
 
 #### `call(phone_number, options)`

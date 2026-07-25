@@ -107,19 +107,134 @@ export default class PIOPIY {
   getCallID(): string | false;
 
   /**
-   * Subscribe to an SDK event. Common events:
-   *  - 'login' | 'loginFailed' | 'connected' | 'disconnected'
-   *  - 'inComingCall' `{ from, call_id, transport }` — an inbound call is ringing
-   *  - 'trying' | 'ringing' | 'answered' | 'callStream' | 'mediaFailed'
-   *  - 'ended' | 'hangup' — the call terminated (also fires when a ringing call
-   *    is cancelled/rejected/times out, so app UI can dismiss)
-   *  - 'missedCall' `{ uuid, from, reason: 'cancelled' | 'ring_timeout', transport }`
-   *    — a ringing call ended without the user acting on it; show a local
-   *    missed-call notification (a deliberate reject does NOT emit this)
-   *  - 'error' | 'pushRegistered'
+   * Subscribe to an SDK event. Event names and payloads are fully typed — see
+   * {@link PiopiyEventMap}. Unknown names are a compile-time error, so typos
+   * like `'incomingCall'` are caught before they silently do nothing.
+   *
+   * ```ts
+   * piopiy.on('inComingCall', (call) => {
+   *   console.log(call.from);   // typed
+   *   piopiy.answer();
+   * });
+   * ```
    */
-  on(event: string, handler: (data: any) => void): this;
-  off(event: string, handler: (data: any) => void): this;
-  removeAllListeners(event?: string): this;
-  emit(event: string, ...args: any[]): boolean;
+  on<E extends PiopiyEventName>(event: E, handler: (data: PiopiyEventMap[E]) => void): this;
+  off<E extends PiopiyEventName>(event: E, handler: (data: PiopiyEventMap[E]) => void): this;
+  once<E extends PiopiyEventName>(event: E, handler: (data: PiopiyEventMap[E]) => void): this;
+  removeAllListeners(event?: PiopiyEventName): this;
+  emit<E extends PiopiyEventName>(event: E, ...args: any[]): boolean;
 }
+
+// ---------------------------------------------------------------------------
+// Events
+// ---------------------------------------------------------------------------
+
+/** Generic `{ code, status }` payload used by most lifecycle events. */
+export interface PiopiyStatus {
+  code: number;
+  status: string;
+}
+
+/** An inbound call is ringing. Extra fields come from TeleCMI call routing. */
+export interface PiopiyIncomingCall {
+  /** Caller's display name or number. */
+  from: string;
+  /** Unique TeleCMI call UUID (falls back to the protocol call id). */
+  call_id: string;
+  /** Team that routed the call, when applicable. */
+  team_name?: string;
+  /** The destination number that was dialled. */
+  to_number?: string;
+  /** Extension that transferred the call to you, when applicable. */
+  transfer_from?: string;
+  /** Additional transfer routing information. */
+  transfer?: string;
+  /** `'push'` when the call was delivered via a push notification. */
+  transport?: 'push';
+}
+
+/** A ringing call ended without the user acting on it. React Native. */
+export interface PiopiyMissedCall {
+  uuid: string;
+  /** Caller's number, when the platform provided it. */
+  from: string | null;
+  /** `'cancelled'` = caller hung up · `'ring_timeout'` = rang out (e.g. offline). */
+  reason: 'cancelled' | 'ring_timeout';
+  transport?: 'push';
+}
+
+/** Call terminated. `reason`/`transport` are present on push-delivered calls. */
+export interface PiopiyEnded extends PiopiyStatus {
+  reason?: string;
+  transport?: 'push';
+}
+
+/** Remote media stream is ready (`status` is the WebRTC MediaStream). */
+export interface PiopiyCallStream {
+  code: number;
+  status: any;
+}
+
+/** Hold state changed. `whom` says which side initiated it. */
+export interface PiopiyHold extends PiopiyStatus {
+  whom: 'myself' | 'other';
+}
+
+/** Outbound vs inbound leg for progress events. */
+export interface PiopiyProgress extends PiopiyStatus {
+  type?: 'outbound' | 'incoming';
+}
+
+/** A DTMF tone was sent or received. */
+export interface PiopiyDtmf {
+  code: number;
+  dtmf: string;
+  type: 'incoming' | 'outgoing';
+}
+
+/** Every event the SDK emits, mapped to its payload type. */
+export interface PiopiyEventMap {
+  // --- connection & registration ---
+  connected: PiopiyStatus;
+  disconnected: PiopiyStatus;
+  login: PiopiyStatus;
+  loginFailed: PiopiyStatus;
+  logout: PiopiyStatus;
+  /** The server ended this session (e.g. the extension signed in elsewhere). */
+  sbc_logout: { code: number; reason: string };
+  /** The transport dropped; the SDK reconnects automatically. */
+  net_changed: { code: number; msg: string };
+
+  // --- call lifecycle ---
+  inComingCall: PiopiyIncomingCall;
+  trying: PiopiyProgress;
+  ringing: PiopiyProgress;
+  answered: PiopiyStatus & { transport?: 'push' };
+  hold: PiopiyHold;
+  unhold: PiopiyHold;
+  ended: PiopiyEnded;
+  hangup: PiopiyStatus;
+  missedCall: PiopiyMissedCall;
+  error: PiopiyStatus;
+
+  // --- media ---
+  callStream: PiopiyCallStream;
+  mediaFailed: PiopiyStatus;
+  dtmf: PiopiyDtmf;
+  NETStats: { code: number; msg: string };
+  RTC: { state: 'connected' | 'disconnected'; msg: string };
+  RTCStats: any;
+
+  // --- push (React Native) ---
+  pushRegistered: any;
+  pushUnregistered: any;
+  /** Internal: the native incoming-call UI should be dismissed. */
+  callkeepCancel: { uuid: string; reason: string };
+
+  // --- server notifications ---
+  transfer: { state: 'init' | 'trying' | 'answered' | 'failed' | 'ended'; [key: string]: any };
+  record: { state: 'start' | 'stop'; [key: string]: any };
+}
+
+/** Union of every valid event name. */
+export type PiopiyEventName = keyof PiopiyEventMap;
