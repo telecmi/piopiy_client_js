@@ -185,7 +185,7 @@ const piopiy = new PIOPIY({
 | `ringTime` | Maximum duration for an incoming call to ring (seconds) | number | `40` |
 | `registerExpires` | SIP registration lifetime (seconds). Shorter values clear a killed app's stale registration faster, so background calls fall through to push sooner | number | `120` |
 
-> **React Native only:** two extra options — `callKeep` (native incoming-call UI config) and `livekit` (a fallback media URL; normally unset, since the URL arrives in the push). See the [Push Notifications guide](README.push-notifications.md).
+> **React Native only:** an extra `callKeep` option configures the native incoming-call UI (e.g. `{ ios: { appName: 'YourApp' } }`). See the [Push Notifications guide](README.push-notifications.md).
 
 ## Authentication
 
@@ -313,7 +313,7 @@ For receiving calls while backgrounded or killed. Full setup in the [Push Notifi
 
 - **`registerToken(push, callback?)`** — register this device's push token so TeleCMI can wake it for incoming calls. Call after `login()`. `push` = `{ provider: 'apns' | 'fcm', token, platform? }`. Queued automatically if called before login completes.
 - **`unregisterToken(callback?)`** — remove the device's push token (e.g. on logout or Do-Not-Disturb).
-- **`livekitIncoming(pushData)`** — hand a received call push to the SDK. It shows the incoming-call UI and connects the call on answer. Accepts the invite payload `{ uuid, room, token, url?, from? }` or a cancel payload `{ type: 'cancel_call', uuid }` (caller hung up while ringing).
+- **`handleIncomingPush(pushData)`** — hand a received call push to the SDK. It shows the incoming-call UI and connects the call on answer. Accepts the invite payload `{ uuid, room, token, url?, from? }` or a cancel payload `{ type: 'cancel_call', uuid }` (caller hung up while ringing).
 
 ### Event Handlers
 
@@ -405,7 +405,7 @@ The SDK uses an event-driven architecture. Listen for events using `.on(eventNam
 
 * **`missedCall`** · _React Native push calls_
   Triggered when a ringing inbound call ends **without the user acting on it** — the caller hung up, or ringing timed out (e.g. the device was offline). Use it to show a local "missed call" notification. A deliberate `reject()` does **not** fire this.
-  * **Payload**: `{ uuid: string, from: string | null, reason: "cancelled" | "ring_timeout", transport: "livekit" }`
+  * **Payload**: `{ uuid: string, from: string | null, reason: "cancelled" | "ring_timeout", transport: "push" }`
 
 * **`error`**
   Triggered when a call action fails or invalid options are supplied.

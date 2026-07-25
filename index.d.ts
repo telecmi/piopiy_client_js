@@ -19,10 +19,10 @@ export interface PiopiyOptions {
    */
   callKeep?: { ios?: Record<string, any>; android?: Record<string, any> };
   /**
-   * LiveKit inbound-call config (React Native only). Inbound calls arrive the
-   * gateway way: the VoIP push carries {uuid, room, token, url?}; the SDK holds
-   * it and joins the room when the user answers. `url` is the fallback LiveKit
-   * server URL for pushes that carry none.
+   * @internal Advanced/testing only — normally omitted. Fallback media server
+   * URL used if an inbound-call push arrives without one. In production the
+   * platform delivers the URL inside the push and the SDK connects
+   * automatically, so you should not set this.
    */
   livekit?: { url?: string };
 }
@@ -54,18 +54,19 @@ export default class PIOPIY {
 
   call(to: string, options?: { extra_param?: string }): void;
   /**
-   * Feed an inbound-call VoIP push to the SDK (React Native only). Two shapes:
-   *  - invite `{uuid, room, token, url?, from?}` — emits 'inComingCall' and
-   *    joins the held room when the user answers.
-   *  - cancel `{type: 'cancel_call', uuid}` — the caller hung up while this
-   *    device was still ringing; dismisses the CallKit/ConnectionService UI and
-   *    the pending call.
+   * Hand an inbound-call push to the SDK (React Native only). Forward the raw
+   * push payload; the SDK shows the incoming-call UI and connects on answer.
+   *  - invite `{uuid, ...}` — rings (emits 'inComingCall')
+   *  - cancel `{type: 'cancel_call', uuid}` — caller hung up while ringing;
+   *    dismisses the incoming-call UI.
    */
-  livekitIncoming(
+  handleIncomingPush(
     info:
-      | { uuid: string; room: string; token: string; url?: string; from?: string }
+      | { uuid: string; [key: string]: any }
       | { type: 'cancel_call'; uuid: string; from?: string },
   ): boolean;
+  /** @deprecated Renamed to handleIncomingPush(). */
+  livekitIncoming(info: { uuid: string; [key: string]: any }): boolean;
   answer(): void;
   reject(): void;
   terminate(): void;

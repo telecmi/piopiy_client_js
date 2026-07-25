@@ -161,16 +161,16 @@ export default class extends EventEmitter {
     }
 
     /**
-     * Feed an inbound-call VoIP push to the SDK. Two payload shapes:
-     *  - invite  {uuid, room, token, url?, from?} — emits 'inComingCall' (same
-     *    surface as SIP) and joins the room when the user answers.
-     *  - cancel  {type: 'cancel_call', uuid} — the caller hung up while this
-     *    device was still ringing; dismisses the CallKit UI and drops the
-     *    pending call. React Native only.
-     * @param {{uuid: string, room?: string, token?: string, url?: string, from?: string, type?: string}} info
+     * Hand an inbound-call push to the SDK. Just forward the raw push payload;
+     * the SDK shows the incoming-call UI and connects the call on answer. Two
+     * shapes arrive from the platform:
+     *  - invite  {uuid, ...}                 — rings (emits 'inComingCall')
+     *  - cancel  {type: 'cancel_call', uuid} — caller hung up while ringing;
+     *    dismisses the incoming-call UI. React Native only.
+     * @param {{uuid: string, type?: string, from?: string, [k: string]: any}} info
      * @returns {boolean} true if the push was accepted for handling
      */
-    livekitIncoming(info) {
+    handleIncomingPush(info) {
         if (info && info.type === 'cancel_call' && info.uuid) {
             const uuid = String(info.uuid).toLowerCase();
             if (this._livekit && this._livekit.isCall(uuid)) {
@@ -179,11 +179,16 @@ export default class extends EventEmitter {
                 // No pending call in the engine (e.g. cold start where only the
                 // native CallKit report happened) — dismiss the UI directly.
                 try { this.emit('callkeepCancel', { uuid, reason: 'caller cancelled' }); } catch { /* ignore */ }
-                try { this.emit('missedCall', { uuid, from: info.from || null, reason: 'cancelled', transport: 'livekit' }); } catch { /* ignore */ }
+                try { this.emit('missedCall', { uuid, from: info.from || null, reason: 'cancelled', transport: 'push' }); } catch { /* ignore */ }
             }
             return true;
         }
         return this._livekit ? this._livekit.setPending(info) : false;
+    }
+
+    /** @deprecated Renamed to handleIncomingPush(). Kept as an alias. */
+    livekitIncoming(info) {
+        return this.handleIncomingPush(info);
     }
 
 

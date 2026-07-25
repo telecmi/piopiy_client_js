@@ -297,7 +297,7 @@ class PushCallService extends EventEmitter {
     // call. (The server sends a cancel push with the SAME uuid as the invite push.)
     if (data?.type === 'cancel_call') {
       this.log(`cancel push for ${uuid} — caller hung up, handing to the SDK`);
-      (this.getClient() as any).livekitIncoming({type: 'cancel_call', uuid, from});
+      (this.getClient() as any).handleIncomingPush({type: 'cancel_call', uuid, from});
       // SIP wake flow: stop the invite-wait keepalive/timeout for this call too.
       if (this.pendingWakeCallUUID === uuid) {
         this.clearPendingWakeCall();
@@ -329,7 +329,7 @@ class PushCallService extends EventEmitter {
       if (Platform.OS === 'android') {
         RNCallKeep.displayIncomingCall(uuid, String(from), String(from));
       }
-      const accepted = (this.getClient() as any).livekitIncoming({
+      const accepted = (this.getClient() as any).handleIncomingPush({
         uuid,
         room: lkRoom,
         token: lkToken,
@@ -337,7 +337,7 @@ class PushCallService extends EventEmitter {
         from,
       });
       if (!accepted) {
-        this.log('⚠️ livekitIncoming rejected (engine unavailable or bad payload)');
+        this.log('⚠️ handleIncomingPush rejected (engine unavailable or bad payload)');
       }
       return;
     }

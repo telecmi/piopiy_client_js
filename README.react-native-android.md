@@ -5,7 +5,7 @@
 > 🤖 **This is the Android guide.** Building for **iOS** or **Web / Electron**?
 > → **[iOS guide](README.react-native-ios.md)** · **[Web & Electron guide](README.web.md)**
 
-Use the `@telecmi/piopiy-native` WebRTC voice SDK in a **bare React Native** Android app to place and receive calls. Under the hood, this WebRTC SDK registers with the TeleCMI SBC (Session Border Controller), allowing you to make and receive high-quality voice calls to **PSTN (Public Switched Telephone Network) numbers**, custom SIP extensions, and app-to-app configurations.
+Use the `@telecmi/piopiy-native` React Native voice SDK in a **bare React Native** Android app to place and receive calls. Under the hood, the SDK registers (via WebRTC) with the TeleCMI SBC (Session Border Controller), allowing you to make and receive high-quality voice calls to **PSTN (Public Switched Telephone Network) numbers**, custom SIP extensions, and app-to-app configurations.
 
 ---
 

@@ -2,22 +2,39 @@
 
 **Platform:** 📱 React Native (iOS & Android)
 
-This guide walks you through integrating push notifications with the PIOPIY WebRTC JS SDK.
+This guide walks you through integrating push notifications with the PIOPIY React Native SDK (`@telecmi/piopiy-native`).
 
 Setting up push notifications is **required** to receive incoming calls when your application is **backgrounded or completely killed**.
 
 > [!IMPORTANT]
 > **TeleCMI hosts the entire push + media infrastructure.** You do **not** run or
-> configure any push server, LiveKit server, or call-routing gateway, and you
+> configure any push server, media server, or call-routing gateway, and you
 > never set a media URL — the call's connection details are delivered **inside the
 > push** and handled by the SDK automatically.
 >
 > Your responsibilities are only:
-> 1. **Submit your push certificates on the TeleCMI portal** — your Apple APNs key/certificate (iOS) and Firebase (FCM) service account (Android). TeleCMI uses these to send the wake-up push to your devices.
+> 1. **Upload your push credentials to the [Connly dashboard](https://connle.telecmi.com)** — your Apple **APNs auth key** (`.p8`) for iOS and your Firebase **FCM service account** JSON for Android (see *Getting your push credentials* below). TeleCMI uses these to send the wake-up push to your devices.
 > 2. **Do the native wiring** in this guide (PushKit/CallKit on iOS, FCM + ConnectionService on Android).
 > 3. **Call `registerToken()`** after login so TeleCMI knows which device to wake.
 >
-> That's it. No `wss://` URLs, no LiveKit/SBC hostnames, no network config — those are TeleCMI's side.
+> That's it. No `wss://` URLs, no server hostnames, no network config — those are TeleCMI's side.
+
+---
+
+## Getting your push credentials
+
+You generate these once from Apple and Google, then upload them in the
+[Connly dashboard](https://connle.telecmi.com) → Push Notifications. You never
+paste them into your app.
+
+| Platform | What to generate | Where |
+| :--- | :--- | :--- |
+| **iOS** | An **APNs Auth Key** (`.p8`) + its Key ID and your Team ID | [Apple Developer](https://developer.apple.com) → Certificates, Identifiers & Profiles → **Keys** → create a key with **Apple Push Notifications service (APNs)** enabled |
+| **Android** | A Firebase **service account** JSON | [Firebase Console](https://console.firebase.google.com) → Project settings → **Service accounts** → *Generate new private key*. (You also add `google-services.json` to your app — see Step 4b.) |
+
+Upload the `.p8` (with Key ID + Team ID) and the service-account JSON on the
+Connly dashboard for your app. Once they're in, TeleCMI can wake your devices —
+nothing else about the push server is yours to configure.
 
 ---
 
@@ -86,16 +103,16 @@ cd ..
 The SDK provides two methods for token registration. Both are React Native only (safe no-ops on web).
 
 ```typescript
-// Register the device push token with your backend. Call after login().
+// Register the device push token with TeleCMI. Call after login().
 piopiy.registerToken(options: PiopiyPushOptions, callback?: (res) => void);
 
 // Unregister the push token (e.g., on logout or Do-Not-Disturb toggles).
 piopiy.unregisterToken(callback?: (res) => void);
 ```
 
-Under the hood the SDK **POSTs the token to your backend** (`POST /push/register` and `/push/unregister`):
+Under the hood the SDK **registers the token with the TeleCMI platform** (`POST /push/register` and `/push/unregister`) — this is what tells TeleCMI which device to wake when a call arrives:
 
-* **Base URL** is set once in the SDK's `rest.js` via the `PUSH_API_BASE` constant — you don't pass it per call. Point it at the host serving these endpoints.
+* **You don't configure any URL or backend** — the endpoint is TeleCMI's hosted REST, built into the SDK. You just call `registerToken()`.
 * **Auth** reuses the session token the SDK obtained at `login()` — there's no JWT to pass.
 * **Timing-safe**: if you call `registerToken()` before the login token is ready, it's **queued** and sent automatically once login completes.
 * The optional **`callback`** receives the backend response — `{ code: 200, ... }` on success, or an error code (`1006` = bad args, `1007` = request failed).
@@ -212,14 +229,15 @@ export default new PushCallService();
 ## Step 4a: Configure iOS Native Wiring (PushKit + CallKit)
 
 ### 0. Create `react-native.config.js` (required)
-One file at your **project root** — it registers the SDK's engine for autolinking and keeps Firebase out of the iOS build (iOS uses PushKit, not FCM; without this the iOS build fails with `Module 'FirebaseCore' not found`):
+One file at your **project root**. It keeps **your** Firebase packages off the
+iOS build — iOS uses PushKit, not FCM, and without this the iOS build fails with
+`Module 'FirebaseCore' not found`:
 
 ```javascript
 // react-native.config.js
 module.exports = {
   dependencies: {
-    '@livekit/react-native': {},
-    '@livekit/react-native-webrtc': {},
+    // Firebase is Android-only here — exclude it from iOS
     '@react-native-firebase/app': {platforms: {ios: null}},
     '@react-native-firebase/messaging': {platforms: {ios: null}},
   },
@@ -363,7 +381,7 @@ withCompletionHandler:(void (^)(void))completion
 
 ---
 
-## Step 4b: Configure Android Native Wiring (FCM)
+## Step 4b: Configure Android Native Wiring (FCM + ConnectionService)
 
 ### 1. Firebase Credentials
 Place your `google-services.json` at `android/app/google-services.json`.
@@ -529,8 +547,7 @@ npx patch-package react-native-callkeep
 ```
 
 and add `"postinstall": "patch-package"` to your app's `package.json` scripts.
-A ready-made patch ships in this repo at
-`example-rn/patches/@livekit+react-native-callkeep+4.3.16.patch`.
+A ready-made copy for the example app lives under `example-rn/patches/`.
 
 ---
 
@@ -542,7 +559,7 @@ Hand every call push straight to the SDK — it understands both payload shapes:
 // invite: {uuid, room, token, url?, from?} → rings (emits 'inComingCall')
 // cancel: {type: 'cancel_call', uuid}      → caller hung up pre-answer;
 //                                            dismisses the ringing CallKit UI
-piopiy.livekitIncoming(pushData);
+piopiy.handleIncomingPush(pushData);
 ```
 
 The server sends `cancel_call` (same `uuid` as the invite) when the caller hangs

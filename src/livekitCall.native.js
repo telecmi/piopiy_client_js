@@ -161,7 +161,7 @@ export default class LiveKitCall {
             }
         }, ringSec * 1000 );
         // Same event surface as the SIP inbound path, so app UIs work unchanged.
-        this.piopiy.emit( 'inComingCall', { from: this.pending.from, call_id: this.pending.uuid, transport: 'livekit' } );
+        this.piopiy.emit( 'inComingCall', { from: this.pending.from, call_id: this.pending.uuid, transport: 'push' } );
         return true;
     }
 
@@ -239,7 +239,7 @@ export default class LiveKitCall {
             } catch ( e ) {
                 dbg( 'setMicrophoneEnabled failed:', e && e.message );
             }
-            this.piopiy.emit( 'answered', { code: 200, status: 'answered', transport: 'livekit' } );
+            this.piopiy.emit( 'answered', { code: 200, status: 'answered', transport: 'push' } );
             return true;
         } catch ( e ) {
             dbg( 'room.connect FAILED —', e && e.message );
@@ -283,7 +283,7 @@ export default class LiveKitCall {
             // ringing UI (on 'inComingCall') listens to 'ended'/'hangup' to hide
             // it. _teardown() was called with null (ringing → no media to end),
             // so it emitted nothing — without this the in-app UI rings forever.
-            try { this.piopiy.emit( 'ended', { code: 200, status: 'call ended', reason: reason || 'rejected', transport: 'livekit' } ); } catch { /* ignore */ }
+            try { this.piopiy.emit( 'ended', { code: 200, status: 'call ended', reason: reason || 'rejected', transport: 'push' } ); } catch { /* ignore */ }
             // A ringing call that ends WITHOUT the user acting on it is a missed
             // call (caller gave up, or ringing timed out offline). A user reject
             // is deliberate and does not count. Apps listen to this to show a
@@ -291,7 +291,7 @@ export default class LiveKitCall {
             // CallKit already logs the missed call in the Phone app's Recents.
             if ( reason === 'caller cancelled' || reason === 'ring timeout' ) {
                 const missedReason = reason === 'ring timeout' ? 'ring_timeout' : 'cancelled';
-                try { this.piopiy.emit( 'missedCall', { uuid, from: from || null, reason: missedReason, transport: 'livekit' } ); } catch { /* ignore */ }
+                try { this.piopiy.emit( 'missedCall', { uuid, from: from || null, reason: missedReason, transport: 'push' } ); } catch { /* ignore */ }
             }
         }
         return true;
@@ -342,7 +342,7 @@ export default class LiveKitCall {
             this.piopiy.emit( emitEvent, {
                 code: 200,
                 status: emitEvent === 'hangup' ? 'call hangup' : 'call ended',
-                transport: 'livekit',
+                transport: 'push',
             } );
         }
     }
