@@ -72,11 +72,17 @@ const nativePkg = {
   bugs: rootPkg.bugs,
   homepage: rootPkg.homepage,
   // Shared runtime + the bundled WebRTC/LiveKit engine ("ships its own engine").
+  // Pin the bundled engine to the tested major versions. An open range let a
+  // fresh install pull @livekit/react-native-webrtc 144.x, whose iOS audio
+  // session defaults differ from 125.x — every call answered on loudspeaker.
   dependencies: {
     ...rootPkg.dependencies,
-    '@livekit/react-native': '>=2.8.0',
-    '@livekit/react-native-webrtc': '>=125.0.0',
-    'livekit-client': '>=2.15.0',
+    // These two are a matched pair — @livekit/react-native 2.12+ requires the
+    // 144.x engine, whose iOS audio defaults route every call to the
+    // loudspeaker. Keep both on the tested 2.8 / 125.x line.
+    '@livekit/react-native': '~2.8.0',
+    '@livekit/react-native-webrtc': '~125.0.12',
+    'livekit-client': '^2.15.0',
   },
   // The app provides these (per the setup docs).
   peerDependencies: {

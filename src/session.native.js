@@ -50,6 +50,18 @@ try {
 }
 dbg( 'react-native-incall-manager:', InCallManager ? 'LOADED' : 'NOT INSTALLED (audio will not route on iOS)' );
 
+// The bundled WebRTC engine's audio session. Its iOS `defaultOutput` is
+// 'speaker' out of the box (it targets video chat), and that setting wins over
+// InCallManager's route override — so voice calls must ALSO be routed through
+// this API, not InCallManager alone.
+let lkAudio = null;
+try {
+    const lkmod = require( '@livekit/react-native' );
+    lkAudio = ( lkmod && lkmod.AudioSession ) || null;
+} catch {
+    lkAudio = null;
+}
+
 // Tracks the current loudspeaker preference; reset when the audio session stops.
 let speakerOn = false;
 
@@ -81,10 +93,33 @@ const incall = {
         // InCallManager.stop() restores the default route, so clear our flag too.
         speakerOn = false;
     },
+    // Re-assert the current output route. Must run AFTER WebRTC's audio unit is
+    // enabled: the bundled engine applies a global config that defaults to the
+    // loudspeaker, so a route set before enable() gets overridden.
+    applyRoute () {
+        try {
+            if ( InCallManager ) InCallManager.setForceSpeakerphoneOn( !!speakerOn );
+        } catch ( e ) {
+            dbg( 'incall.applyRoute() InCallManager ERROR', e && e.message );
+        }
+        // Also route through the WebRTC engine's own audio session. On iOS its
+        // category options default to the loudspeaker, which overrides
+        // InCallManager — so this is the call that actually decides the route.
+        try {
+            if ( lkAudio && typeof lkAudio.selectAudioOutput === 'function' ) {
+                Promise.resolve( lkAudio.selectAudioOutput( speakerOn ? 'force_speaker' : 'default' ) )
+                    .catch( ( e ) => dbg( 'applyRoute selectAudioOutput failed:', e && e.message ) );
+            }
+        } catch ( e ) {
+            dbg( 'incall.applyRoute() lkAudio ERROR', e && e.message );
+        }
+        dbg( 'incall.applyRoute() —', speakerOn ? 'speaker' : 'earpiece',
+            '| InCallManager:', !!InCallManager, '| lkAudio:', !!lkAudio );
+    },
     setSpeaker ( on ) {
         try {
-            if ( InCallManager ) InCallManager.setForceSpeakerphoneOn( !!on );
             speakerOn = !!on;
+            this.applyRoute();
         } catch {
             // ignore
         }
@@ -283,6 +318,9 @@ export default class {
         // audio mode we must explicitly start WebRTC's audio unit here, or the
         // call would be silent. No-op if the webrtc patch isn't applied.
         webrtcAudio.enable();
+        // Now that WebRTC's audio unit is live, force the route. Doing this
+        // before enable() has no effect — the engine's global config wins.
+        incall.applyRoute();
 
 
         cmi_timeout = setTimeout( function () {
