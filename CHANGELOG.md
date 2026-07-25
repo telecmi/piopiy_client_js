@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 - **`ringTime` default lowered from 60 s to 40 s** (platform ring policy; applies to SIP `no_answer_timeout` and the new LiveKit push ring timeout).
 
 ### Fixed
+- **Cleaned up developer-visible event strings.** `connected`/`disconnected` now report `status: "connected"` / `"disconnected"` (previously `"SBC connected"` / `"SBC disconneced"` — note the typo); inbound-call errors report `call connection failed` / `call connection URL missing` instead of naming the internal media stack; `loginFailed` 405 reports `too many connections`. Match on the **event name** rather than the status text.
 - **In-app ringing UI now dismisses when a LiveKit inbound call is cancelled/rejected/times out.** A still-ringing call was ending without emitting a termination event, so the native CallKeep UI dismissed but an app's own `inComingCall`-driven screen kept ringing. `end()` now emits `ended` in that case (in addition to `callkeepCancel`/`missedCall`).
 
 ## [0.16.0] - 2026-06-05

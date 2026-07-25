@@ -187,7 +187,7 @@ export default class LiveKitCall {
         }
         if ( !call.url ) {
             dbg( 'answer(): no LiveKit URL — push had no `url` and no livekit.url option was set' );
-            this.piopiy.emit( 'error', { code: 1009, status: 'livekit url missing' } );
+            this.piopiy.emit( 'error', { code: 1009, status: 'call connection URL missing' } );
             this.end( 'no url' );
             return false;
         }
@@ -243,7 +243,7 @@ export default class LiveKitCall {
             return true;
         } catch ( e ) {
             dbg( 'room.connect FAILED —', e && e.message );
-            this.piopiy.emit( 'error', { code: 1010, status: 'livekit connect failed: ' + ( e && e.message ) } );
+            this.piopiy.emit( 'error', { code: 1010, status: 'call connection failed: ' + ( e && e.message ) } );
             this._teardown( 'ended' );
             return false;
         }
