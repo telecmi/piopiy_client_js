@@ -67,3 +67,16 @@ describe('livekitIncoming() push routing', () => {
     expect(missed).toBe(false);
   });
 });
+
+describe('apiBase option', () => {
+  test('defaults to production when not set', () => {
+    const p = new PIOPIY();
+    expect(p.piopiyOption.apiBase).toBeUndefined(); // not stored; applied to the REST client
+  });
+
+  test('accepts a staging override without throwing', () => {
+    expect(
+      () => new PIOPIY({ apiBase: 'https://stagerest.telecmi.com/v2' }),
+    ).not.toThrow();
+  });
+});

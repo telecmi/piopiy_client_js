@@ -20,7 +20,11 @@ the exact action required.
 
 ## [0.18.1] - 2026-07-25
 
+### Added
+- **`apiBase` option** — override the TeleCMI API base URL used for login and push-token registration, e.g. `new PIOPIY({ apiBase: 'https://stagerest.telecmi.com/v2' })`. Defaults to production, so testing against staging no longer means editing SDK source (and no longer risks releasing a staging URL).
+
 ### Fixed
+- **Calls answered on the loudspeaker.** The bundled WebRTC engine installs a global audio config that defaults to speaker (it targets video chat); the SDK reset it once at init but never re-asserted the route per call. The output route is now set on every call start — earpiece by default, speaker when the user turns it on.
 - **React Native apps could not bundle** (`Requiring unknown module "undefined"`, then `TypeError: Cannot read property '…' of undefined`). The SDK requested optional peers with a fallback `require()` — `react-native-webrtc` after `@livekit/react-native-webrtc`, and `@livekit/react-native-callkeep` after `react-native-callkeep`. **Metro resolves `require()` statically at bundle time**, so a fallback naming a package the app hasn't installed is unresolvable and breaks the whole bundle at runtime, regardless of the `try/catch`.
   - The SDK now requires only packages that are guaranteed present: `@livekit/react-native-webrtc` (a dependency of this package) and `react-native-callkeep` (the package the setup guide tells you to install).
   - **Using a CallKeep fork?** Alias it to `react-native-callkeep` in `metro.config.js`.

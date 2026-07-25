@@ -28,6 +28,12 @@ export interface PiopiyOptions {
    */
   autoPushToken?: boolean;
   /**
+   * Override the TeleCMI API base URL used for login and push-token
+   * registration. Defaults to production — set this only for testing against a
+   * staging environment, e.g. `'https://stagerest.telecmi.com/v2'`.
+   */
+  apiBase?: string;
+  /**
    * @internal Advanced/testing only — normally omitted. Fallback media server
    * URL used if an inbound-call push arrives without one. In production the
    * platform delivers the URL inside the push and the SDK connects

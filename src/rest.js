@@ -1,9 +1,20 @@
 
 // Base URL for login (/user/login) and push tokens (/push/register, /push/unregister).
 // The value already includes the /v2 prefix.
-const PUSH_API_BASE = 'https://stagerest.telecmi.com/v2';
+//
+// PRODUCTION is the default. Point it elsewhere at runtime with the SDK's
+// `apiBase` option (e.g. new PIOPIY({ apiBase: 'https://stagerest.telecmi.com/v2' }))
+// rather than editing this file — that way a staging URL can never be released.
+const DEFAULT_API_BASE = 'https://rest.telecmi.com/v2';
+let PUSH_API_BASE = DEFAULT_API_BASE;
 
 export default class {
+
+    /** Override the API base URL (testing/staging). Falls back to production. */
+    setApiBase( base ) {
+        PUSH_API_BASE = ( typeof base === 'string' && base.trim() ) ? base.trim().replace( /\/+$/, '' ) : DEFAULT_API_BASE;
+        return PUSH_API_BASE;
+    }
 
     getToken(user_id, password, callback) {
 

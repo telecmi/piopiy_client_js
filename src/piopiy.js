@@ -60,6 +60,10 @@ export default class extends EventEmitter {
         // On by default — it is what an app needs for background calls. Set false
         // to manage the token yourself with registerToken().
         this.piopiyOption.autoPushToken = _.isBoolean(option.autoPushToken) ? option.autoPushToken : true;
+        // Override the TeleCMI API base URL (staging/testing). Defaults to production.
+        if (_.isString(option.apiBase) && option.apiBase.trim()) {
+            RestCMI.setApiBase(option.apiBase);
+        }
 
         if (this.piopiyOption.autoplay) {
 
