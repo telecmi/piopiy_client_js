@@ -10,12 +10,21 @@ the exact action required.
 
 | Version | Date | Headline |
 | :--- | :--- | :--- |
+| [0.18.1](#0181---2026-07-25) | 2026-07-25 | **Fixes RN bundling** — unresolvable optional requires |
 | [0.18.0](#0180---2026-07-25) | 2026-07-25 | Automatic push-token registration, fully typed events |
 | [0.17.0](#0170---2026-07-24) | 2026-07-24 | Scoped packages, push-call reliability (cancel, ring timeout, missed calls) |
 | [0.16.0](#0160---2026-06-05) | 2026-06-05 | React Native support (iOS & Android) |
 | [0.15.0](#0150---2026-04-15) | 2026-04-15 | `call_id` key standardization |
 | [0.14.0](#0140---2026-04-10) | 2026-04-10 | Team transfer |
 | [0.13.0](#0130---2026-04-08) | 2026-04-08 | Call metadata extraction, tooling upgrade |
+
+## [0.18.1] - 2026-07-25
+
+### Fixed
+- **React Native apps could not bundle** (`Requiring unknown module "undefined"`, then `TypeError: Cannot read property '…' of undefined`). The SDK requested optional peers with a fallback `require()` — `react-native-webrtc` after `@livekit/react-native-webrtc`, and `@livekit/react-native-callkeep` after `react-native-callkeep`. **Metro resolves `require()` statically at bundle time**, so a fallback naming a package the app hasn't installed is unresolvable and breaks the whole bundle at runtime, regardless of the `try/catch`.
+  - The SDK now requires only packages that are guaranteed present: `@livekit/react-native-webrtc` (a dependency of this package) and `react-native-callkeep` (the package the setup guide tells you to install).
+  - **Using a CallKeep fork?** Alias it to `react-native-callkeep` in `metro.config.js`.
+  - This affected every integration that followed the documented install; it was masked in our own example app, which aliases the missing names in its Metro config.
 
 ## [0.18.0] - 2026-07-25
 

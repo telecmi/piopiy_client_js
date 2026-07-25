@@ -72,16 +72,13 @@ const engineStatus = () =>
 // WebRTC's audio unit with CallKit's didActivate/didDeactivate — LiveKit's
 // documented CallKit pattern.
 let rtcAudioSession = null;
+// Only require SDK dependencies here — see the note in index.native.js about
+// Metro's static resolution of optional requires.
 try {
     const webrtc = require( '@livekit/react-native-webrtc' );
     rtcAudioSession = ( webrtc && webrtc.RTCAudioSession ) || null;
 } catch {
-    try {
-        const webrtc = require( 'react-native-webrtc' );
-        rtcAudioSession = ( webrtc && webrtc.RTCAudioSession ) || null;
-    } catch {
-        rtcAudioSession = null;
-    }
+    rtcAudioSession = null;
 }
 
 let globalsRegistered = false;

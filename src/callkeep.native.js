@@ -35,17 +35,17 @@ const dbg = ( ...args ) => {
 // Optional native peer — the app installs react-native-callkeep (native
 // AppDelegate/manifest wiring lives there). The @livekit fork is accepted as
 // a drop-in alternative. Degrade gracefully if neither is installed.
+// Require ONLY 'react-native-callkeep' — the package the setup guide tells apps
+// to install. Metro resolves require() statically, so adding a fallback require
+// for a fork the app hasn't installed makes the bundle fail at runtime with
+// Requiring unknown module "undefined". Apps using a fork (e.g. LiveKit's)
+// should alias it to this name in metro.config.js.
 let RNCallKeep = null;
 try {
     const mod = require( 'react-native-callkeep' );
     RNCallKeep = mod && ( mod.default || mod );
 } catch {
-    try {
-        const mod = require( '@livekit/react-native-callkeep' );
-        RNCallKeep = mod && ( mod.default || mod );
-    } catch {
-        RNCallKeep = null;
-    }
+    RNCallKeep = null;
 }
 
 function uuidv4() {

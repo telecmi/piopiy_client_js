@@ -36,7 +36,7 @@ export default class extends EventEmitter {
         let option = options || {};
         EventEmitter.bind(this);
         this.name = 'PIOPIYJS';
-        this.version = '0.18.0';
+        this.version = '0.18.1';
         this.ice_servers = [
             { 'urls': 'stun:stunind.telecmi.com' }
         ]
