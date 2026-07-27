@@ -61,7 +61,13 @@ export default class PIOPIY {
   constructor(options?: PiopiyOptions);
 
   login(userId: string, password: string, region?: string): void;
-  logout(): void;
+  /**
+   * Sign out. On React Native the device's push token is unregistered from
+   * TeleCMI first, so this device stops being woken for incoming calls; the
+   * session is then torn down. The optional callback receives the unregister
+   * response (`{ code: 200 }` on success).
+   */
+  logout(callback?: (data: any) => void): void;
 
   /** Register the device push token with TeleCMI so this device can be woken for incoming calls. Call after login(). React Native only; no-op on web. */
   registerToken(push: PiopiyPushOptions, callback?: (data: any) => void): void;

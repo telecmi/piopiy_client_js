@@ -21,9 +21,11 @@ the exact action required.
 ## [0.18.1] - 2026-07-25
 
 ### Added
+- **`logout()` now unregisters the device push token** (React Native). Signing out calls `POST /push/unregister` before tearing down the session, so the device stops being woken for incoming calls — previously the token stayed registered and the platform kept pushing to a signed-out device. Pass a callback to observe the result: `piopiy.logout(res => …)`. A no-op when no token is registered.
 - **`apiBase` option** — override the TeleCMI API base URL used for login and push-token registration, e.g. `new PIOPIY({ apiBase: 'https://stagerest.telecmi.com/v2' })`. Defaults to production, so testing against staging no longer means editing SDK source (and no longer risks releasing a staging URL).
 
 ### Fixed
+- **`logout()` before a successful `login()` crashed** with `TypeError: cmi_ua.isRegistered is not a function`. The user-agent handle starts as an empty object — truthy but not a UA — and the teardown path didn't guard against it.
 - **Calls answered on the loudspeaker** (React Native). The bundled engine's dependency ranges were open (`>=2.8.0` / `>=125.0.0`), so a fresh install pulled `@livekit/react-native` **2.12** and `@livekit/react-native-webrtc` **144.x**, whose iOS audio-session defaults route every call to the speaker. Our own example app was unaffected only because it had the older pair pinned from an earlier install. Both are now pinned to the tested `~2.8.0` / `~125.0.12` pair, and the SDK re-asserts the output route through the engine's own audio session after the audio unit starts.
 - **React Native apps could not bundle** (`Requiring unknown module "undefined"`, then `TypeError: Cannot read property '…' of undefined`). The SDK requested optional peers with a fallback `require()` — `react-native-webrtc` after `@livekit/react-native-webrtc`, and `@livekit/react-native-callkeep` after `react-native-callkeep`. **Metro resolves `require()` statically at bundle time**, so a fallback naming a package the app hasn't installed is unresolvable and breaks the whole bundle at runtime, regardless of the `try/catch`.
   - The SDK now requires only packages that are guaranteed present: `@livekit/react-native-webrtc` (a dependency of this package) and `react-native-callkeep` (the package the setup guide tells you to install).

@@ -322,8 +322,8 @@ Checks if the local microphone is currently muted.
 Checks if the loudspeaker is currently turned on (React Native only).
 - **Returns**: `boolean`
 
-#### `logout()`
-Signs out and disconnects.
+#### `logout(callback?)`
+Signs out and disconnects. On React Native this **also unregisters the device's push token** first, so the device stops being woken for incoming calls. The optional callback receives the unregister response.
 
 #### Push-notification methods · _React Native only_
 For receiving calls while backgrounded or killed. Full setup in the [Push Notifications guide](README.push-notifications.md). No-ops on Web.

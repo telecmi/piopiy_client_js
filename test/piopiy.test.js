@@ -80,3 +80,18 @@ describe('apiBase option', () => {
     ).not.toThrow();
   });
 });
+
+describe('logout() unregisters the push token', () => {
+  test('reports nothing to unregister when no token was registered', done => {
+    const p = new PIOPIY();
+    p.logout(res => {
+      expect(res.code).toBe(200);
+      expect(res.status).toMatch(/no push token/i);
+      done();
+    });
+  });
+
+  test('does not throw when called without a callback', () => {
+    expect(() => new PIOPIY().logout()).not.toThrow();
+  });
+});

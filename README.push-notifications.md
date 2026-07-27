@@ -147,6 +147,14 @@ piopiy.registerToken({ provider: 'apns', token, platform: 'ios' });
 * An optional **`callback`** receives the response — `{ code: 200, ... }` on success, or an error code (`1006` = bad args, `1007` = request failed).
 * `unregisterToken(callback?)` removes the token.
 
+> [!TIP]
+> **`logout()` already does this for you.** Signing out unregisters the device's
+> push token before tearing down the session, so a signed-out device stops being
+> woken for calls. Pass a callback if you want to observe it:
+> ```javascript
+> piopiy.logout(res => console.log('push unregistered', res));
+> ```
+
 ### `PiopiyPushOptions` Schema (for manual registration)
 
 | Property | Type | Description |

@@ -144,8 +144,31 @@ export default class extends EventEmitter {
     }
 
 
-    logout() {
+    /**
+     * Sign out. The device's push token is unregistered from the TeleCMI
+     * platform first (POST /push/unregister) so this device stops being woken
+     * for incoming calls, then the session is torn down.
+     *
+     * Order matters: the unregister call needs the auth token obtained at
+     * login(), which the teardown clears. It is a no-op when no push token is
+     * registered (web, or push not set up).
+     *
+     * @param {(data: any) => void} [callback] receives the unregister response
+     */
+    logout(callback) {
         let _this = this;
+        const done = (data) => { if (typeof callback === 'function') callback(data); };
+
+        if (IS_REACT_NATIVE && _this._pushToken && _this._token) {
+            try {
+                _this.unregisterToken((data) => done(data));
+            } catch {
+                done({ code: 1007, status: 'push token unregister failed' });
+            }
+        } else {
+            done({ code: 200, status: 'no push token to unregister' });
+        }
+
         userAgent.stop(_this);
     }
 

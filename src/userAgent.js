@@ -224,7 +224,10 @@ export default class {
 
     stop(_this) {
 
-        if (cmi_ua) {
+        // cmi_ua starts life as {} — truthy but not a UA — so calling
+        // isRegistered() on it throws. Guard the same way start() does,
+        // otherwise logout() before a successful login crashes the app.
+        if (!_.isEmpty(cmi_ua) && typeof cmi_ua.isRegistered === 'function') {
 
             if (!cmi_ua.isRegistered()) {
                 _this.emit('error', { code: 1002, status: 'Please login' });
