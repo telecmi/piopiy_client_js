@@ -28,13 +28,23 @@ native setup.
 
 ## 2. CocoaPods Setup
 
-Run CocoaPods inside your project's `ios` directory:
+Run CocoaPods inside your project's `ios` directory — **through Bundler**, so
+the CocoaPods version pinned by your project's `Gemfile` is used instead of
+whatever is installed system-wide:
 
 ```bash
 cd ios
-pod install
+bundle install
+bundle exec pod install
 cd ..
 ```
+
+> [!WARNING]
+> Do not run plain `pod install` with an old system CocoaPods. React Native
+> 0.76+ requires **CocoaPods ≥ 1.13**; an older one fails on the Hermes podspec
+> with `undefined method 'visionos' for #<Pod::Specification name="hermes-engine">`.
+> If you see that error (or a lockfile version warning), you ran the system
+> `pod` — use `bundle exec pod install` as above.
 
 > [!WARNING]
 > If `pod install` cannot resolve `SocketRocket` or `WebRTC`, raise the deployment target in your `ios/Podfile` to **15.1+** (e.g., `platform :ios, '15.1'`) and re-run.
