@@ -178,14 +178,25 @@ export default class CallKeepBridge {
 
         // --- SDK events -> native UI ---
         piopiy.on( 'inComingCall', ( d ) => {
-            this.hasIncomingSession = true;
-            this._clearInviteTimeout();   // the real INVITE arrived — this is a genuine call
+            // Inbound arrives two ways: a SIP INVITE (foreground, jsSIP) or a
+            // LiveKit room delivered by push. setPending() emits transport:'push';
+            // an earlier build emitted 'livekit' — accept BOTH. Get this wrong and
+            // the branch below displays a SECOND CallKit call with a fresh uuid,
+            // whose Answer/End then fight the one the push already put on screen.
+            const isLiveKit = !!( d && ( d.transport === 'push' || d.transport === 'livekit' ) );
+            // hasIncomingSession means "a SIP session exists". A LiveKit call has
+            // none, and claiming otherwise sends endCall down the SIP reject path.
+            if ( !isLiveKit ) {
+                this.hasIncomingSession = true;
+            }
+            this._clearInviteTimeout();   // a genuine call is here
             const from = ( d && d.from ) ? String( d.from ) : 'Unknown';
-            dbg( 'inComingCall (INVITE arrived) from', from, '— hasIncomingSession now TRUE, pendingAnswer:', this.pendingAnswer );
+            dbg( 'inComingCall', isLiveKit ? '(LiveKit room)' : '(SIP INVITE arrived)', 'from', from,
+                '— hasIncomingSession:', this.hasIncomingSession, 'pendingAnswer:', this.pendingAnswer );
 
             // Foreground with no preceding push: show the native UI now.
             if ( !this.currentCallUUID ) {
-                if ( d && d.transport === 'livekit' && d.call_id ) {
+                if ( isLiveKit && d.call_id ) {
                     // LiveKit inbound via push: CallKit is ALREADY ringing with
                     // the push uuid (AppDelegate on iOS, push handler on
                     // Android) — the didDisplayIncomingCall event just hasn't
@@ -431,50 +442,52 @@ export default class CallKeepBridge {
         }
     }
 
+    // React Native inbound is ALWAYS a LiveKit room delivered by push — jsSIP is
+    // outbound-only here (web keeps its SIP inbound path; this file is RN-only).
+    // So an answer means exactly one thing: join the held room. There is no SIP
+    // INVITE to wait for on this platform, ever.
     _answer() {
         // Answer came from the CallKit UI -> CallKit will activate the audio
         // session (didActivateAudioSession), so we don't need the in-app fallback.
         this.answeredViaCallKit = true;
-        dbg( '_answer() — hasIncomingSession:', this.hasIncomingSession );
-        if ( this.hasIncomingSession ) {
-            this._answerSipWhenReady();
+        const lkCall = this.piopiy._livekit;
+        if ( lkCall && lkCall.isCall( this.currentCallUUID ) ) {
+            dbg( '_answer() -> joining LiveKit room' );
+            this._joinLiveKitRoom();
         } else {
-            // INVITE hasn't arrived yet — defer until 'inComingCall' fires.
-            dbg( '_answer() -> INVITE not here yet, deferring (pendingAnswer=true)' );
+            // Lock-screen answer on a cold launch: the tap can land before the
+            // push payload has reached JS, so the room isn't registered yet.
+            // Defer — 'inComingCall' fires when setPending() gets the payload,
+            // and its pendingAnswer flush joins the room then.
+            dbg( '_answer() -> room not registered yet, deferring (pendingAnswer=true)' );
             this.pendingAnswer = true;
         }
     }
 
     _answerSipWhenReady() {
+        // Kept under its historic name (called from the inComingCall pendingAnswer
+        // flush); on RN "ready" now simply means the LiveKit room is registered.
         this._clearAudioAnswerFallback();
         this.pendingAudioAnswer = false;
+        this._joinLiveKitRoom();
+    }
 
-        // LiveKit inbound: the "call" is a room held server-side — join it now.
-        // (Answering is retryable against the waiting room; no INVITE involved.)
+    // Join the room held server-side. Retryable against the waiting room; no
+    // INVITE involved.
+    _joinLiveKitRoom() {
         const lkCall = this.piopiy._livekit;
-        if ( lkCall && lkCall.isCall( this.currentCallUUID ) ) {
-            dbg( '_answerSipWhenReady() -> LiveKit inbound, joining held room' );
-            lkCall.answer().then( ( ok ) => {
-                if ( ok && this.currentCallUUID ) {
-                    try { RNCallKeep.setCurrentCallActive( this.currentCallUUID ); } catch { /* ignore */ }
-                } else if ( !ok && this.currentCallUUID ) {
-                    try { RNCallKeep.endCall( this.currentCallUUID ); } catch { /* ignore */ }
-                    this._clear();
-                }
-            } );
+        if ( !lkCall || !lkCall.isCall( this.currentCallUUID ) ) {
+            dbg( '_joinLiveKitRoom() -> no LiveKit call for uuid', this.currentCallUUID, '— nothing to join' );
             return;
         }
-
-        // Answer the SIP call NOW. Do not gate the 200 OK on CallKit's
-        // didActivateAudioSession: the SIP answer and the audio session are
-        // independent. The answer should go out the moment the user answers; audio
-        // start is handled separately (didActivateAudioSession -> callAudio.start,
-        // with the 'answered' handler's fallback as a backstop). Gating here stalled
-        // answering whenever that audio event is delayed or never arrives — the
-        // in-app (foreground) answer and the locked cold-launch, where CallKit's
-        // activation is denied with -12985 — leaving the call unanswered.
-        dbg( '_answerSipWhenReady() -> calling piopiy.answer() now' );
-        this.piopiy.answer();
+        lkCall.answer().then( ( ok ) => {
+            if ( ok && this.currentCallUUID ) {
+                try { RNCallKeep.setCurrentCallActive( this.currentCallUUID ); } catch { /* ignore */ }
+            } else if ( !ok && this.currentCallUUID ) {
+                try { RNCallKeep.endCall( this.currentCallUUID ); } catch { /* ignore */ }
+                this._clear();
+            }
+        } );
     }
 
     _flushPendingAudioAnswer() {

@@ -165,7 +165,27 @@ piopiy.speaker(false);   // Route call audio to the earpiece/default output
 const isSpeakerOn = piopiy.onSpeaker(); // Check current speaker state (boolean)
 ```
 
-## 5. Voice-Only Layouts (No `<RTCView>` Required)
+## 5. In-Call Controls
+
+On React Native, **outgoing** calls are carried over SIP and **incoming** calls
+are delivered by push and connected on answer. Most controls work on both;
+a few act on the SIP session only and are currently no-ops on an incoming call:
+
+| Control | Outgoing call | Incoming call |
+| :--- | :---: | :---: |
+| `answer()` / `reject()` | — | ✅ |
+| `terminate()` (hang up) | ✅ | ✅ |
+| `mute()` / `unMute()` / `onMute()` | ✅ | ✅ |
+| `speaker(on)` / `onSpeaker()` | ✅ | ✅ |
+| `sendDtmf(tone)` | ✅ | ⛔ not yet |
+| `hold()` / `unHold()` / `onHold()` | ✅ | ⛔ not yet |
+| `transfer()` / `teamTransfer()` / `merge()` | ✅ | ⛔ not yet |
+
+Also note: `reject()` declines locally — the native call screen is dismissed and
+the call is discarded on this device, but the caller keeps ringing until the
+platform's no-answer timeout routes the call onward.
+
+## 6. Voice-Only Layouts (No `<RTCView>` Required)
 
 Because this is a **voice-only** SDK, remote and local audio tracks are automatically handled and mixed by the device's audio layer. You **do not** need to include or render any `<RTCView>` elements from `react-native-webrtc` in your React Native component tree.
 

@@ -1,37 +1,18 @@
-const path = require('path');
 const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
 
-// This example consumes the SDK the same way your app does: `@telecmi/piopiy-native`
-// is a normal dependency in package.json, resolved from node_modules. There is no
-// alias back to the repo source, so what you run here is exactly what npm ships.
+// This example consumes the SDK exactly the way your app does: every package —
+// including `@telecmi/piopiy-native` — is a normal dependency in package.json,
+// resolved from node_modules with NO aliases or resolver overrides. If it
+// bundles and runs here, it bundles and runs in a customer app. (Earlier
+// versions aliased `react-native-callkeep` to a fork here, which hid several
+// resolution bugs the docs-following path hit — never add aliases back.)
 //
 // To test un-published SDK changes, build a tarball and install it:
 //   (repo root)   npm run build-node && npm run stage:native
 //                 cd native-pkg && npm pack
 //   (example-rn)  npm install ../native-pkg/telecmi-piopiy-native-<version>.tgz
-const projectRoot = __dirname;
-const nm = name => path.join(projectRoot, 'node_modules', name);
 
 /** @type {import('metro-config').MetroConfig} */
-const config = {
-  resolver: {
-    extraNodeModules: new Proxy(
-      {
-        // This example installs LiveKit's forks rather than the upstream
-        // packages, so point the upstream names at them. The SDK accepts either
-        // (it tries both), and a normal app installing `react-native-callkeep`
-        // straight from npm needs none of this.
-        'react-native-webrtc': nm('@livekit/react-native-webrtc'),
-        'react-native-callkeep': nm('@livekit/react-native-callkeep'),
-      },
-      {
-        get: (target, name) =>
-          Object.prototype.hasOwnProperty.call(target, name)
-            ? target[name]
-            : nm(String(name)),
-      },
-    ),
-  },
-};
+const config = {};
 
-module.exports = mergeConfig(getDefaultConfig(projectRoot), config);
+module.exports = mergeConfig(getDefaultConfig(__dirname), config);

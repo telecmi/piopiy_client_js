@@ -92,6 +92,8 @@ export default class LiveKitCall {
         this.pending = null;     // {uuid, room, token, url, from} while ringing
         this.activeUUID = null;  // CallKit uuid of the connected call
         this.ringTimer = null;   // bounds the pending (ringing) state
+        this.muted = false;      // mic muted on the connected call
+        this.speakerOn = false;  // loudspeaker route active
 
         // LiveKit needs its globals (adds to what react-native-webrtc registers).
         if ( lk && typeof lk.registerGlobals === 'function' && !globalsRegistered ) {
@@ -114,7 +116,10 @@ export default class LiveKitCall {
                 dbg( 'configureAudio failed:', e && e.message );
             }
         }
-        dbg( 'engine', this.available() ? 'READY (@livekit/react-native + livekit-client loaded)' : 'inert (@livekit/react-native or livekit-client not installed)' );
+        // Always print engineStatus(): "inert" alone hides WHY (a load error, or
+        // livekit-client resolving without its Room export), which is the first
+        // thing anyone debugging a silent answered call needs to know.
+        dbg( 'engine', this.available() ? 'READY' : 'INERT', '—', engineStatus() );
     }
 
     available() {
@@ -256,12 +261,40 @@ export default class LiveKitCall {
         }
         try {
             await lk.AudioSession.selectAudioOutput( on ? 'force_speaker' : 'default' );
+            this.speakerOn = !!on;
             dbg( 'speaker', on ? 'ON (loudspeaker)' : 'off (default route)' );
             return true;
         } catch ( e ) {
             dbg( 'setSpeaker failed:', e && e.message );
             return false;
         }
+    }
+
+    // Mute / unmute the microphone on the connected call. Disables the published
+    // mic track (setMicrophoneEnabled(false)) — the room stays connected and the
+    // far end keeps talking; they just stop hearing this side.
+    setMuted( muted ) {
+        if ( !this.room || !this.room.localParticipant ) {
+            dbg( 'setMuted ignored — no connected room' );
+            return false;
+        }
+        try {
+            this.room.localParticipant.setMicrophoneEnabled( !muted );
+            this.muted = !!muted;
+            dbg( 'microphone', muted ? 'MUTED' : 'unmuted' );
+            return true;
+        } catch ( e ) {
+            dbg( 'setMuted failed:', e && e.message );
+            return false;
+        }
+    }
+
+    isMuted() {
+        return !!this.muted;
+    }
+
+    isSpeakerOn() {
+        return !!this.speakerOn;
     }
 
     // Hang up / reject. Safe to call in any state.
@@ -323,6 +356,8 @@ export default class LiveKitCall {
         this.room = null;
         this.pending = null;
         this.activeUUID = null;
+        this.muted = false;
+        this.speakerOn = false;
         if ( this.ringTimer ) {
             clearTimeout( this.ringTimer );
             this.ringTimer = null;

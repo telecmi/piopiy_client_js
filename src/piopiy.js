@@ -361,17 +361,22 @@ export default class extends EventEmitter {
     }
 
     mute() {
-
         let _this = this;
+        // Inbound (room) call: disable the published mic track.
+        if (_this._livekit && typeof _this._livekit.setMuted === 'function' && _this._livekit.isCall(null)) {
+            _this._livekit.setMuted(true);
+            return;
+        }
         userAgent.mute(_this);
-
     }
 
     unMute() {
-
         let _this = this;
+        if (_this._livekit && typeof _this._livekit.setMuted === 'function' && _this._livekit.isCall(null)) {
+            _this._livekit.setMuted(false);
+            return;
+        }
         userAgent.unmute(_this);
-
     }
 
     speaker(on) {
@@ -401,11 +406,17 @@ export default class extends EventEmitter {
 
     onMute() {
         let _this = this;
+        if (_this._livekit && typeof _this._livekit.isMuted === 'function' && _this._livekit.isCall(null)) {
+            return _this._livekit.isMuted();
+        }
         return userAgent.onmute(_this);
     }
 
     onSpeaker() {
         let _this = this;
+        if (_this._livekit && typeof _this._livekit.isSpeakerOn === 'function' && _this._livekit.isCall(null)) {
+            return _this._livekit.isSpeakerOn();
+        }
         return userAgent.onspeaker(_this);
     }
 

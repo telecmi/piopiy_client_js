@@ -137,7 +137,9 @@ export default class PushTokenManager {
         // registerToken() queues internally until login completes, so this is
         // safe whenever the token arrives.
         try {
-            this.piopiy.registerToken( { provider, token, platform } );
+            this.piopiy.registerToken( { provider, token, platform }, ( res ) => {
+                dbg( 'auto push token: /push/register response →', res );
+            } );
         } catch ( e ) {
             dbg( 'auto push token: registerToken threw —', e && e.message );
         }

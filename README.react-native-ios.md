@@ -84,6 +84,19 @@ ENV['RCT_NEW_ARCH_ENABLED'] = '0'
 1. Open the **`.xcworkspace`** file (not the `.xcodeproj`) in Xcode.
 2. Select your project root in the sidebar, and choose the main app target.
 3. Under the **Signing & Capabilities** tab, choose a valid **Team** and configure a unique **Bundle Identifier** (both are required to deploy to a physical iOS device).
+4. Still under **Signing & Capabilities**, click **+ Capability** and add **Push Notifications**.
+
+> ⚠️ **Step 4 is required for incoming calls, and skipping it fails silently.**
+> The Background Modes in Info.plist declare intent, but only the Push
+> Notifications capability creates the `.entitlements` file (with
+> `aps-environment`) that authorises the device to receive a VoIP token. Without
+> it, iOS never issues the token — no error, no log, no incoming calls; the app
+> just waits forever. If sign-in works but the SDK never logs
+> `registering apns …`, check this first: your target must have a
+> `<YourApp>.entitlements` file containing `aps-environment`, wired for **both
+> Debug and Release** configurations (Xcode sometimes adds only Debug — check
+> `CODE_SIGN_ENTITLEMENTS` under Build Settings for the Release config too, or
+> push will break only in production builds).
 
 ---
 

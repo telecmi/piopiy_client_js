@@ -2,6 +2,10 @@
 //
 // jsSIP expects the WebRTC + mediaDevices APIs on the global scope; we register
 // them from react-native-webrtc before the PIOPIY UA is ever constructed.
+
+// FIRST: install the web globals Hermes lacks. livekit-client fails to load
+// without DOMException, so this must run before './piopiy' is required below.
+require( './polyfills.native' );
 //
 // The WebRTC engine ships WITH piopiyjs (@livekit/react-native-webrtc is a
 // direct dependency — API-compatible fork of react-native-webrtc). Apps that

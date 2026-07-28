@@ -13,15 +13,15 @@
   },
   "dependencies": {
     "@livekit/react-native": "2.8.0",
-    "@livekit/react-native-callkeep": "4.3.16",
     "@livekit/react-native-webrtc": "^125.0.12",
     "@react-native-async-storage/async-storage": "^2.1.0",
     "@react-native-firebase/app": "^21.6.1",
     "@react-native-firebase/messaging": "^21.6.1",
-    "@telecmi/piopiy-native": "^0.18.0",
+    "@telecmi/piopiy-native": "^0.19.0",
     "events": "^3.3.0",
     "react": "18.3.1",
     "react-native": "0.76.9",
+    "react-native-callkeep": "4.3.16",
     "react-native-incall-manager": "4.2.1",
     "react-native-voip-push-notification": "^3.3.3"
   },

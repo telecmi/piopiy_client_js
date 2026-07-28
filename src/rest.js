@@ -19,14 +19,17 @@ export default class {
     getToken(user_id, password, callback) {
 
         var url = PUSH_API_BASE + '/user/login';
+        this._log('POST ' + url + ' (auth token for push registration)');
 
         var xhr = new XMLHttpRequest();
         xhr.open('POST', url, true);
         xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
         xhr.timeout = 5000; // Set timeout to 5 seconds
 
+        const self = this;
         xhr.onreadystatechange = function () {
             if (xhr.readyState === 4) { // Check if request is complete
+                self._log('HTTP ' + xhr.status + ' ← /user/login body=' + String(xhr.responseText || '').slice(0, 200));
                 if (xhr.status === 200) {
                     try {
                         var response = JSON.parse(xhr.responseText);
@@ -74,7 +77,16 @@ export default class {
         this._pushCall('/push/unregister', authToken, body, callback);
     }
 
+    _log(line) {
+        try {
+            const g = (typeof globalThis !== 'undefined') ? globalThis : null;
+            if (g && typeof g.__piopiyLog === 'function') g.__piopiyLog('[rest] ' + line);
+        } catch { /* ignore */ }
+    }
+
     _pushCall(path, authToken, body, callback) {
+        this._log('POST ' + PUSH_API_BASE + path + ' auth=' + (authToken ? 'yes' : 'NO') +
+            ' body=' + JSON.stringify({ ...body, token: body && body.token ? String(body.token).slice(0, 10) + '…' : undefined }));
 
         var url = PUSH_API_BASE + path;
 
@@ -86,8 +98,10 @@ export default class {
         }
         xhr.timeout = 5000;
 
+        const self = this;
         xhr.onreadystatechange = function () {
             if (xhr.readyState === 4) {
+                self._log('HTTP ' + xhr.status + ' ← ' + path + ' body=' + String(xhr.responseText || '').slice(0, 300));
                 if (xhr.status === 200) {
                     try {
                         callback(JSON.parse(xhr.responseText));
@@ -101,10 +115,12 @@ export default class {
         };
 
         xhr.onerror = function () {
+            self._log('NETWORK ERROR ← ' + path + ' (is the host reachable from the device?)');
             callback({ code: 500 });
         };
 
         xhr.ontimeout = function () {
+            self._log('TIMEOUT ← ' + path);
             callback({ code: 408 });
         };
 

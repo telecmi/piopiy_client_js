@@ -10,13 +10,38 @@ the exact action required.
 
 | Version | Date | Headline |
 | :--- | :--- | :--- |
-| [0.18.1](#0181---2026-07-25) | 2026-07-25 | **Fixes RN bundling** — unresolvable optional requires |
+| [0.19.0](#0190---2026-07-28) | 2026-07-28 | **Inbound push calls work end-to-end** — engine load, answer, mute |
+| [0.18.1](#0181---2026-07-25) | 2026-07-25 | Unpublished — folded into 0.19.0 |
 | [0.18.0](#0180---2026-07-25) | 2026-07-25 | Automatic push-token registration, fully typed events |
 | [0.17.0](#0170---2026-07-24) | 2026-07-24 | Scoped packages, push-call reliability (cancel, ring timeout, missed calls) |
 | [0.16.0](#0160---2026-06-05) | 2026-06-05 | React Native support (iOS & Android) |
 | [0.15.0](#0150---2026-04-15) | 2026-04-15 | `call_id` key standardization |
 | [0.14.0](#0140---2026-04-10) | 2026-04-10 | Team transfer |
 | [0.13.0](#0130---2026-04-08) | 2026-04-08 | Call metadata extraction, tooling upgrade |
+
+## [0.19.0] - 2026-07-28
+
+React Native inbound calls are delivered as a room held server-side, joined on
+answer (jsSIP handles outbound). This release makes that path work end-to-end —
+it had three independent, silent failures — and completes the in-call controls.
+
+### Fixed
+- **Inbound push calls rang but connected silently.** Three independent causes, each of which produced the same symptom (answer → nothing) with no error:
+  1. **The inbound engine never loaded on Hermes.** The bundled call library declares `class … extends DOMException` at module scope, and Hermes has no `DOMException` — the `require()` threw, the engine went inert, and answering connected no call. The SDK now installs a spec-shaped `DOMException` polyfill before anything else loads (`polyfills.native.js`).
+  2. **Answering waited for a SIP INVITE that never comes.** The CallKit answer handler gated on `hasIncomingSession` — a SIP-only flag that is always false for room-based inbound — and deferred forever. Answer now joins the held room directly; on React Native there is no SIP inbound path to wait for.
+  3. **A second CallKit call was displayed for every push call.** The bridge looked for `transport === 'livekit'` but the engine emits `transport === 'push'`; the mismatch spawned a duplicate CallKit entry with a fresh uuid whose Answer/End actions fought the real one, and mislabelled the call as a SIP session (sending `endCall` down the SIP reject path).
+- **`speaker()`/`onSpeaker()` state on inbound calls** — the route override is applied through the engine's own audio session and the reported state now reflects it.
+
+### Added
+- **`mute()` / `unMute()` / `onMute()` now work on inbound calls** — previously they only acted on the SIP (outbound) session and silently did nothing on an answered inbound call. Muting disables the published microphone track; the call stays connected.
+- **Startup log states *why* the inbound engine is unavailable** (`engine INERT — rn=… client=…`) instead of a generic "not installed" guess — the first thing needed when debugging a silent call.
+
+### Known limitations (inbound calls)
+- `sendDtmf()`, `hold()`/`unHold()`, `transfer()`/`teamTransfer()`/`merge()` act on the SIP session only — on an inbound (room) call they are currently no-ops. Supporting them requires platform-side call-control endpoints and is planned; they work normally on outbound calls.
+- `reject()` declines locally (dismisses the native call screen, discards the room) but does not signal the platform — the caller keeps ringing until the server's no-answer timeout routes the call onward.
+
+### Upgrading
+- No action needed. `0.18.1` was never published; coming from `0.18.0`, both fixes in it (RN bundling, loudspeaker default) are included here.
 
 ## [0.18.1] - 2026-07-25
 
