@@ -587,13 +587,16 @@ remove the `@ReactMethod` annotation from the two **3-argument** overloads in
 ```
 
 Persist it with [patch-package](https://github.com/ds300/patch-package) so it
-survives `npm install`:
+survives `npm install`. Install it as a dev dependency **first** — if you add
+the `postinstall` script without installing patch-package, every
+`npm install` fails with `sh: patch-package: command not found`:
 
 ```bash
+npm install -D patch-package
 npx patch-package react-native-callkeep
 ```
 
-and add `"postinstall": "patch-package"` to your app's `package.json` scripts.
+then add `"postinstall": "patch-package"` to your app's `package.json` scripts.
 A ready-made copy for the example app lives under `example-rn/patches/`.
 
 ---
