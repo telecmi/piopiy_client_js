@@ -151,6 +151,11 @@ export interface PiopiyStatus {
 export interface PiopiyIncomingCall {
   /** Caller's display name or number. */
   from: string;
+  /**
+   * Caller's resolved display name (e.g. the customer's name from your CRM),
+   * when the platform provides it. Absent otherwise — show `from` instead.
+   */
+  name?: string;
   /** Unique TeleCMI call UUID (falls back to the protocol call id). */
   call_id: string;
   /** Team that routed the call, when applicable. */

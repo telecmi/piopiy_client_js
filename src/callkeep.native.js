@@ -98,6 +98,16 @@ export default class CallKeepBridge {
         }
     }
 
+    // What the native call screen shows as the caller. Caller name when the
+    // platform resolved one, else the number; team/queue appended when present:
+    //   "Priya Sharma — support3"  ·  "+91… — support3"  ·  "+91…"
+    _callDisplay( d, from ) {
+        const name = ( d && d.name && String( d.name ).trim() ) || '';
+        const team = ( d && ( d.team_name || d.team ) ) || '';
+        const primary = name || from;
+        return team ? primary + ' — ' + team : primary;
+    }
+
     _setup() {
         const ck = this.config;
         try {
@@ -206,7 +216,23 @@ export default class CallKeepBridge {
                     dbg( 'adopting LiveKit push callUUID', this.currentCallUUID );
                 } else {
                     this.currentCallUUID = uuidv4();
-                    RNCallKeep.displayIncomingCall( this.currentCallUUID, from, from );
+                    RNCallKeep.displayIncomingCall( this.currentCallUUID, from, this._callDisplay( d, from ) );
+                }
+
+                // Refresh the already-ringing native screen with the richest
+                // display we have — caller name and team ride the push payload,
+                // but the native (AppDelegate) report may predate them or only
+                // know the number. Doing it here, in JS, means a plain Metro
+                // update is enough and future payload fields need no native
+                // rebuild in every app.
+                const display = this._callDisplay( d, from );
+                if ( this.currentCallUUID && display !== from ) {
+                    try {
+                        RNCallKeep.updateDisplay( this.currentCallUUID, display, from );
+                        dbg( 'updateDisplay →', display );
+                    } catch ( e ) {
+                        dbg( 'updateDisplay failed:', e && e.message );
+                    }
                 }
             }
 

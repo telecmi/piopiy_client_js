@@ -148,6 +148,8 @@ export default class LiveKitCall {
             token: info.token,
             url: info.url || this.config.url || null,
             from: info.from || 'Incoming call',
+            name: ( info.name && String( info.name ).trim() ) || null,
+            team: info.team || null,
         };
         dbg( 'pending inbound call — from', this.pending.from, '| room', this.pending.room, '| uuid', this.pending.uuid );
         // Ring timeout (ringTime, same default as the SIP flow's no_answer_timeout):
@@ -164,7 +166,15 @@ export default class LiveKitCall {
             }
         }, ringSec * 1000 );
         // Same event surface as the SIP inbound path, so app UIs work unchanged.
-        this.piopiy.emit( 'inComingCall', { from: this.pending.from, call_id: this.pending.uuid, transport: 'push' } );
+        // `name` is the caller's display name (platform-resolved; may be absent),
+        // `team_name` matches the field the SIP inbound path has always used.
+        this.piopiy.emit( 'inComingCall', {
+            from: this.pending.from,
+            name: this.pending.name || undefined,
+            team_name: this.pending.team || undefined,
+            call_id: this.pending.uuid,
+            transport: 'push',
+        } );
         return true;
     }
 
