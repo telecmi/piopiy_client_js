@@ -206,27 +206,34 @@ export default class CallKeepBridge {
 
             // Foreground with no preceding push: show the native UI now.
             if ( !this.currentCallUUID ) {
-                if ( isLiveKit && d.call_id ) {
-                    // LiveKit inbound via push: CallKit is ALREADY ringing with
-                    // the push uuid (AppDelegate on iOS, push handler on
-                    // Android) — the didDisplayIncomingCall event just hasn't
-                    // reached JS yet. Adopt that uuid; displaying a second call
-                    // creates two CallKit entries whose Answer/End fight.
+                const display = this._callDisplay( d, from );
+                if ( isLiveKit && d.call_id && Platform.OS === 'ios' ) {
+                    // iOS push inbound: CallKit is ALREADY ringing — the
+                    // AppDelegate reported the call before JS booted (iOS
+                    // requires it for every VoIP push). Adopt that uuid;
+                    // displaying a second call creates two CallKit entries
+                    // whose Answer/End fight.
                     this.currentCallUUID = String( d.call_id ).toLowerCase();
-                    dbg( 'adopting LiveKit push callUUID', this.currentCallUUID );
+                    dbg( 'adopting iOS push callUUID', this.currentCallUUID );
+                } else if ( isLiveKit && d.call_id ) {
+                    // Android push inbound: NOTHING has displayed yet — there
+                    // is no native pre-report; this bridge owns the incoming
+                    // UI. Display with the push's uuid so answer/cancel/end
+                    // all correlate.
+                    this.currentCallUUID = String( d.call_id ).toLowerCase();
+                    dbg( 'android push call — displaying incoming UI', this.currentCallUUID );
+                    RNCallKeep.displayIncomingCall( this.currentCallUUID, from, display );
                 } else {
                     this.currentCallUUID = uuidv4();
-                    RNCallKeep.displayIncomingCall( this.currentCallUUID, from, this._callDisplay( d, from ) );
+                    RNCallKeep.displayIncomingCall( this.currentCallUUID, from, display );
                 }
 
-                // Refresh the already-ringing native screen with the richest
-                // display we have — caller name and team ride the push payload,
-                // but the native (AppDelegate) report may predate them or only
-                // know the number. Doing it here, in JS, means a plain Metro
-                // update is enough and future payload fields need no native
-                // rebuild in every app.
-                const display = this._callDisplay( d, from );
-                if ( this.currentCallUUID && display !== from ) {
+                // iOS only: refresh the already-ringing CallKit screen with the
+                // richest display (name/team ride the push payload; the native
+                // report may only know the number). Android just displayed with
+                // the full string above — updateDisplay would race the
+                // still-initializing connection and log a spurious warning.
+                if ( Platform.OS === 'ios' && this.currentCallUUID && display !== from ) {
                     try {
                         RNCallKeep.updateDisplay( this.currentCallUUID, display, from );
                         dbg( 'updateDisplay →', display );

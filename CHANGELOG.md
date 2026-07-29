@@ -10,6 +10,7 @@ the exact action required.
 
 | Version | Date | Headline |
 | :--- | :--- | :--- |
+| [0.19.2](#0192---2026-07-29) | 2026-07-29 | **Android: incoming calls display again** — bridge owns the UI on Android |
 | [0.19.1](#0191---2026-07-29) | 2026-07-29 | Sign-in after sign-out re-registers the push token |
 | [0.19.0](#0190---2026-07-28) | 2026-07-28 | **Inbound push calls work end-to-end** — engine load, answer, mute |
 | [0.18.1](#0181---2026-07-25) | 2026-07-25 | Unpublished — folded into 0.19.0 |
@@ -19,6 +20,12 @@ the exact action required.
 | [0.15.0](#0150---2026-04-15) | 2026-04-15 | `call_id` key standardization |
 | [0.14.0](#0140---2026-04-10) | 2026-04-10 | Team transfer |
 | [0.13.0](#0130---2026-04-08) | 2026-04-08 | Call metadata extraction, tooling upgrade |
+
+## [0.19.2] - 2026-07-29
+
+### Fixed
+- **Android showed no incoming-call UI for push calls** (0.19.0–0.19.1). The bridge assumed the native side was already ringing when a push call arrived — true on iOS, where the AppDelegate reports the call to CallKit before JS even boots, but false on Android, which has no native pre-report. The bridge now creates the native incoming call itself on Android (same uuid as the push, so answer/cancel/end all correlate) and keeps the adopt-the-ringing-call behaviour on iOS.
+- **Android displayed "Incoming call" instead of the caller's number.** `from` is an FCM-reserved data key, so Android pushes deliver the caller number renamed to `caller`; the SDK now reads both (iOS payloads are unaffected and keep using `from`).
 
 ## [0.19.1] - 2026-07-29
 
