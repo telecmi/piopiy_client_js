@@ -91,6 +91,15 @@ const nativePkg = {
     // (transitive deps aren't autolinked otherwise) and install nothing.
     'react-native-incall-manager': '^4.2.2',
     'react-native-voip-push-notification': '^3.3.3',
+    // Android FCM. Bundled so Metro can ALWAYS resolve the SDK's (guarded)
+    // require — Metro resolves statically, so without this an iOS-only app
+    // fails to bundle over an Android-only package. The iOS build never sees
+    // Firebase: react-native.config.js excludes it ({platforms:{ios:null}}).
+    // Android push additionally needs the app's google-services.json + gradle
+    // plugin; without them Firebase fails at runtime and the SDK degrades
+    // gracefully (logs, no crash).
+    '@react-native-firebase/app': '^25.1.0',
+    '@react-native-firebase/messaging': '^25.1.0',
   },
   // The app provides only React Native itself. (@react-native-firebase stays an
   // app install: Android-only, needs the app's google-services.json + gradle

@@ -83,13 +83,21 @@ Step 1: Install Peer Libraries
 One command — the SDK plus the native push and telephony libraries:
 
 ```bash
-npm install @telecmi/piopiy-native @react-native-firebase/app @react-native-firebase/messaging
+npm install @telecmi/piopiy-native
 ```
 
-| Package | Why |
-| :--- | :--- |
-| `@telecmi/piopiy-native` | The SDK. Ships everything call-related itself: the WebRTC engine, the native call-screen module (`@telecmi/react-native-callkeep`), audio routing (`react-native-incall-manager`) and iOS VoIP push (`react-native-voip-push-notification`) — you install none of them |
-| `@react-native-firebase/app` + `/messaging` | Android FCM — **Android only**, excluded from iOS in Step 4a·0. Stays an app install because it needs your app's `google-services.json` + gradle plugin and should track your React Native release |
+Everything ships inside the SDK — the WebRTC engine, the native call-screen
+module (`@telecmi/react-native-callkeep`), audio routing
+(`react-native-incall-manager`), iOS VoIP push
+(`react-native-voip-push-notification`), and Android FCM
+(`@react-native-firebase/app` + `/messaging`). You install **no other
+packages**. Register the bundled native modules once in
+`react-native.config.js` (Step 4a · 0) — that snippet also excludes Firebase
+from the iOS build entirely.
+
+For **Android push** you still add your app's `google-services.json` and the
+`com.google.gms.google-services` gradle plugin (Step 4b) — those are tied to
+your Firebase project, not to the SDK. iOS-only apps skip all of it.
 
 > [!NOTE]
 > **Storage is your choice.** The SDK does not require any storage library. If

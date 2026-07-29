@@ -10,6 +10,7 @@ the exact action required.
 
 | Version | Date | Headline |
 | :--- | :--- | :--- |
+| [0.22.0](#0220---2026-07-29) | 2026-07-29 | **iOS-only apps need zero push packages** — Firebase bundled for Metro resolution |
 | [0.21.0](#0210---2026-07-29) | 2026-07-29 | **One-line install** — audio routing and iOS VoIP push ship with the SDK too |
 | [0.20.0](#0200---2026-07-29) | 2026-07-29 | **CallKeep ships with the SDK** — no more install or patch-package step |
 | [0.19.2](#0192---2026-07-29) | 2026-07-29 | **Android: incoming calls display again** — bridge owns the UI on Android |
@@ -22,6 +23,16 @@ the exact action required.
 | [0.15.0](#0150---2026-04-15) | 2026-04-15 | `call_id` key standardization |
 | [0.14.0](#0140---2026-04-10) | 2026-04-10 | Team transfer |
 | [0.13.0](#0130---2026-04-08) | 2026-04-08 | Call metadata extraction, tooling upgrade |
+
+## [0.22.0] - 2026-07-29
+
+### Fixed
+- **iOS-only apps failed to bundle over an Android-only package.** The SDK's Android FCM support contains a guarded `require('@react-native-firebase/messaging')` — but Metro resolves every `require` statically at bundle time, so any app that hadn't installed Firebase (an Android push concern) failed with `Requiring unknown module "undefined"`, even on iOS. `@react-native-firebase/app` + `/messaging` now ship with the SDK so the require always resolves. The install is now truly one line for every platform: `npm install @telecmi/piopiy-native`.
+
+The iOS build remains completely Firebase-free — the `react-native.config.js` snippet excludes it from iOS. Android push still uses your app's `google-services.json` + gradle plugin (tied to your Firebase project, not the SDK); without them the SDK degrades gracefully instead of crashing.
+
+### Upgrading
+- No action needed. Apps that installed Firebase directly keep working — their copy satisfies the same dependency. Make sure your `react-native.config.js` matches the current snippet in the setup guide (it registers the bundled modules and excludes Firebase from iOS).
 
 ## [0.21.0] - 2026-07-29
 
