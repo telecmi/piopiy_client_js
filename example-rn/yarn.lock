@@ -1886,12 +1886,7 @@
   dependencies:
     "@bufbuild/protobuf" "^1.10.0"
 
-"@livekit/react-native-callkeep@4.3.16":
-  version "4.3.16"
-  resolved "https://registry.npmjs.org/@livekit/react-native-callkeep/-/react-native-callkeep-4.3.16.tgz"
-  integrity sha512-MEPfXThtEEQuzwju57sVaUIHd6dAJjXMhzjU5ZN1Btb/d9RYEIcF2B5jLJVTbb97uHFtC3pP8+HMgQ04uqIiaw==
-
-"@livekit/react-native-webrtc@^125.0.12", "@livekit/react-native-webrtc@>=125.0.0":
+"@livekit/react-native-webrtc@^125.0.12", "@livekit/react-native-webrtc@~125.0.12":
   version "125.0.12"
   resolved "https://registry.npmjs.org/@livekit/react-native-webrtc/-/react-native-webrtc-125.0.12.tgz"
   integrity sha512-J69DIF9sA0R7yhpcbEavN9EoVXNYZP8Ulfkjd3NVgrOrIz0DEAt5bSvM0XDDdfF3k4OdFtcBwDFDkRqjIVJtZA==
@@ -1900,7 +1895,7 @@
     debug "4.3.4"
     event-target-shim "6.0.2"
 
-"@livekit/react-native@>=2.8.0", "@livekit/react-native@2.8.0":
+"@livekit/react-native@~2.8.0", "@livekit/react-native@2.8.0":
   version "2.8.0"
   resolved "https://registry.npmjs.org/@livekit/react-native/-/react-native-2.8.0.tgz"
   integrity sha512-qUEPomTlHykwYH7nP3oEEfUEy7StLQoCJulDw++oCkYQ2GI+HRfF6VginklHgM/HjVZmmzWP3+ZjesBWGYFC0g==
@@ -2397,15 +2392,15 @@
   resolved "https://registry.npmjs.org/@socket.io/component-emitter/-/component-emitter-3.1.2.tgz"
   integrity sha512-9BCxFwvbGg/RsZK9tjXd8s4UcwR0MWeFQ1XEKIQVVvAGJyINdrqKMcTRyLoK8Rse1GjzLV9cwjWV1olXRWEXVA==
 
-"@telecmi/piopiy-native@^0.18.0":
-  version "0.18.0"
-  resolved "https://registry.npmjs.org/@telecmi/piopiy-native/-/piopiy-native-0.18.0.tgz"
-  integrity sha512-elFMEgkKDhEIz5ncCZYBZqLkD6ouC9gy1+gt1P62Epu657AtrhudsENdVZxBuskgXsWei5I5YJdnp+lklzgOhA==
+"@telecmi/piopiy-native@^0.19.0":
+  version "0.19.0"
+  resolved "https://registry.npmjs.org/@telecmi/piopiy-native/-/piopiy-native-0.19.0.tgz"
+  integrity sha512-1d+y5BBEQOWJClVOwkk0U0A9rnhXQf2rWI1V+w8UiJHBo5EIv34PJat58viLWYvHxZg8A78yVHKvM/JEVeVtig==
   dependencies:
-    "@livekit/react-native" ">=2.8.0"
-    "@livekit/react-native-webrtc" ">=125.0.0"
+    "@livekit/react-native" "~2.8.0"
+    "@livekit/react-native-webrtc" "~125.0.12"
     jssip "^3.13.6"
-    livekit-client ">=2.15.0"
+    livekit-client "^2.15.0"
     lodash "^4.17.21"
     socket.io-client "^4.8.1"
 
@@ -5596,7 +5591,7 @@ lines-and-columns@^1.1.6:
   resolved "https://registry.npmjs.org/lines-and-columns/-/lines-and-columns-1.2.4.tgz"
   integrity sha512-7ylylesZQ/PV29jhEDl3Ufjo6ZX7gCqJr5F7PKrqc93v7fzSymt1BpwEU8nAUXs8qzzvqhbjhK5QZg6Mt/HkBg==
 
-livekit-client@^2.17.2, livekit-client@^2.18.2, livekit-client@^2.9.0, livekit-client@>=2.15.0:
+livekit-client@^2.15.0, livekit-client@^2.17.2, livekit-client@^2.18.2, livekit-client@^2.9.0:
   version "2.20.0"
   resolved "https://registry.npmjs.org/livekit-client/-/livekit-client-2.20.0.tgz"
   integrity sha512-RIJcpvBmOmwz3jTj3rmdY6Dzr55HrhcaJjMgY+HSmoEM+yIRyA40m7r8UKv0hnZWM3z/AYhP1q8C8ciz5UWFKQ==
@@ -6623,6 +6618,11 @@ react-is@^18.3.1:
   version "18.3.1"
   resolved "https://registry.npmjs.org/react-is/-/react-is-18.3.1.tgz"
   integrity sha512-/LLMVyas0ljjAtoYiPqYiL8VWXzUUdThrmU5+n20DZv+a+ClRoevUzw5JxU+Ieh5/c87ytoTBV9G1FiKfNJdmg==
+
+react-native-callkeep@>=4.3.0, react-native-callkeep@4.3.16:
+  version "4.3.16"
+  resolved "https://registry.npmjs.org/react-native-callkeep/-/react-native-callkeep-4.3.16.tgz"
+  integrity sha512-aIxn02T5zW4jNPyzRdFGTWv6xD3Vy/1AkBMB6iYvWZEHWnfmgNGF0hELqg03Vbc2BNUhfqpu17aIydos+5Hurg==
 
 react-native-incall-manager@>=4.0.0, react-native-incall-manager@4.2.1:
   version "4.2.1"
