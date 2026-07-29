@@ -55,7 +55,7 @@ The **call API itself is identical** on both — it's documented in the
 npm install @telecmi/piopiyjs
 
 # React Native — SDK core + bundled native WebRTC engine
-npm install @telecmi/piopiy-native react-native-incall-manager
+npm install @telecmi/piopiy-native
 ```
 
 > [!NOTE]

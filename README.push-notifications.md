@@ -83,15 +83,13 @@ Step 1: Install Peer Libraries
 One command — the SDK plus the native push and telephony libraries:
 
 ```bash
-npm install @telecmi/piopiy-native react-native-incall-manager react-native-voip-push-notification @react-native-firebase/app @react-native-firebase/messaging
+npm install @telecmi/piopiy-native @react-native-firebase/app @react-native-firebase/messaging
 ```
 
 | Package | Why |
 | :--- | :--- |
-| `@telecmi/piopiy-native` | The SDK — ships its own WebRTC engine **and** its own native call-screen module (`@telecmi/react-native-callkeep`), so you install neither |
-| `react-native-incall-manager` | Audio routing (speaker / earpiece) |
-| `react-native-voip-push-notification` | iOS VoIP push (PushKit) |
-| `@react-native-firebase/app` + `/messaging` | Android FCM — **Android only**, excluded from iOS in Step 4a·0 |
+| `@telecmi/piopiy-native` | The SDK. Ships everything call-related itself: the WebRTC engine, the native call-screen module (`@telecmi/react-native-callkeep`), audio routing (`react-native-incall-manager`) and iOS VoIP push (`react-native-voip-push-notification`) — you install none of them |
+| `@react-native-firebase/app` + `/messaging` | Android FCM — **Android only**, excluded from iOS in Step 4a·0. Stays an app install because it needs your app's `google-services.json` + gradle plugin and should track your React Native release |
 
 > [!NOTE]
 > **Storage is your choice.** The SDK does not require any storage library. If
@@ -285,6 +283,8 @@ module.exports = {
     '@livekit/react-native': {},
     '@livekit/react-native-webrtc': {},
     '@telecmi/react-native-callkeep': {},
+    'react-native-incall-manager': {},
+    'react-native-voip-push-notification': {},
     // 2. Firebase is Android-only here — exclude it from iOS
     '@react-native-firebase/app': {platforms: {ios: null}},
     '@react-native-firebase/messaging': {platforms: {ios: null}},

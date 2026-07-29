@@ -11,7 +11,7 @@ It connects your app to TeleCMI so you can make and receive high-quality voice c
 ## 1. Install
 
 ```bash
-npm install @telecmi/piopiy-native react-native-incall-manager
+npm install @telecmi/piopiy-native
 ```
 
 | Package | Purpose |
@@ -34,6 +34,8 @@ module.exports = {
     '@livekit/react-native': {},
     '@livekit/react-native-webrtc': {},
     '@telecmi/react-native-callkeep': {},
+    'react-native-incall-manager': {},
+    'react-native-voip-push-notification': {},
   },
 };
 ```

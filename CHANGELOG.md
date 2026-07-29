@@ -10,6 +10,7 @@ the exact action required.
 
 | Version | Date | Headline |
 | :--- | :--- | :--- |
+| [0.21.0](#0210---2026-07-29) | 2026-07-29 | **One-line install** — audio routing and iOS VoIP push ship with the SDK too |
 | [0.20.0](#0200---2026-07-29) | 2026-07-29 | **CallKeep ships with the SDK** — no more install or patch-package step |
 | [0.19.2](#0192---2026-07-29) | 2026-07-29 | **Android: incoming calls display again** — bridge owns the UI on Android |
 | [0.19.1](#0191---2026-07-29) | 2026-07-29 | Sign-in after sign-out re-registers the push token |
@@ -21,6 +22,14 @@ the exact action required.
 | [0.15.0](#0150---2026-04-15) | 2026-04-15 | `call_id` key standardization |
 | [0.14.0](#0140---2026-04-10) | 2026-04-10 | Team transfer |
 | [0.13.0](#0130---2026-04-08) | 2026-04-08 | Call metadata extraction, tooling upgrade |
+
+## [0.21.0] - 2026-07-29
+
+### Changed
+- **`react-native-incall-manager` and `react-native-voip-push-notification` now ship with the SDK** as regular dependencies, completing what 0.20.0 started. The React Native install is now a single package — `npm install @telecmi/piopiy-native` — plus, for Android push only, `@react-native-firebase/app` + `/messaging` (which stay app installs: they need your app's `google-services.json` and gradle plugin, and should track your React Native release). Register the bundled modules once in `react-native.config.js` (see the setup guide) — the snippet now lists all five.
+
+### Upgrading
+- Existing apps keep working unchanged — the packages you installed directly simply satisfy the same dependency. Optionally clean up: `npm uninstall react-native-incall-manager react-native-voip-push-notification`, add the two entries to `react-native.config.js`, reinstall, and re-run `bundle exec pod install`.
 
 ## [0.20.0] - 2026-07-29
 

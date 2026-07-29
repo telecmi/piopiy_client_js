@@ -86,14 +86,17 @@ const nativePkg = {
     // Our CallKeep: upstream 4.3.16 + the duplicate-@ReactMethod fix (Android
     // crash on RN 0.76+). Bundled so apps neither install nor patch CallKeep.
     '@telecmi/react-native-callkeep': '4.3.16',
+    // Audio routing and iOS VoIP push — required for calls, so they ship with
+    // the SDK like everything else. Apps register them in react-native.config.js
+    // (transitive deps aren't autolinked otherwise) and install nothing.
+    'react-native-incall-manager': '^4.2.2',
+    'react-native-voip-push-notification': '^3.3.3',
   },
-  // The app provides these (per the setup docs).
+  // The app provides only React Native itself. (@react-native-firebase stays an
+  // app install: Android-only, needs the app's google-services.json + gradle
+  // plugin regardless, and its version should track the app's RN release.)
   peerDependencies: {
     'react-native': '>=0.60.0',
-    'react-native-incall-manager': '>=4.0.0',
-  },
-  peerDependenciesMeta: {
-    'react-native-incall-manager': { optional: true },
   },
 };
 
