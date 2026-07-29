@@ -147,7 +147,9 @@ export default class LiveKitCall {
             room: info.room,
             token: info.token,
             url: info.url || this.config.url || null,
-            from: info.from || 'Incoming call',
+            // `caller` is the FCM form of `from` ('from' is an FCM-reserved
+            // data key, so Android pushes deliver it renamed).
+            from: info.from || info.caller || 'Incoming call',
             name: ( info.name && String( info.name ).trim() ) || null,
             team: info.team || null,
         };

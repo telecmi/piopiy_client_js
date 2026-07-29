@@ -219,7 +219,7 @@ export default class extends EventEmitter {
                 // No pending call in the engine (e.g. cold start where only the
                 // native CallKit report happened) — dismiss the UI directly.
                 try { this.emit('callkeepCancel', { uuid, reason: 'caller cancelled' }); } catch { /* ignore */ }
-                try { this.emit('missedCall', { uuid, from: info.from || null, reason: 'cancelled', transport: 'push' }); } catch { /* ignore */ }
+                try { this.emit('missedCall', { uuid, from: info.from || info.caller || null, reason: 'cancelled', transport: 'push' }); } catch { /* ignore */ }
             }
             return true;
         }
