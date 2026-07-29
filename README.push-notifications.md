@@ -54,7 +54,7 @@ Push uses a **different transport per platform**, so the native setup differs:
 
 | | iOS | Android |
 | :--- | :--- | :--- |
-| **Incoming-call UI** | CallKit — `react-native-callkeep` *(the SDK drives this automatically)* | ConnectionService — `react-native-callkeep` |
+| **Incoming-call UI** | CallKit — via the SDK's bundled `@telecmi/react-native-callkeep` *(driven automatically)* | ConnectionService — same bundled module |
 | **Push transport** | VoIP Push / **PushKit** — `react-native-voip-push-notification` | **FCM** — `@react-native-firebase/app` + `@react-native-firebase/messaging` |
 | **Firebase** | ❌ **Not used** — exclude it from the iOS build (Step 4a · 0) | ✅ Required — `google-services.json` + gradle plugin |
 | **WebRTC / audio** | WebRTC engine bundled in `@telecmi/piopiy-native`; `react-native-incall-manager` for routing | same |
@@ -83,13 +83,12 @@ Step 1: Install Peer Libraries
 One command — the SDK plus the native push and telephony libraries:
 
 ```bash
-npm install @telecmi/piopiy-native react-native-callkeep react-native-incall-manager react-native-voip-push-notification @react-native-firebase/app @react-native-firebase/messaging
+npm install @telecmi/piopiy-native react-native-incall-manager react-native-voip-push-notification @react-native-firebase/app @react-native-firebase/messaging
 ```
 
 | Package | Why |
 | :--- | :--- |
-| `@telecmi/piopiy-native` | The SDK (ships its own WebRTC engine) |
-| `react-native-callkeep` | Native incoming-call UI (CallKit / ConnectionService) |
+| `@telecmi/piopiy-native` | The SDK — ships its own WebRTC engine **and** its own native call-screen module (`@telecmi/react-native-callkeep`), so you install neither |
 | `react-native-incall-manager` | Audio routing (speaker / earpiece) |
 | `react-native-voip-push-notification` | iOS VoIP push (PushKit) |
 | `@react-native-firebase/app` + `/messaging` | Android FCM — **Android only**, excluded from iOS in Step 4a·0 |
@@ -281,9 +280,11 @@ One file at your **project root**, doing two required jobs:
 // react-native.config.js
 module.exports = {
   dependencies: {
-    // 1. the SDK's bundled engine — required for calls to work
+    // 1. the SDK's bundled engine and call UI — required for calls to work.
+    //    These arrive WITH the SDK; you never install them yourself.
     '@livekit/react-native': {},
     '@livekit/react-native-webrtc': {},
+    '@telecmi/react-native-callkeep': {},
     // 2. Firebase is Android-only here — exclude it from iOS
     '@react-native-firebase/app': {platforms: {ios: null}},
     '@react-native-firebase/messaging': {platforms: {ios: null}},
@@ -557,47 +558,21 @@ AppRegistry.registerComponent(appName, () => App);
 > [!WARNING]
 > Android requires the push payload sent by the server to be **data-only** (i.e. containing a `"data"` object, but **no** `"notification"` block) with **high priority**. If a notification block is present, the OS will handle it instead of calling your background JS code.
 
-### 5. React Native New Architecture: patch `react-native-callkeep` (required on RN 0.76+)
+### 5. The native call screen ships with the SDK — nothing to install or patch
 
-On the New Architecture (bridgeless mode — the default since RN 0.76),
-`react-native-callkeep` fails to load on Android with:
+The SDK bundles **`@telecmi/react-native-callkeep`** (upstream
+react-native-callkeep 4.3.16 plus the fix for a startup crash on React
+Native 0.76+'s New Architecture). It arrives automatically with
+`@telecmi/piopiy-native`; the `react-native.config.js` entry from
+**Step 4a · 0** registers it for autolinking, and that's all.
 
-```
-Error: Exception in HostObject::get for prop 'RNCallKeep':
-…Unable to parse @ReactMethod annotations from native module: RNCallKeep.
-Details: Module exports two methods to JavaScript with the same name: "displayIncomingCall"
-```
-
-The module's Java code exports overloaded `displayIncomingCall` and `startCall`
-methods, which TurboModule interop rejects (the old bridge tolerated it). The
-JS layer only ever calls the 4-argument variants on Android, so the fix is to
-remove the `@ReactMethod` annotation from the two **3-argument** overloads in
-`node_modules/<callkeep-package>/android/src/main/java/io/wazo/callkeep/RNCallKeepModule.java`:
-
-```diff
--    @ReactMethod
-     public void displayIncomingCall(String uuid, String number, String callerName) {
-         this.displayIncomingCall(uuid, number, callerName, false, null);
-     }
-…
--    @ReactMethod
-     public void startCall(String uuid, String number, String callerName) {
-         this.startCall(uuid, number, callerName, false);
-     }
-```
-
-Persist it with [patch-package](https://github.com/ds300/patch-package) so it
-survives `npm install`. Install it as a dev dependency **first** — if you add
-the `postinstall` script without installing patch-package, every
-`npm install` fails with `sh: patch-package: command not found`:
-
-```bash
-npm install -D patch-package
-npx patch-package react-native-callkeep
-```
-
-then add `"postinstall": "patch-package"` to your app's `package.json` scripts.
-A ready-made copy for the example app lives under `example-rn/patches/`.
+> [!WARNING]
+> Do **not** also install `react-native-callkeep` in your app — two copies of
+> the same native module collide at `pod install` (duplicate `RNCallKeep` pod)
+> and in the Android build (duplicate `io.wazo.callkeep` classes). Upgrading
+> from an older setup that installed and patched it? Remove all of:
+> `npm uninstall react-native-callkeep patch-package`, delete
+> `patches/react-native-callkeep*.patch`, and drop the `postinstall` script.
 
 ---
 
@@ -662,7 +637,7 @@ wake, so only a native timer is guaranteed to fire in the killed/locked case.
 | :--- | :--- |
 | **iOS: Call screen shows but app crashes** | iOS terminates apps that fail to report a CallKit call synchronously inside `didReceiveIncomingPushWithPayload`. Ensure `[RNCallKeep reportNewIncomingCall:...]` is executed immediately. |
 | **Android: Headless task doesn't fire when killed** | Verify that the FCM payload is data-only (no `notification` object in JSON) and has `priority: "high"`. |
-| **Android (New Architecture): `Unable to parse @ReactMethod annotations… Module exports two methods to JavaScript with the same name: "displayIncomingCall"`** | See **Step 4b · 5** — patch react-native-callkeep with patch-package (drop `@ReactMethod` from the 3-arg `displayIncomingCall`/`startCall` overloads). |
+| **Android (New Architecture): `Unable to parse @ReactMethod annotations… Module exports two methods to JavaScript with the same name: "displayIncomingCall"`** | You have the upstream `react-native-callkeep` installed alongside the SDK's bundled `@telecmi/react-native-callkeep` (which already contains the fix). Remove the upstream package and any patch-package leftovers — see **Step 4b · 5**. |
 | **Android: red box at startup — `Registering a PhoneAccount requires either: (1) … BIND_TELECOM_CONNECTION_SERVICE …`** | The CallKeep `ConnectionService` is missing from *your app's* `AndroidManifest.xml` — it is NOT merged from the library. Add the `<service android:name="io.wazo.callkeep.VoiceConnectionService" …>` block from **Step 4b · 3**. |
 | **Call connects but there is no audio** | Check that `react-native-incall-manager` is correctly installed. On iOS, make sure the audio session is activated through CallKit's `didActivateAudioSession` event before routing media. |
 | **iOS build: `Module 'FirebaseCore' not found`** | Firebase is Android-only here. Exclude `@react-native-firebase` from iOS via `react-native.config.js` (**Step 4a · 0**), guard your JS Firebase calls to Android, then re-run `bundle exec pod install`. |

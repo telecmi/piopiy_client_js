@@ -83,15 +83,16 @@ const nativePkg = {
     '@livekit/react-native': '~2.8.0',
     '@livekit/react-native-webrtc': '~125.0.12',
     'livekit-client': '^2.15.0',
+    // Our CallKeep: upstream 4.3.16 + the duplicate-@ReactMethod fix (Android
+    // crash on RN 0.76+). Bundled so apps neither install nor patch CallKeep.
+    '@telecmi/react-native-callkeep': '4.3.16',
   },
   // The app provides these (per the setup docs).
   peerDependencies: {
     'react-native': '>=0.60.0',
-    'react-native-callkeep': '>=4.3.0',
     'react-native-incall-manager': '>=4.0.0',
   },
   peerDependenciesMeta: {
-    'react-native-callkeep': { optional: true },
     'react-native-incall-manager': { optional: true },
   },
 };

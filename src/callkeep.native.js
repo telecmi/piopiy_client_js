@@ -38,11 +38,14 @@ const dbg = ( ...args ) => {
 // Require ONLY 'react-native-callkeep' — the package the setup guide tells apps
 // to install. Metro resolves require() statically, so adding a fallback require
 // for a fork the app hasn't installed makes the bundle fail at runtime with
-// Requiring unknown module "undefined". Apps using a fork (e.g. LiveKit's)
-// should alias it to this name in metro.config.js.
+// The SDK ships its OWN CallKeep — @telecmi/react-native-callkeep, upstream
+// 4.3.16 plus the duplicate-@ReactMethod fix that crashes Android on RN 0.76+.
+// Bundling it means apps install nothing and patch nothing (patch-package is
+// gone from the setup). Do NOT also install react-native-callkeep in the app:
+// two copies of the same native module collide at pod install / gradle build.
 let RNCallKeep = null;
 try {
-    const mod = require( 'react-native-callkeep' );
+    const mod = require( '@telecmi/react-native-callkeep' );
     RNCallKeep = mod && ( mod.default || mod );
 } catch {
     RNCallKeep = null;

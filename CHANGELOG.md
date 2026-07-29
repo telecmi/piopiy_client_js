@@ -10,6 +10,7 @@ the exact action required.
 
 | Version | Date | Headline |
 | :--- | :--- | :--- |
+| [0.20.0](#0200---2026-07-29) | 2026-07-29 | **CallKeep ships with the SDK** — no more install or patch-package step |
 | [0.19.2](#0192---2026-07-29) | 2026-07-29 | **Android: incoming calls display again** — bridge owns the UI on Android |
 | [0.19.1](#0191---2026-07-29) | 2026-07-29 | Sign-in after sign-out re-registers the push token |
 | [0.19.0](#0190---2026-07-28) | 2026-07-28 | **Inbound push calls work end-to-end** — engine load, answer, mute |
@@ -20,6 +21,21 @@ the exact action required.
 | [0.15.0](#0150---2026-04-15) | 2026-04-15 | `call_id` key standardization |
 | [0.14.0](#0140---2026-04-10) | 2026-04-10 | Team transfer |
 | [0.13.0](#0130---2026-04-08) | 2026-04-08 | Call metadata extraction, tooling upgrade |
+
+## [0.20.0] - 2026-07-29
+
+### Changed
+- **The native call-screen module now ships with the SDK.** `@telecmi/piopiy-native` depends on **`@telecmi/react-native-callkeep`** — upstream react-native-callkeep 4.3.16 plus the fix for the Android startup crash on React Native 0.76+ (duplicate `@ReactMethod` overloads, rejected by the New Architecture). Apps no longer install `react-native-callkeep`, no longer carry a patch file, and no longer need `patch-package` at all — the worst step in the setup is gone.
+
+### Upgrading
+Coming from 0.19.x (or any setup that installed and patched callkeep), remove the old pieces — keeping both copies collides at `pod install` (duplicate `RNCallKeep` pod) and in the Android build (duplicate classes):
+
+```bash
+npm uninstall react-native-callkeep patch-package
+rm -rf patches/react-native-callkeep*.patch
+```
+
+Delete the `"postinstall": "patch-package"` script (unless you patch other packages), add `'@telecmi/react-native-callkeep': {}` to the `dependencies` in your `react-native.config.js`, then reinstall and re-run `bundle exec pod install`.
 
 ## [0.19.2] - 2026-07-29
 
