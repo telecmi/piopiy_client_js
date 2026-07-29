@@ -96,17 +96,24 @@ export default class PushTokenManager {
         }
         try {
             VoipPush.addEventListener( 'register', ( token ) => this._onToken( token, 'apns', 'ios' ) );
-            // A token issued before JS booted is replayed here on cold launch.
+            // Incoming call pushes are forwarded to the SDK HERE — the app
+            // writes no push-handling code and never imports the push library.
+            VoipPush.addEventListener( 'notification', ( payload ) => this._onPush( payload ) );
+            // Events issued before JS booted are replayed here on cold launch.
             VoipPush.addEventListener( 'didLoadWithEvents', ( events ) => {
                 ( events || [] ).forEach( ( evt ) => {
                     if ( evt && evt.name === 'RNVoipPushRemoteNotificationsRegisteredEvent' ) {
                         this._onToken( evt.data, 'apns', 'ios' );
+                    }
+                    if ( evt && evt.name === 'RNVoipPushRemoteNotificationReceivedEvent' ) {
+                        this._onPush( evt.data );
                     }
                 } );
             } );
             VoipPush.registerVoipToken();
             this.cleanups.push( () => {
                 try { VoipPush.removeEventListener( 'register' ); } catch { /* ignore */ }
+                try { VoipPush.removeEventListener( 'notification' ); } catch { /* ignore */ }
                 try { VoipPush.removeEventListener( 'didLoadWithEvents' ); } catch { /* ignore */ }
             } );
             dbg( 'auto push token: watching for the iOS VoIP token' );
@@ -134,11 +141,53 @@ export default class PushTokenManager {
             const unsubscribe = messaging().onTokenRefresh( ( token ) => this._onToken( token, 'fcm', 'android' ) );
             if ( typeof unsubscribe === 'function' ) this.cleanups.push( unsubscribe );
 
+            // Foreground call pushes forwarded to the SDK here — the app never
+            // imports the push library.
+            const offMessage = messaging().onMessage( ( msg ) => this._onPush( msg ) );
+            if ( typeof offMessage === 'function' ) this.cleanups.push( offMessage );
+
             dbg( 'auto push token: watching for the Android FCM token' );
             return true;
         } catch ( e ) {
             dbg( 'auto push token: Android setup failed —', e && e.message );
             return false;
+        }
+    }
+
+    /**
+     * Android: handle call pushes that wake the app from BACKGROUND or KILLED
+     * state. Must be called from the app's index.js (module scope — before
+     * component registration), because the OS runs that file headlessly to
+     * deliver the push. iOS needs nothing here (wake-ups arrive via PushKit,
+     * handled natively), so this is a safe no-op there.
+     */
+    registerHeadlessHandler() {
+        if ( Platform.OS !== 'android' ) return false;
+        const messaging = loadMessaging();
+        if ( !messaging ) {
+            dbg( 'headless push: @react-native-firebase/messaging unavailable — skipping' );
+            return false;
+        }
+        try {
+            messaging().setBackgroundMessageHandler( async ( msg ) => this._onPush( msg ) );
+            dbg( 'headless push: Android background handler registered' );
+            return true;
+        } catch ( e ) {
+            dbg( 'headless push: setup failed —', e && e.message );
+            return false;
+        }
+    }
+
+    // A call push arrived (any platform, any app state) — normalize the payload
+    // shape and hand it to the SDK. iOS VoIP events wrap the dictionary as
+    // {data}, or deliver it bare; FCM wraps it as {data} on the message.
+    _onPush( raw ) {
+        try {
+            const data = ( raw && ( raw.data ?? raw ) ) || null;
+            if ( !data || typeof data !== 'object' ) return;
+            this.piopiy.handleIncomingPush( data );
+        } catch ( e ) {
+            dbg( 'push forward failed —', e && e.message );
         }
     }
 

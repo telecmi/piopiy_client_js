@@ -171,102 +171,54 @@ piopiy.registerToken({ provider: 'apns', token, platform: 'ios' });
 
 ---
 
-## Step 3: Implement the Shared Push & Call Service (JS)
+## Step 3: The call service (JS) — smaller than you expect
 
-Create a singleton service (e.g., `src/pushCallService.js`) for the app-side parts of push only. **CallKeep is built into the SDK** — when `react-native-callkeep` is installed it sets up CallKeep, shows the native call UI for foreground calls, and wires Answer/Reject back to the call automatically. So this service just handles the **device token**, **credentials**, and the **killed-state wake-up**. 
-
-This must run in a plain JS module (outside the React lifecycle) so it can handle **headless background wakeups** before any React component mounts.
+Everything push-related is inside the SDK: it fetches and registers the device
+token, forwards received call pushes to itself, shows the native call UI, and
+wires Answer/Reject back to the call. Your service is just: create the client,
+sign in, listen to events.
 
 ```javascript
-import { Platform } from 'react-native';
+// src/callService.js
 import PIOPIY from '@telecmi/piopiy-native';
-import RNCallKeep from 'react-native-callkeep';
-import VoipPushNotification from 'react-native-voip-push-notification';
-import messaging from '@react-native-firebase/messaging';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const CREDS_KEY = '@piopiy/creds';
+export const piopiy = new PIOPIY({
+  name: 'Mobile Agent',
+  debug: true,
+  callKeep: { ios: { appName: 'YourAppName' } },
+});
 
-class PushCallService {
-  constructor() {
-    // Constructing PIOPIY also activates the SDK's built-in CallKeep bridge:
-    // it sets up CallKeep, shows the native UI for foreground calls, and wires
-    // Answer / Reject back to the call. Pass any CallKeep config here.
-    this.piopiy = new PIOPIY({
-      name: 'Mobile Agent',
-      debug: true,
-      callKeep: { ios: { appName: 'YourAppName' } },
-    });
-    this.pushToken = null;
-  }
-
-  init() {
-    this.setupPushTokens();
-  }
-
-  // --- Device push token -> SDK.registerToken() ---
-  setupPushTokens() {
-    if (Platform.OS === 'ios') {
-      VoipPushNotification.addEventListener('register', (token) => this.onToken(token));
-      VoipPushNotification.addEventListener('notification', (payload) =>
-        this.handleIncomingPush(payload?.data ?? payload),
-      );
-      VoipPushNotification.registerVoipToken();
-    } else {
-      messaging().getToken().then((token) => this.onToken(token));
-      messaging().onTokenRefresh((token) => this.onToken(token));
-      messaging().onMessage((msg) => this.handleIncomingPush(msg.data));
-    }
-  }
-
-  onToken(token) {
-    if (!token) return;
-    this.pushToken = token;
-    const descriptor = Platform.OS === 'ios'
-      ? { provider: 'apns', token, platform: 'ios' }
-      : { provider: 'fcm', token, platform: 'android' };
-    // registerToken() queues until the login token is ready — timing-safe.
-    this.piopiy.registerToken(descriptor, (res) => console.log('register →', res));
-  }
-
-  async login(userId, password, region) {
-    await AsyncStorage.setItem(CREDS_KEY, JSON.stringify({ userId, password, region }));
-    this.piopiy.login(userId, password, region);
-  }
-
-  async logout() {
-    this.piopiy.unregisterToken();
-    this.piopiy.logout();
-    await AsyncStorage.removeItem(CREDS_KEY);
-  }
-
-  // --- Killed / background push: show the call UI + re-register ---
-  // iOS already reports CallKit synchronously in AppDelegate. Android reaches
-  // this path from FCM, so JS displays CallKeep there.
-  async handleIncomingPush(data) {
-    const uuid = data?.uuid; // TeleCMI sends a v4 UUID in the push payload
-    const caller = data?.from || 'Incoming Call';
-    if (Platform.OS === 'android') {
-      RNCallKeep.displayIncomingCall(uuid, caller, caller);
-    }
-
-    // Re-register so the incoming call can be delivered.
-    if (!this.piopiy.isLogedIn() || !this.piopiy.isConnected()) {
-      const saved = await AsyncStorage.getItem(CREDS_KEY);
-      if (saved) {
-        const { userId, password, region } = JSON.parse(saved);
-        this.piopiy.login(userId, password, region);
-      }
-    }
-  }
-}
-
-export default new PushCallService();
+piopiy.on('inComingCall', (call) => {
+  // Native UI is already ringing; update your in-app UI here.
+  // call.from (number) · call.name (resolved caller name) · call.team_name
+});
+piopiy.on('answered', () => console.log('call connected'));
+piopiy.on('ended', () => console.log('call ended'));
+piopiy.on('missedCall', (m) => console.log('missed call from', m.from));
 ```
 
-> The SDK owns `RNCallKeep.setup()`, the Answer / Reject / mute / DTMF wiring, the
-> foreground incoming-call display, and call-ended cleanup. Your service only fetches
-> the token, persists creds, and shows the call on the **killed-state** push.
+Plus **one line in `index.js`** so Android background/killed wake-ups reach the
+SDK (the OS runs `index.js` headlessly to deliver them — this must be at module
+scope, before `AppRegistry.registerComponent`). It is a safe no-op on iOS,
+where wake-ups arrive natively via PushKit:
+
+```javascript
+// index.js
+import {AppRegistry} from 'react-native';
+import App from './App';
+import {name as appName} from './app.json';
+import {piopiy} from './src/callService';
+
+piopiy.registerBackgroundPushHandler();   // Android killed/background wake-ups
+
+AppRegistry.registerComponent(appName, () => App);
+```
+
+> [!NOTE]
+> **Forwarding pushes manually?** Apps built on older SDK versions call
+> `piopiy.handleIncomingPush(data)` from their own push listeners. That keeps
+> working — the SDK dedupes double deliveries — but new apps don't need any of
+> it.
 
 ---
 
@@ -531,38 +483,25 @@ override fun onCreate(savedInstanceState: Bundle?) {
 > server during SDK development; a normal integration doesn't need it.)
 
 ### 4. Background Message Handler (JS Entrypoint)
-To capture push notifications when the app is completely terminated (killed), register a background handler at the very top of your `index.js` (before App registry):
+
+One SDK call at the top of `index.js` (module scope, before App registry) —
+the OS runs this file headlessly to deliver a push while the app is
+backgrounded or killed:
 
 ```javascript
-import { AppRegistry, Platform } from 'react-native';
-import PushCallService from './src/pushCallService';
+import { AppRegistry } from 'react-native';
 import App from './App';
 import { name as appName } from './app.json';
+import { piopiy } from './src/callService';
 
-// Initialize push service
-PushCallService.init();
-
-// Android only: a high-priority FCM *data* message wakes the app here even when
-// killed. (iOS background wake-ups arrive via PushKit.) Firebase is lazy-required
-// so it is NEVER loaded on iOS, where it isn't linked.
-if (Platform.OS === 'android') {
-  // try/catch: if google-services.json is missing, Firebase throws here — an
-  // uncaught throw would abort this module BEFORE registerComponent runs, and
-  // the app dies with the misleading '"…" has not been registered' error.
-  try {
-    const messaging = require('@react-native-firebase/messaging').default;
-    messaging().setBackgroundMessageHandler(async (remoteMessage) => {
-      if (remoteMessage.data) {
-        await PushCallService.handleIncomingPush(remoteMessage.data);
-      }
-    });
-  } catch (e) {
-    console.warn('FCM unavailable — push wake-ups disabled:', e?.message);
-  }
-}
+piopiy.registerBackgroundPushHandler();   // Android wake-ups; no-op on iOS
 
 AppRegistry.registerComponent(appName, () => App);
 ```
+
+No Firebase imports in your code — the SDK handles the messaging library
+internally, and degrades gracefully (a log line, no crash) if
+`google-services.json` is missing.
 
 > [!WARNING]
 > Android requires the push payload sent by the server to be **data-only** (i.e. containing a `"data"` object, but **no** `"notification"` block) with **high priority**. If a notification block is present, the OS will handle it instead of calling your background JS code.

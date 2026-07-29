@@ -82,6 +82,12 @@ export default class PIOPIY {
    *  - cancel `{type: 'cancel_call', uuid}` — caller hung up while ringing;
    *    dismisses the incoming-call UI.
    */
+  /**
+   * Android only: register the handler for call pushes that arrive while the
+   * app is backgrounded or killed. Call once from index.js at module scope.
+   * Safe no-op on iOS and web. Foreground pushes are forwarded automatically.
+   */
+  registerBackgroundPushHandler(): boolean;
   handleIncomingPush(
     info:
       | { uuid: string; [key: string]: any }

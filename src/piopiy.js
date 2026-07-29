@@ -210,9 +210,35 @@ export default class extends EventEmitter {
      * @param {{uuid: string, type?: string, from?: string, [k: string]: any}} info
      * @returns {boolean} true if the push was accepted for handling
      */
+    /**
+     * Android only: register the handler for call pushes that arrive while the
+     * app is backgrounded or killed. Call once from your app's index.js, at
+     * module scope (the OS runs that file headlessly to deliver the push):
+     *
+     *   import { piopiy } from './src/callService';
+     *   piopiy.registerBackgroundPushHandler();
+     *
+     * Safe no-op on iOS (wake-ups arrive via PushKit natively) and on web.
+     * Foreground pushes on both platforms are forwarded to the SDK
+     * automatically — no app code involved.
+     */
+    registerBackgroundPushHandler() {
+        return this._pushToken_mgr && typeof this._pushToken_mgr.registerHeadlessHandler === 'function'
+            ? this._pushToken_mgr.registerHeadlessHandler()
+            : false;
+    }
+
     handleIncomingPush(info) {
+        // The same push can reach us twice — the SDK forwards pushes itself
+        // (since 0.23.0) AND apps built on the older docs forward them too.
+        // setPending() dedupes invites by uuid; cancels are deduped here, or
+        // the second delivery would log a duplicate missed call.
         if (info && info.type === 'cancel_call' && info.uuid) {
             const uuid = String(info.uuid).toLowerCase();
+            this._handledCancels = this._handledCancels || [];
+            if (this._handledCancels.includes(uuid)) return true;
+            this._handledCancels.push(uuid);
+            if (this._handledCancels.length > 20) this._handledCancels.shift();
             if (this._livekit && this._livekit.isCall(uuid)) {
                 this._livekit.end('caller cancelled');
             } else {

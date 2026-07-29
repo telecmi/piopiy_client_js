@@ -10,6 +10,7 @@ the exact action required.
 
 | Version | Date | Headline |
 | :--- | :--- | :--- |
+| [0.23.0](#0230---2026-07-29) | 2026-07-29 | **Apps write zero push code** — the SDK forwards its own pushes |
 | [0.22.0](#0220---2026-07-29) | 2026-07-29 | **iOS-only apps need zero push packages** — Firebase bundled for Metro resolution |
 | [0.21.0](#0210---2026-07-29) | 2026-07-29 | **One-line install** — audio routing and iOS VoIP push ship with the SDK too |
 | [0.20.0](#0200---2026-07-29) | 2026-07-29 | **CallKeep ships with the SDK** — no more install or patch-package step |
@@ -23,6 +24,17 @@ the exact action required.
 | [0.15.0](#0150---2026-04-15) | 2026-04-15 | `call_id` key standardization |
 | [0.14.0](#0140---2026-04-10) | 2026-04-10 | Team transfer |
 | [0.13.0](#0130---2026-04-08) | 2026-04-08 | Call metadata extraction, tooling upgrade |
+
+## [0.23.0] - 2026-07-29
+
+### Changed
+- **The SDK now forwards incoming call pushes to itself** — apps no longer import any push library or write any forwarding code. Foreground pushes (iOS VoIP `notification` events, Android FCM `onMessage`) are consumed automatically; for Android background/killed wake-ups, one SDK call in `index.js` replaces the whole Firebase handler block: `piopiy.registerBackgroundPushHandler()` (safe no-op on iOS/web, typed). A minimal app now imports exactly `react`, `react-native`, and `@telecmi/piopiy-native`.
+
+### Fixed
+- **The bundled Firebase could land nested (`node_modules/@telecmi/piopiy-native/node_modules/…`) where app-level `require`s couldn't reach it**, reintroducing `Requiring unknown module "undefined"` for apps that forwarded pushes themselves. App code no longer needs those requires at all; existing manual forwarding keeps working (double deliveries are deduped, including `cancel_call`).
+
+### Upgrading
+- Optional but recommended: delete your push-forwarding code (VoIP `notification` listeners, `messaging().onMessage`, the `setBackgroundMessageHandler` block in index.js) and replace the index.js block with `piopiy.registerBackgroundPushHandler()`. Apps that keep the old wiring continue to work.
 
 ## [0.22.0] - 2026-07-29
 
