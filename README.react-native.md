@@ -86,7 +86,11 @@ export default function App() {
     piopiy.on('loginFailed', (err) => console.error('Registration failed:', err));
     
     piopiy.on('inComingCall', (data) => {
-      console.log('Incoming call from:', data.from);
+      // data.from      — caller's number (always present)
+      // data.name      — caller's display name, when the platform resolves one
+      // data.team_name — team/queue that routed the call, when applicable
+      const caller = data.name || data.from;
+      console.log('Incoming call from:', data.team_name ? `${caller} — ${data.team_name}` : caller);
       // Answer or Reject the call:
       // piopiy.answer();
     });

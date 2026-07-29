@@ -603,9 +603,12 @@ A ready-made copy for the example app lives under `example-rn/patches/`.
 Hand every call push straight to the SDK — it understands both payload shapes:
 
 ```javascript
-// invite: {uuid, room, token, url?, from?} → rings (emits 'inComingCall')
-// cancel: {type: 'cancel_call', uuid}      → caller hung up pre-answer;
-//                                            dismisses the ringing CallKit UI
+// invite: {uuid, room, token, url?, from?, name?, team?}
+//         → rings (emits 'inComingCall' with from / name / team_name).
+//           The native call screen shows "name — team", falling back to
+//           the number when either is absent.
+// cancel: {type: 'cancel_call', uuid}
+//         → caller hung up pre-answer; dismisses the ringing CallKit UI
 piopiy.handleIncomingPush(pushData);
 ```
 

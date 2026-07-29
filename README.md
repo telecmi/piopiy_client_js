@@ -374,7 +374,8 @@ The SDK uses an event-driven architecture. Listen for events using `.on(eventNam
   * **Payload Keys & Header Mappings**:
     | Payload Key | Source Header | Description |
     | :--- | :--- | :--- |
-    | `from` | `From` | Display name of the calling party. |
+    | `from` | `From` | Caller's number (always present). |
+    | `name` | — | Caller's resolved display name (e.g. from your CRM), when the platform provides it. Absent otherwise — show `from` instead. |
     | `call_id` | `X-Call-ID` / `X-cmi-uuid` | Unique TeleCMI UUID for the call. |
     | `team_name` | `X-Team-Name` | Name of the team routing the call. |
     | `to_number` | `X-To-Number` | The destination number called. |
