@@ -10,6 +10,7 @@ the exact action required.
 
 | Version | Date | Headline |
 | :--- | :--- | :--- |
+| [0.19.1](#0191---2026-07-29) | 2026-07-29 | Sign-in after sign-out re-registers the push token |
 | [0.19.0](#0190---2026-07-28) | 2026-07-28 | **Inbound push calls work end-to-end** — engine load, answer, mute |
 | [0.18.1](#0181---2026-07-25) | 2026-07-25 | Unpublished — folded into 0.19.0 |
 | [0.18.0](#0180---2026-07-25) | 2026-07-25 | Automatic push-token registration, fully typed events |
@@ -18,6 +19,11 @@ the exact action required.
 | [0.15.0](#0150---2026-04-15) | 2026-04-15 | `call_id` key standardization |
 | [0.14.0](#0140---2026-04-10) | 2026-04-10 | Team transfer |
 | [0.13.0](#0130---2026-04-08) | 2026-04-08 | Call metadata extraction, tooling upgrade |
+
+## [0.19.1] - 2026-07-29
+
+### Fixed
+- **Signing in again after `logout()` never re-registered the push token**, leaving the device unreachable for incoming calls until the app was fully relaunched. `logout()` correctly unregisters the token server-side, but the OS emits the device-token event only once per launch and the SDK's duplicate-token check blocked any re-send — so the next sign-in silently registered nothing. The SDK now keeps the device token across sign-out and re-registers it automatically when a new session signs in. No app changes needed.
 
 ## [0.19.0] - 2026-07-28
 

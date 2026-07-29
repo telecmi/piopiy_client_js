@@ -48,7 +48,10 @@ export default class PushTokenManager {
     constructor( piopiy ) {
         this.piopiy = piopiy;
         this.started = false;
-        this.lastToken = null;
+        this.lastToken = null;    // last token SENT to the backend (dedupe)
+        this.deviceToken = null;  // current device token, survives logout
+        this.provider = null;
+        this.platform = null;
         this.cleanups = [];
     }
 
@@ -56,6 +59,22 @@ export default class PushTokenManager {
     start() {
         if ( this.started ) return true;
         this.started = true;
+
+        // logout() unregisters the token server-side — correct, the user asked
+        // to stop being reachable. But the OS will NOT re-emit the token event
+        // on the next sign-in (iOS fires 'register' only once per launch), so
+        // without this hook a logout→login cycle leaves the device silently
+        // unreachable: nothing re-registers, and offline calls 404 at the SBC.
+        // Clear the dedupe on logout and re-send the kept device token on login.
+        this.piopiy.on( 'logout', () => {
+            this.lastToken = null;
+        } );
+        this.piopiy.on( 'login', () => {
+            if ( this.deviceToken && !this.lastToken ) {
+                dbg( 'auto push token: re-registering after sign-in' );
+                this._onToken( this.deviceToken, this.provider, this.platform );
+            }
+        } );
 
         if ( Platform.OS === 'ios' ) return this._startIOS();
         if ( Platform.OS === 'android' ) return this._startAndroid();
@@ -126,8 +145,15 @@ export default class PushTokenManager {
     // Register a freshly issued (or rotated) token.
     _onToken( token, provider, platform ) {
         if ( !token || typeof token !== 'string' ) return;
+        // Keep the device token (and its provider) across logout, so the next
+        // sign-in can re-register without waiting for an OS event that will
+        // never come.
+        this.deviceToken = token;
+        this.provider = provider;
+        this.platform = platform;
         // The OS re-emits the same token on every launch — only send changes.
-        // (An app that also registers manually therefore causes no extra calls.)
+        // (An app that also registers manually therefore causes no extra calls.
+        // lastToken is cleared on logout, so a re-login sends again.)
         if ( token === this.lastToken ) {
             dbg( 'auto push token: unchanged, skipping re-registration' );
             return;

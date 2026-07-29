@@ -1,7 +1,7 @@
 {
   "name": "@telecmi/piopiyjs",
   "title": "PIOPIY WebRTC JavaScript SDK for Web and Mobile",
-  "version": "0.19.0",
+  "version": "0.19.1",
   "publishConfig": {
     "access": "public"
   },
