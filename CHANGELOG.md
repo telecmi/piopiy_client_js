@@ -24,6 +24,7 @@ the exact action required.
 
 ### Fixed
 - **Signing in again after `logout()` never re-registered the push token**, leaving the device unreachable for incoming calls until the app was fully relaunched. `logout()` correctly unregisters the token server-side, but the OS emits the device-token event only once per launch and the SDK's duplicate-token check blocked any re-send — so the next sign-in silently registered nothing. The SDK now keeps the device token across sign-out and re-registers it automatically when a new session signs in. No app changes needed.
+- **The native call screen's speaker button fought the SDK's audio routing** (iOS). Tapping Speaker on the CallKit screen changed the hardware route, but the SDK still believed its last route — its next configuration re-assert flipped the CallKit button back off while the loudspeaker kept playing, and `onSpeaker()` reported the wrong state. The SDK now listens to the native route-change event and mirrors it, so the CallKit button, the audio route, `onSpeaker()`, and the in-app toggle always agree.
 
 ## [0.19.0] - 2026-07-28
 

@@ -293,6 +293,27 @@ export default class CallKeepBridge {
                     callAudio.stop();
                 }
             } );
+
+            // The user changed the audio route on the NATIVE call screen (the
+            // CallKit speaker button). Mirror it into the engine — otherwise
+            // the engine still believes its last route, its next config
+            // re-assert flips the CallKit button back, and button and audio
+            // end up disagreeing (button off, loudspeaker still playing).
+            // Re-asserting through setSpeaker() makes state and route agree,
+            // so onSpeaker() and the in-app toggle stay correct too. The
+            // route change our own setSpeaker() triggers re-enters here with
+            // a matching state and is ignored — no feedback loop.
+            this._on( 'didChangeAudioRoute', ( data ) => {
+                const output = String( ( data && data.output ) || '' );
+                if ( !output ) return;
+                const on = /speaker/i.test( output );
+                const lkCall = this.piopiy._livekit;
+                if ( lkCall && lkCall.isCall( null ) && typeof lkCall.setSpeaker === 'function' ) {
+                    if ( typeof lkCall.isSpeakerOn === 'function' && lkCall.isSpeakerOn() === on ) return;
+                    dbg( 'didChangeAudioRoute →', output, '— syncing engine speaker', on ? 'ON' : 'off' );
+                    lkCall.setSpeaker( on );
+                }
+            } );
         }
     }
 
