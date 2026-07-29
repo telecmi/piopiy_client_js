@@ -33,7 +33,8 @@
     "start-node": "node lib/index.js",
     "clean": "rimraf dist",
     "prepublishOnly": "npm run build-node && npm run build",
-    "stage:native": "node scripts/stage-native.mjs"
+    "stage:native": "node scripts/stage-native.mjs",
+    "verify:example": "./scripts/verify-example.sh"
   },
   "repository": {
     "type": "git",
