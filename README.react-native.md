@@ -49,7 +49,7 @@ module.exports = {
 Then install the iOS pods:
 
 ```bash
-cd ios && bundle exec pod install && cd ..
+cd ios && bundle install && bundle exec pod install && cd ..
 ```
 
 ---
