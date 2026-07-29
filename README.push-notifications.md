@@ -642,8 +642,7 @@ wake, so only a native timer is guaranteed to fire in the killed/locked case.
 | **Android: red box at startup — `Registering a PhoneAccount requires either: (1) … BIND_TELECOM_CONNECTION_SERVICE …`** | The CallKeep `ConnectionService` is missing from *your app's* `AndroidManifest.xml` — it is NOT merged from the library. Add the `<service android:name="io.wazo.callkeep.VoiceConnectionService" …>` block from **Step 4b · 3**. |
 | **Call connects but there is no audio** | Check that `react-native-incall-manager` is correctly installed. On iOS, make sure the audio session is activated through CallKit's `didActivateAudioSession` event before routing media. |
 | **iOS build: `Module 'FirebaseCore' not found`** | Firebase is Android-only here. Exclude `@react-native-firebase` from iOS via `react-native.config.js` (**Step 4a · 0**), guard your JS Firebase calls to Android, then re-run `bundle exec pod install`. |
-| **`pod install` crashes — `ffi` extension / Unicode Normalization error** | The system CocoaPods/Ruby is broken on newer macOS. Run via the project's bundler with a UTF-8 locale: `bundle install
-LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 bundle exec pod install`. |
+| **`pod install` crashes — `ffi` extension / Unicode Normalization error** | The system CocoaPods/Ruby is broken on newer macOS. Run via the project's bundler with a UTF-8 locale: `bundle install && LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 bundle exec pod install`. |
 | **iOS crash on launch mentioning Firebase / `GoogleService-Info.plist`** | You loaded Firebase on iOS. It's Android-only — exclude it (**Step 4a · 0**) and lazy-`require` it only in your `Platform.OS === 'android'` branches. |
 
 ---
