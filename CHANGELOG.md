@@ -30,6 +30,7 @@ the exact action required.
 ## [0.24.0] - 2026-07-30
 
 ### Fixed
+- **A signed-out device could still receive — and even answer — calls** when the sign-out's token removal failed server-side (the invite push carries the room and its join token, so login state didn't gate the join). Two layers now close this: after an explicit `logout()` the SDK **refuses invite pushes** (dismissing the natively-reported ringing screen) until the next sign-in, and the unregister call **retries once and logs loudly** on final failure instead of failing silently. Cold-start pushes (app killed, relaunched by a call) are unaffected.
 - **Answer/cancel race left a phantom in-call panel.** When the caller gave up (or their leg timed out) at the same moment the user answered, the in-flight `answer()` — which awaits audio setup and the room connection — resumed *after* the cancel's teardown and resurrected the dead call: `answered` fired after `hangup`, the app showed an in-call panel with no call behind it, and the stale state corrupted the next incoming call's UI. `answer()` now re-checks after every await; a teardown always wins, the abandoned room is left, and no stale events fire.
 
 ### Changed

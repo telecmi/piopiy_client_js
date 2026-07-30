@@ -21,6 +21,14 @@ let RestCMI = new rest();
 
 // registerToken/unregisterToken are React Native only — a no-op on web/Node.
 const IS_REACT_NATIVE = typeof navigator !== 'undefined' && navigator.product === 'ReactNative';
+
+// Mirror of the other modules' debug sink (globalThis.__piopiyLog).
+function _log(line) {
+    try {
+        const g = (typeof globalThis !== 'undefined') ? globalThis : null;
+        if (g && typeof g.__piopiyLog === 'function') g.__piopiyLog('[sdk] ' + line);
+    } catch { /* ignore */ }
+}
 export default class extends EventEmitter {
 
 
@@ -32,6 +40,13 @@ export default class extends EventEmitter {
         this._token = null;       // backend session token (from login), used as the push API bearer
         this._pushToken = null;   // last registered device push token (so unregisterToken knows which)
         this._pendingRegister = null; // registerToken() call queued before the login token arrived
+        // True after an explicit logout() in this app session. Invite pushes are
+        // REFUSED while set: the push payload alone is enough to join the call
+        // (room + JWT), so login state wouldn't gate it otherwise — a signed-out
+        // device whose token removal failed server-side would still ring AND be
+        // answerable. Cleared by login(); a killed app relaunched by a push
+        // starts false, keeping the cold-start call flow intact.
+        this._signedOut = false;
         this._region = null;      // SBC host/region from login(), sent with the push registration
         let option = options || {};
         EventEmitter.bind(this);
@@ -87,6 +102,7 @@ export default class extends EventEmitter {
 
 
     login(user_id, password, region) {
+        this._signedOut = false;
 
         let _this = this;
         let sbc_region = region || 'sbcsg.telecmi.com';
@@ -157,14 +173,31 @@ export default class extends EventEmitter {
      */
     logout(callback) {
         let _this = this;
+        _this._signedOut = true;
         const done = (data) => { if (typeof callback === 'function') callback(data); };
 
         if (IS_REACT_NATIVE && _this._pushToken && _this._token) {
-            try {
-                _this.unregisterToken((data) => done(data));
-            } catch {
-                done({ code: 1007, status: 'push token unregister failed' });
-            }
+            // The unregister MUST land or the platform keeps pushing calls to a
+            // signed-out device — retry once before giving up, and log loudly on
+            // final failure (the client-side _signedOut guard still refuses any
+            // call that arrives before the row is cleaned up server-side).
+            const attempt = (retriesLeft) => {
+                try {
+                    _this.unregisterToken((data) => {
+                        if (data && data.code === 200) return done(data);
+                        if (retriesLeft > 0) {
+                            _log('push unregister failed (' + JSON.stringify(data) + ') — retrying in 2s');
+                            setTimeout(() => attempt(retriesLeft - 1), 2000);
+                            return;
+                        }
+                        _log('push unregister FAILED after retry — token may linger server-side; invite pushes are refused client-side until next sign-in');
+                        done(data || { code: 1007, status: 'push token unregister failed' });
+                    });
+                } catch {
+                    done({ code: 1007, status: 'push token unregister failed' });
+                }
+            };
+            attempt(1);
         } else {
             done({ code: 200, status: 'no push token to unregister' });
         }
@@ -229,6 +262,15 @@ export default class extends EventEmitter {
     }
 
     handleIncomingPush(info) {
+        // Explicitly signed out: refuse invite pushes (the payload alone could
+        // join the call — see _signedOut above). Dismiss the natively-reported
+        // ringing screen (iOS reports before JS runs) via callkeepCancel.
+        // Cancel pushes still process — dismissing is always safe.
+        if (this._signedOut && info && info.uuid && info.type !== 'cancel_call') {
+            _log('invite push refused — user is signed out (token still registered server-side?)');
+            try { this.emit('callkeepCancel', { uuid: String(info.uuid).toLowerCase(), reason: 'signed out' }); } catch { /* ignore */ }
+            return false;
+        }
         // The same push can reach us twice — the SDK forwards pushes itself
         // (since 0.23.0) AND apps built on the older docs forward them too.
         // setPending() dedupes invites by uuid; cancels are deduped here, or
