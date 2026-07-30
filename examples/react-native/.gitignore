@@ -11,3 +11,4 @@ Podfile.lock
 Gemfile.lock
 *.jsbundle
 .DS_Store
+google-services.json

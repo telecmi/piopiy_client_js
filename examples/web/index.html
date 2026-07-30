@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PIOPIY Web Example</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 560px; margin: 2rem auto; padding: 0 1rem; }
+    fieldset { border: 1px solid #ccc; border-radius: 8px; margin-bottom: 1rem; }
+    input, button { padding: .5rem .7rem; margin: .2rem; border-radius: 6px; border: 1px solid #bbb; }
+    button { cursor: pointer; background: #2f6fed; color: #fff; border: 0; }
+    button.red { background: #d64545; } button.green { background: #1f9d55; }
+    #log { background: #111; color: #9fe6a0; font: 12px/1.5 monospace; padding: .8rem;
+           border-radius: 8px; height: 260px; overflow: auto; white-space: pre-wrap; }
+    #status { font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h2>PIOPIY · web example</h2>
+  <p>Status: <span id="status">signed out</span></p>
+
+  <fieldset>
+    <legend>Sign in</legend>
+    <input id="user" placeholder="agent id (e.g. 1001_12345)">
+    <input id="pass" placeholder="password" type="password">
+    <input id="region" placeholder="region" value="sbcsg.telecmi.com">
+    <button id="login">Sign in</button>
+    <button id="logout" class="red">Sign out</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>Call</legend>
+    <input id="dial" placeholder="number to call">
+    <button id="call" class="green">Call</button>
+    <button id="answer" class="green">Answer</button>
+    <button id="hangup" class="red">Hang up</button>
+    <button id="mute">Mute / Unmute</button>
+  </fieldset>
+
+  <div id="log"></div>
+
+  <!-- The SDK straight from npm's CDN — no build step needed for this demo.
+       In a real app: npm install @telecmi/piopiyjs and import it. -->
+  <script src="https://unpkg.com/@telecmi/piopiyjs/dist/piopiy.min.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const log = (...a) => { $('log').textContent += a.join(' ') + '\n'; $('log').scrollTop = 1e9; };
+
+    const piopiy = new PIOPIY({ name: 'Web Example', debug: true, ringTime: 40 });
+
+    piopiy.on('login',        () => { $('status').textContent = 'signed in'; log('✅ signed in'); });
+    piopiy.on('loginFailed',  (e) => log('⚠️ login failed', JSON.stringify(e)));
+    piopiy.on('logout',       () => { $('status').textContent = 'signed out'; log('👋 signed out'); });
+    piopiy.on('inComingCall', (c) => log(`📞 incoming from ${c.name || c.from}${c.team_name ? ' — ' + c.team_name : ''} (click Answer)`));
+    piopiy.on('trying',       () => log('calling…'));
+    piopiy.on('ringing',      () => log('ringing…'));
+    piopiy.on('answered',     () => log('🔊 call connected'));
+    piopiy.on('ended',        () => log('call ended'));
+    piopiy.on('missedCall',   (m) => log(`📵 missed call from ${m.from || ''}`));
+    piopiy.on('error',        (e) => log('⚠️ error', JSON.stringify(e)));
+
+    $('login').onclick  = () => piopiy.login($('user').value.trim(), $('pass').value, $('region').value.trim());
+    $('logout').onclick = () => piopiy.logout();
+    $('call').onclick   = () => piopiy.call($('dial').value.trim());
+    $('answer').onclick = () => piopiy.answer();
+    $('hangup').onclick = () => piopiy.terminate();
+    $('mute').onclick   = () => (piopiy.onMute() ? piopiy.unMute() : piopiy.mute());
+  </script>
+</body>
+</html>

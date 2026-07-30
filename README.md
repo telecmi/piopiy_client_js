@@ -63,9 +63,10 @@ npm install @telecmi/piopiy-native
 > Web/Electron from `@telecmi/piopiyjs`. See the [React Native guide](README.react-native.md).
 
 > [!TIP]
-> A complete, runnable React Native example app (inbound + outbound calls) lives
-> in [`example/`](example) — built purely by following the guides, installing
-> only what they say to install.
+> Complete, runnable examples live in [`examples/`](examples):
+> **[`examples/react-native`](examples/react-native)** (iOS & Android — native
+> call screens, push wake-up calls) and **[`examples/web`](examples/web)**
+> (single-file browser softphone). Each has a README with run instructions.
 
 
 ---
