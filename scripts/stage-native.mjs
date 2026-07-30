@@ -42,28 +42,6 @@ for (const f of copy) {
 // The RN landing page is the package's README.
 cpSync(join(root, 'README.react-native.md'), join(out, 'README.md'));
 
-// Android-push side-effect entry: `import '@telecmi/piopiy-native/android-push'`.
-// Platform-split so the require('@react-native-firebase/messaging') exists ONLY
-// in Android bundles — Metro picks .android.js there and the empty .ios.js on
-// iOS, keeping Firebase entirely out of iOS bundles even when installed.
-writeFileSync(join(out, 'android-push.android.js'),
-`// Enables Android push (FCM). Import ONCE, before constructing PIOPIY:
-//   import '@telecmi/piopiy-native/android-push';
-// Requires @react-native-firebase/app + /messaging installed in YOUR app
-// (they are the app's own Firebase project — see the Android setup guide).
-var mod = require('@react-native-firebase/messaging');
-require('./lib/messagingRegistry').setMessaging(mod && (mod.default || mod));
-`);
-writeFileSync(join(out, 'android-push.ios.js'),
-`// iOS build: intentionally empty. iOS push uses PushKit natively — Firebase
-// never enters the iOS bundle (this file is what Metro resolves on iOS).
-module.exports = {};
-`);
-writeFileSync(join(out, 'android-push.d.ts'),
-`// Side-effect import that enables Android push (FCM). See the Android guide.
-export {};
-`);
-
 const nativePkg = {
   name: '@telecmi/piopiy-native',
   title: 'PIOPIY WebRTC SDK for React Native (iOS & Android)',
@@ -78,9 +56,6 @@ const nativePkg = {
   files: [
     'lib',
     'index.d.ts',
-    'android-push.android.js',
-    'android-push.ios.js',
-    'android-push.d.ts',
     'README.md',
     'README.react-native.md',
     'README.react-native-ios.md',

@@ -30,21 +30,17 @@ the exact action required.
 ## [0.24.0] - 2026-07-30
 
 ### Changed
-- **Firebase is no longer bundled with the SDK — Android apps install it explicitly and enable it with one import.** Firebase belongs to the app (its Firebase project, its `google-services.json`, its gradle plugin, its version), so hiding it inside the SDK made an important setup step invisible. The SDK contains **no Firebase import of its own**; Android apps do:
+- **Firebase is no longer bundled with the SDK — Android apps install it explicitly; the SDK detects it automatically.** Firebase belongs to the app (its Firebase project, its `google-services.json`, its gradle plugin, its version), so hiding it inside the SDK made an important setup step invisible. For Android push, your app runs:
 
 ```bash
 npm install @react-native-firebase/app @react-native-firebase/messaging
 ```
-```js
-// top of your call service, before new PIOPIY(...)
-import '@telecmi/piopiy-native/android-push';
-```
 
-  The `android-push` entry is platform-split: Android bundles get the Firebase wiring, iOS bundles resolve it to an **empty module** — Firebase never enters an iOS build even when installed. iOS-only apps simply omit the import and never install Firebase. (A `messaging` constructor option also exists as an explicit override.) The push guide's **Step 4b** is now an explicit Android checklist (install, import, credentials, gradle ×2, manifest, index.js handler, device calling-account) with the exact symptom each missing item produces.
+  …and completes the Android checklist in the push guide (`google-services.json`, two gradle lines, manifest, one `index.js` line). **No SDK-side Firebase code exists to write** — no option, no import: when Firebase is installed the SDK uses it; when it isn't (iOS-only apps) the app still bundles and runs, and the SDK logs exactly what to install if Android push is expected. The push guide's **Step 4b** is an explicit checklist with the symptom each missing item produces.
 
 ### Upgrading
-- **Android apps (0.22.0–0.23.1):** `npm install @react-native-firebase/app @react-native-firebase/messaging`, then add the `android-push` import above. Without it, Android push is disabled (the SDK logs exactly what to do; no crash).
-- **iOS-only apps:** no action.
+- **Android apps (0.22.0–0.23.1):** `npm install @react-native-firebase/app @react-native-firebase/messaging` (previously it arrived silently with the SDK). Everything else is unchanged.
+- **iOS-only apps:** no action; you may drop the Firebase entries from `react-native.config.js` if you never install it.
 
 ## [0.23.1] - 2026-07-30
 

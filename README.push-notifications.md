@@ -56,7 +56,7 @@ Push uses a **different transport per platform**, so the native setup differs:
 | :--- | :--- | :--- |
 | **Incoming-call UI** | CallKit — via the SDK's bundled `@telecmi/react-native-callkeep` *(driven automatically)* | ConnectionService — same bundled module |
 | **Push transport** | VoIP Push / **PushKit** — `react-native-voip-push-notification` | **FCM** — `@react-native-firebase/app` + `@react-native-firebase/messaging` |
-| **Firebase** | ❌ **Not used** — never installed, never imported | ✅ Required — **your app installs** `@react-native-firebase/app` + `/messaging`, adds `google-services.json` + the gradle plugin, and adds the one-line `android-push` import (Step 4b) |
+| **Firebase** | ❌ **Not used** — never installed, never imported | ✅ Required — **your app installs** `@react-native-firebase/app` + `/messaging`, adds `google-services.json` + the gradle plugin, adds `google-services.json` + the gradle plugin (Step 4b) — the SDK detects it automatically |
 | **WebRTC / audio** | WebRTC engine bundled in `@telecmi/piopiy-native`; `react-native-incall-manager` for routing | same |
 | **Native wiring** | AppDelegate PushKit + Push/VoIP capabilities + `Info.plist` background modes | FCM background handler + manifest permissions |
 
@@ -100,9 +100,10 @@ gradle plugin, your version choice — the SDK deliberately does not bundle it):
 npm install @react-native-firebase/app @react-native-firebase/messaging
 ```
 
-…then complete the **Step 4b checklist** (credentials, gradle, manifest, and
-passing the module to the SDK). **iOS-only apps skip Firebase entirely** — the
-SDK never imports it.
+…then complete the **Step 4b checklist** (credentials, gradle, manifest). The
+SDK detects the installed Firebase automatically — no extra code or imports.
+**iOS-only apps skip Firebase entirely**: don't install it; the app still
+bundles and runs (the SDK's Firebase lookup is optional and guarded).
 
 > [!NOTE]
 > **Storage is your choice.** The SDK does not require any storage library. If
@@ -186,10 +187,6 @@ sign in, listen to events.
 ```javascript
 // src/callService.js
 import PIOPIY from '@telecmi/piopiy-native';
-// Android push (FCM): one side-effect import wires your app's Firebase module
-// into the SDK. iOS builds resolve it to an empty module, so Firebase never
-// enters the iOS bundle. iOS-only apps DELETE this line and skip Firebase.
-import '@telecmi/piopiy-native/android-push';
 
 export const piopiy = new PIOPIY({
   name: 'Mobile Agent',
@@ -408,7 +405,6 @@ included); these are the **project files you must touch**:
 | # | What | File | Missing it looks like |
 | :--- | :--- | :--- | :--- |
 | 0 | `npm install @react-native-firebase/app @react-native-firebase/messaging` | `package.json` | app fails to bundle (the `messaging` require in your service can't resolve) |
-| 0b | `import '@telecmi/piopiy-native/android-push';` at the top of your call service (before `new PIOPIY`) | your call service | SDK logs `Android push needs Firebase: install … and add the android-push import` |
 | 1 | `google-services.json` from your Firebase project (package name must match your `applicationId`) | `android/app/google-services.json` | no FCM token; SDK logs `FCM getToken failed — No Firebase App '[DEFAULT]'` |
 | 2 | Google services **classpath** | `android/build.gradle` | plugin below can't apply |
 | 3 | Google services **plugin** | `android/app/build.gradle` (bottom) | no FCM token, same log as #1 |

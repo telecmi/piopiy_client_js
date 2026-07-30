@@ -28,15 +28,6 @@ export interface PiopiyOptions {
    */
   autoPushToken?: boolean;
   /**
-   * Android push (React Native only) — explicit override. The normal way to
-   * enable Android push is the one-line side-effect import (see the Android
-   * guide): `import '@telecmi/piopiy-native/android-push'`. Use this option
-   * only if you prefer passing your `@react-native-firebase/messaging` module
-   * directly. The SDK never imports Firebase itself; iOS-only apps skip
-   * Firebase entirely. Without either, Android push is disabled (logged).
-   */
-  messaging?: unknown;
-  /**
    * Override the TeleCMI API base URL used for login and push-token
    * registration. Defaults to production — set this only for testing against a
    * staging environment, e.g. `'https://stagerest.telecmi.com/v2'`.

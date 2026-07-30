@@ -11,12 +11,6 @@
 import {attachSdkLog} from './sdkLog';
 import {Platform, PermissionsAndroid} from 'react-native';
 import PIOPIY, {type PiopiyEventName} from '@telecmi/piopiy-native';
-// Android push (FCM): this one side-effect import wires YOUR app's Firebase
-// module into the SDK. On iOS it resolves to an empty module — Firebase never
-// enters the iOS bundle. Requires @react-native-firebase/app + /messaging
-// (installed by this app; see the Android setup guide). iOS-only apps delete
-// this line and skip Firebase entirely.
-import '@telecmi/piopiy-native/android-push';
 // NOTE: this example deliberately uses ONLY the packages the SDK docs tell
 // you to install. Saved sign-in details therefore live in memory (retype
 // after a full restart). A real app would use AsyncStorage or the Keychain —
