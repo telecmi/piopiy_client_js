@@ -1,0 +1,13 @@
+node_modules/
+ios/Pods/
+ios/build/
+ios/*.xcworkspace
+android/build/
+android/app/build/
+android/.gradle/
+vendor/
+package-lock.json
+Podfile.lock
+Gemfile.lock
+*.jsbundle
+.DS_Store

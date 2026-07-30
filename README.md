@@ -64,7 +64,8 @@ npm install @telecmi/piopiy-native
 
 > [!TIP]
 > A complete, runnable React Native example app (inbound + outbound calls) lives
-> in [`example-rn/`](example-rn).
+> in [`example/`](example) — built purely by following the guides, installing
+> only what they say to install.
 
 
 ---

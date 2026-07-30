@@ -1,0 +1,61 @@
+# Resolve react_native_pods.rb with node to allow for hoisting
+require Pod::Executable.execute_command('node', ['-p',
+  'require.resolve(
+    "react-native/scripts/react_native_pods.rb",
+    {paths: [process.argv[1]]},
+  )', __dir__]).strip
+
+# The SDK's native pods (LiveKit's Swift WebRTC engine) don't emit the module
+# maps the linker expects under the New Architecture, so builds fail with
+# "module map file '…/livekit_react_native.modulemap' not found".
+# Build iOS on the old architecture.
+ENV['RCT_NEW_ARCH_ENABLED'] = '0'
+
+platform :ios, min_ios_version_supported
+prepare_react_native_project!
+
+linkage = ENV['USE_FRAMEWORKS']
+if linkage != nil
+  Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
+  use_frameworks! :linkage => linkage.to_sym
+end
+
+target 'PiopiyExample' do
+  config = use_native_modules!
+
+  use_react_native!(
+    :path => config[:reactNativePath],
+    # An absolute path to your application root.
+    :app_path => "#{Pod::Config.instance.installation_root}/.."
+  )
+
+  target 'PiopiyExampleTests' do
+    inherit! :complete
+    # Pods for testing
+  end
+
+  post_install do |installer|
+    # https://github.com/facebook/react-native/blob/main/packages/react-native/scripts/react_native_pods.rb#L197-L202
+    react_native_post_install(
+      installer,
+      config[:reactNativePath],
+      :mac_catalyst_enabled => false,
+      # :ccache_enabled => true
+    )
+
+    # Xcode 26 / Apple Clang 21: fmt's consteval format strings fail to compile,
+    # which cascades into "module map file ... not found" for every Swift pod
+    # that depends on fmt. Force FMT_USE_CONSTEVAL off.
+    fmt_base = File.join(__dir__, 'Pods', 'fmt', 'include', 'fmt', 'base.h')
+    if File.exist?(fmt_base)
+      original = File.read(fmt_base)
+      patched = original.gsub(/^#\s*define FMT_USE_CONSTEVAL 1\b/, '#  define FMT_USE_CONSTEVAL 0')
+      if patched != original
+        File.chmod(0644, fmt_base)
+        File.write(fmt_base, patched)
+        File.chmod(0444, fmt_base)
+        Pod::UI.puts '[piopiy] Patched fmt base.h: FMT_USE_CONSTEVAL -> 0'.green
+      end
+    end
+  end
+end

@@ -1,26 +1,18 @@
+# PiopiyExample — the docs-only validation app
 
-## React app for PIOPIYJS 
+All application **code** is complete in this folder (UI, call service, native
+push wiring, patches, Firebase config). What is deliberately NOT done:
+**no package has been installed.** Install every dependency by following the
+SDK docs, exactly as a customer would:
 
-PIOPIY WebRTC SDK allows you to make and receive voice calls, where making voice calls can be made to a public switched telephone network(PSTN), APP to APP calling and browser to browser calling.
+1. [React Native setup](https://github.com/telecmi/piopiy_client_js/blob/master/README.react-native.md) — the install command, then `bundle install && bundle exec pod install`
+2. [iOS guide](https://github.com/telecmi/piopiy_client_js/blob/master/README.react-native-ios.md) — signing + **Push Notifications capability** (step 5.4)
+3. [Android guide](https://github.com/telecmi/piopiy_client_js/blob/master/README.react-native-android.md)
+4. [Push notifications](https://github.com/telecmi/piopiy_client_js/blob/master/README.push-notifications.md) — includes `patch-package` for react-native-callkeep (the patch file is already in `patches/`)
 
+Identity is pre-set so existing push credentials work: iOS bundle id
+`com.telecmi.piopirn`, Android package `com.piopiyrnexample`.
 
-### Get Started
-
-#### Clone the repository
-
-Use command __git clone__ to clone the React piopiy example from our <a href="https://github.com/telecmi/react_piopiy_voice_js" target="_blank">TeleCMI github repository</a>.
-
-```bash
-git clone https://github.com/telecmi/react_piopiy_voice_js.git
-```
-
-#### Change Agent/User ID and password <a href="https://github.com/telecmi/react_piopiy_client_js/blob/main/src/service/piopiy_voice.js#L28" target="_blank">here</a>.
-
-```javascript
- npm install
-```
-
-```javascript
- npm start
-```
-
+This app imports ONLY packages the docs tell you to install. Saved sign-in
+details are in-memory by design (AsyncStorage is an app choice, not an SDK
+requirement).
