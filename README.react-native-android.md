@@ -167,7 +167,7 @@ import it (iOS-only apps never touch it). The complete Android list:
 2. `android/app/google-services.json` — from *your* Firebase project, matching your `applicationId`
 3. `classpath("com.google.gms:google-services:4.4.2")` in `android/build.gradle`
 4. `apply plugin: "com.google.gms.google-services"` at the bottom of `android/app/build.gradle`
-5. Pass the module to the SDK: `messaging: Platform.OS === 'android' ? require('@react-native-firebase/messaging').default : undefined` in `new PIOPIY({…})`
+5. `import '@telecmi/piopiy-native/android-push';` at the top of your call service, before `new PIOPIY(…)` (on iOS this resolves to an empty module — Firebase stays out of iOS bundles)
 6. The CallKeep `VoiceConnectionService` block in your `AndroidManifest.xml`
 7. `piopiy.registerBackgroundPushHandler()` — one line in `index.js`
 

@@ -15,6 +15,7 @@
 // google-services.json, its version).
 
 import { Platform } from 'react-native';
+import { getMessaging } from './messagingRegistry';
 
 const dbg = ( ...args ) => {
     try {
@@ -39,9 +40,11 @@ try {
 // option (see the file header for why the SDK never requires it itself).
 function loadMessaging( piopiy ) {
     if ( Platform.OS !== 'android' ) return null;
-    const opt = piopiy && piopiy.piopiyOption && piopiy.piopiyOption.messaging;
+    // Preferred: the app added `import '@telecmi/piopiy-native/android-push'`
+    // (fills the registry). The `messaging` option is an explicit override.
+    const opt = ( piopiy && piopiy.piopiyOption && piopiy.piopiyOption.messaging ) || getMessaging();
     if ( !opt ) {
-        dbg( 'Android push needs Firebase: install @react-native-firebase/app and /messaging, then pass the module — new PIOPIY({ messaging: require("@react-native-firebase/messaging").default }). See the Android setup guide.' );
+        dbg( "Android push needs Firebase: install @react-native-firebase/app and /messaging, then add `import '@telecmi/piopiy-native/android-push'` at the top of your call service. See the Android setup guide." );
         return null;
     }
     return opt.default || opt;

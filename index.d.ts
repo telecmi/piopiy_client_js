@@ -28,15 +28,12 @@ export interface PiopiyOptions {
    */
   autoPushToken?: boolean;
   /**
-   * Android push (React Native only): your app's Firebase messaging module.
-   * Install `@react-native-firebase/app` + `/messaging`, then pass:
-   * ```ts
-   * messaging: Platform.OS === 'android'
-   *   ? require('@react-native-firebase/messaging').default
-   *   : undefined
-   * ```
-   * The SDK never imports Firebase itself, so iOS-only apps skip Firebase
-   * entirely. Without this option, Android push is disabled (logged, no crash).
+   * Android push (React Native only) — explicit override. The normal way to
+   * enable Android push is the one-line side-effect import (see the Android
+   * guide): `import '@telecmi/piopiy-native/android-push'`. Use this option
+   * only if you prefer passing your `@react-native-firebase/messaging` module
+   * directly. The SDK never imports Firebase itself; iOS-only apps skip
+   * Firebase entirely. Without either, Android push is disabled (logged).
    */
   messaging?: unknown;
   /**
