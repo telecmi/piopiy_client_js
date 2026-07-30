@@ -109,6 +109,10 @@ const nativePkg = {
   },
 };
 
+// The gate runs on `npm publish` from native-pkg/ too — a publish that hasn't
+// proven the tarball bundles in the real example app must not reach customers.
+nativePkg.scripts = { prepublishOnly: 'cd .. && ./scripts/verify-example.sh' };
+
 writeFileSync(join(out, 'package.json'), JSON.stringify(nativePkg, null, 2) + '\n');
 
 console.log(`Staged piopiy-native@${nativePkg.version} in ./native-pkg`);
