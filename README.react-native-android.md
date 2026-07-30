@@ -160,7 +160,20 @@ Since this is a **voice-only** SDK, remote and local audio tracks are routed aut
 
 Inbound calls ring and connect while the app is in the **foreground**. Receiving a call while the app is **backgrounded or killed** requires a high-priority **FCM** data message + **ConnectionService** — the SDK drives the call UI once wired up.
 
-Follow the **[Push Notifications guide](README.push-notifications.md)** for the complete setup.
+**Firebase is YOUR app's, set up explicitly** — the SDK does not bundle or
+import it (iOS-only apps never touch it). The complete Android list:
+
+1. `npm install @react-native-firebase/app @react-native-firebase/messaging`
+2. `android/app/google-services.json` — from *your* Firebase project, matching your `applicationId`
+3. `classpath("com.google.gms:google-services:4.4.2")` in `android/build.gradle`
+4. `apply plugin: "com.google.gms.google-services"` at the bottom of `android/app/build.gradle`
+5. Pass the module to the SDK: `messaging: Platform.OS === 'android' ? require('@react-native-firebase/messaging').default : undefined` in `new PIOPIY({…})`
+6. The CallKeep `VoiceConnectionService` block in your `AndroidManifest.xml`
+7. `piopiy.registerBackgroundPushHandler()` — one line in `index.js`
+
+Follow the **[Push Notifications guide](README.push-notifications.md)** — its
+**Step 4b checklist** lists every item with the exact snippet and the symptom
+you'll see if it's missing.
 
 ---
 

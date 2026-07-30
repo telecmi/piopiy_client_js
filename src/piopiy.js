@@ -60,6 +60,11 @@ export default class extends EventEmitter {
         // On by default — it is what an app needs for background calls. Set false
         // to manage the token yourself with registerToken().
         this.piopiyOption.autoPushToken = _.isBoolean(option.autoPushToken) ? option.autoPushToken : true;
+        // Android FCM module, injected by the app (React Native only):
+        //   new PIOPIY({ messaging: Platform.OS === 'android'
+        //     ? require('@react-native-firebase/messaging').default : undefined })
+        // The SDK never requires Firebase itself — see pushToken.native.js.
+        this.piopiyOption.messaging = option.messaging || null;
         // Override the TeleCMI API base URL (staging/testing). Defaults to production.
         if (_.isString(option.apiBase) && option.apiBase.trim()) {
             RestCMI.setApiBase(option.apiBase);

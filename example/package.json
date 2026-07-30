@@ -10,6 +10,8 @@
     "test": "jest"
   },
   "dependencies": {
+    "@react-native-firebase/app": "^25.1.0",
+    "@react-native-firebase/messaging": "^25.1.0",
     "@telecmi/piopiy-native": "file:../../../../../var/folders/26/hg0s2pwx76xd32dc668tcfj80000gn/T/tmp.BuaPyyHf5d/telecmi-piopiy-native-0.23.1.tgz",
     "react": "18.3.1",
     "react-native": "0.76.9"

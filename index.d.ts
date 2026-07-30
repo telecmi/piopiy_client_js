@@ -28,6 +28,18 @@ export interface PiopiyOptions {
    */
   autoPushToken?: boolean;
   /**
+   * Android push (React Native only): your app's Firebase messaging module.
+   * Install `@react-native-firebase/app` + `/messaging`, then pass:
+   * ```ts
+   * messaging: Platform.OS === 'android'
+   *   ? require('@react-native-firebase/messaging').default
+   *   : undefined
+   * ```
+   * The SDK never imports Firebase itself, so iOS-only apps skip Firebase
+   * entirely. Without this option, Android push is disabled (logged, no crash).
+   */
+  messaging?: unknown;
+  /**
    * Override the TeleCMI API base URL used for login and push-token
    * registration. Defaults to production — set this only for testing against a
    * staging environment, e.g. `'https://stagerest.telecmi.com/v2'`.

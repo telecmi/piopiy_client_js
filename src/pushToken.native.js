@@ -5,9 +5,14 @@
 // default (`autoPushToken`), and fully inert when the push libraries are not
 // installed — apps that manage tokens themselves keep using registerToken().
 //
-// Soft-required peers (same pattern as the CallKeep bridge):
-//   iOS     react-native-voip-push-notification  (PushKit / VoIP push)
-//   Android @react-native-firebase/messaging     (FCM)
+// iOS uses react-native-voip-push-notification (ships with the SDK).
+// Android FCM uses @react-native-firebase/messaging — the APP installs it and
+// passes the module in via `new PIOPIY({ messaging })`. The SDK deliberately
+// has NO firebase require of its own: Metro resolves require() statically, so
+// an SDK-side require would force every iOS-only app to install an
+// Android-only package just to bundle. Injection keeps Firebase a conscious,
+// documented Android setup step owned by the app (its Firebase project, its
+// google-services.json, its version).
 
 import { Platform } from 'react-native';
 
@@ -30,17 +35,16 @@ try {
     VoipPush = null;
 }
 
-// Android FCM. NEVER required on iOS: pulling @react-native-firebase into an
-// iOS build fails with "Module 'FirebaseCore' not found". The require is lazy
-// AND guarded by Platform.OS so it is never evaluated on iOS.
-function loadMessaging() {
+// Android FCM — the messaging module the APP injected via the `messaging`
+// option (see the file header for why the SDK never requires it itself).
+function loadMessaging( piopiy ) {
     if ( Platform.OS !== 'android' ) return null;
-    try {
-        const mod = require( '@react-native-firebase/messaging' );
-        return mod && ( mod.default || mod );
-    } catch {
+    const opt = piopiy && piopiy.piopiyOption && piopiy.piopiyOption.messaging;
+    if ( !opt ) {
+        dbg( 'Android push needs Firebase: install @react-native-firebase/app and /messaging, then pass the module — new PIOPIY({ messaging: require("@react-native-firebase/messaging").default }). See the Android setup guide.' );
         return null;
     }
+    return opt.default || opt;
 }
 
 export default class PushTokenManager {
@@ -141,7 +145,7 @@ export default class PushTokenManager {
     }
 
     _startAndroid() {
-        const messaging = loadMessaging();
+        const messaging = loadMessaging( this.piopiy );
         if ( !messaging ) {
             dbg( 'auto push token: @react-native-firebase/messaging not installed — skipping' );
             return false;
@@ -179,7 +183,7 @@ export default class PushTokenManager {
      */
     registerHeadlessHandler() {
         if ( Platform.OS !== 'android' ) return false;
-        const messaging = loadMessaging();
+        const messaging = loadMessaging( this.piopiy );
         if ( !messaging ) {
             dbg( 'headless push: @react-native-firebase/messaging unavailable — skipping' );
             return false;

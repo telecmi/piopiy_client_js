@@ -41,6 +41,13 @@ export const piopiy = new PIOPIY({
   name: APP_NAME,
   debug: true,
   callKeep: {ios: {appName: APP_NAME}},
+  // Android push (FCM): pass YOUR app's Firebase messaging module. The SDK
+  // never imports Firebase itself — iOS-only apps skip Firebase entirely.
+  // The Platform guard keeps this require from ever executing on iOS.
+  messaging:
+    Platform.OS === 'android'
+      ? require('@react-native-firebase/messaging').default
+      : undefined,
   // autoPushToken defaults to true — the device token is handled for us.
   // The API base defaults to production (https://rest.telecmi.com/v2); set the
   // `apiBase` option only if you need to point at a different environment.
