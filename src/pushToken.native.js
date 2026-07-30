@@ -70,11 +70,27 @@ export default class PushTokenManager {
             this.lastToken = null;
         } );
         this.piopiy.on( 'login', () => {
-            if ( this.deviceToken && !this.lastToken ) {
-                dbg( 'auto push token: re-registering after sign-in' );
+            // Register on sign-in unless this exact token was actually SENT
+            // (piopiy._pushToken is set only when the POST goes out with auth).
+            // Checking "seen" state instead of "sent" state silently skipped
+            // the retry when a fresh install's queued first registration was
+            // lost — the token then only registered after a sign-out/sign-in.
+            const sent = this.piopiy._pushToken;
+            if ( this.deviceToken && sent !== this.deviceToken ) {
+                dbg( 'auto push token: (re)registering after sign-in' );
+                this.lastToken = null;
                 this._onToken( this.deviceToken, this.provider, this.platform );
             }
         } );
+
+        // Visibility for the silent failure modes: if the OS hasn't issued a
+        // token shortly after start, say so — a missing Push Notifications
+        // capability or blocked APNs connectivity otherwise shows NOTHING.
+        setTimeout( () => {
+            if ( !this.deviceToken ) {
+                dbg( 'no device push token after 10s — check the Push Notifications capability (iOS), google-services.json (Android), and network' );
+            }
+        }, 10000 );
 
         if ( Platform.OS === 'ios' ) return this._startIOS();
         if ( Platform.OS === 'android' ) return this._startAndroid();

@@ -10,6 +10,7 @@ the exact action required.
 
 | Version | Date | Headline |
 | :--- | :--- | :--- |
+| [0.23.1](#0231---2026-07-30) | 2026-07-30 | First sign-in on a fresh install reliably registers the push token |
 | [0.23.0](#0230---2026-07-29) | 2026-07-29 | **Apps write zero push code** — the SDK forwards its own pushes |
 | [0.22.0](#0220---2026-07-29) | 2026-07-29 | **iOS-only apps need zero push packages** — Firebase bundled for Metro resolution |
 | [0.21.0](#0210---2026-07-29) | 2026-07-29 | **One-line install** — audio routing and iOS VoIP push ship with the SDK too |
@@ -24,6 +25,12 @@ the exact action required.
 | [0.15.0](#0150---2026-04-15) | 2026-04-15 | `call_id` key standardization |
 | [0.14.0](#0140---2026-04-10) | 2026-04-10 | Team transfer |
 | [0.13.0](#0130---2026-04-08) | 2026-04-08 | Call metadata extraction, tooling upgrade |
+
+## [0.23.1] - 2026-07-30
+
+### Fixed
+- **On a fresh install, the very first sign-in could miss the push-token registration** (it then only registered after a sign-out/sign-in). The sign-in re-registration now checks whether the token was actually *sent* rather than merely *seen*, so a lost first registration is always retried on login.
+- The SDK now logs a clear line if the OS hasn't issued a device push token 10 seconds after start — previously a missing iOS Push Notifications capability or missing `google-services.json` produced complete silence.
 
 ## [0.23.0] - 2026-07-29
 
