@@ -29,6 +29,9 @@ the exact action required.
 
 ## [0.24.0] - 2026-07-30
 
+### Fixed
+- **Answer/cancel race left a phantom in-call panel.** When the caller gave up (or their leg timed out) at the same moment the user answered, the in-flight `answer()` — which awaits audio setup and the room connection — resumed *after* the cancel's teardown and resurrected the dead call: `answered` fired after `hangup`, the app showed an in-call panel with no call behind it, and the stale state corrupted the next incoming call's UI. `answer()` now re-checks after every await; a teardown always wins, the abandoned room is left, and no stale events fire.
+
 ### Changed
 - **Firebase is no longer bundled with the SDK — Android apps install it explicitly; the SDK detects it automatically.** Firebase belongs to the app (its Firebase project, its `google-services.json`, its gradle plugin, its version), so hiding it inside the SDK made an important setup step invisible. For Android push, your app runs:
 

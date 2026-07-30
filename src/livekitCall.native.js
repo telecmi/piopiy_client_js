@@ -214,6 +214,15 @@ export default class LiveKitCall {
         }
         dbg( 'answer(): joining room', call.room, 'at', call.url );
 
+        // answer() awaits several times (audio config, room connect). A cancel
+        // or hangup can land BETWEEN those awaits — its teardown nulls
+        // activeUUID. Without re-checking after every await, the in-flight
+        // answer 'resurrects' the dead call: it sets this.room, enables the
+        // mic and emits 'answered' AFTER the app already saw 'hangup', leaving
+        // a phantom in-call panel and stale native state that corrupts the
+        // NEXT incoming call's UI. This guard makes teardown win the race.
+        const aborted = () => this.activeUUID !== call.uuid;
+
         try {
             if ( lk.AudioSession ) {
                 // Voice-call session config: earpiece by default so the CallKit
@@ -240,23 +249,49 @@ export default class LiveKitCall {
             dbg( 'audio session setup failed:', e && e.message );
         }
 
+        if ( aborted() ) {
+            dbg( 'answer aborted — call ended while preparing audio' );
+            return false;
+        }
+
         try {
             const room = new lkClient.Room();
             this.room = room;
             room.on( 'disconnected', ( reason ) => {
+                // Ignore events from a room this engine no longer owns (e.g.
+                // one we abandoned below after losing the answer/cancel race).
+                if ( this.room !== room ) return;
                 dbg( 'room disconnected —', reason ? String( reason ) : 'no reason' );
                 this._teardown( 'ended' );
             } );
             await room.connect( call.url, call.token, { autoSubscribe: true } );
+            if ( aborted() ) {
+                dbg( 'answer aborted — call cancelled during connect; leaving room' );
+                if ( this.room === room ) this.room = null;
+                try { room.disconnect(); } catch { /* ignore */ }
+                return false;
+            }
             dbg( 'room CONNECTED — enabling microphone' );
             try {
                 await room.localParticipant.setMicrophoneEnabled( true );
             } catch ( e ) {
                 dbg( 'setMicrophoneEnabled failed:', e && e.message );
             }
+            if ( aborted() ) {
+                dbg( 'answer aborted — call cancelled just after connect; leaving room' );
+                if ( this.room === room ) this.room = null;
+                try { room.disconnect(); } catch { /* ignore */ }
+                return false;
+            }
             this.piopiy.emit( 'answered', { code: 200, status: 'answered', transport: 'push' } );
             return true;
         } catch ( e ) {
+            if ( aborted() ) {
+                // The teardown that beat us already emitted the end events —
+                // stay silent instead of stacking an error on a finished call.
+                dbg( 'room.connect failed after cancel — already torn down:', e && e.message );
+                return false;
+            }
             dbg( 'room.connect FAILED —', e && e.message );
             this.piopiy.emit( 'error', { code: 1010, status: 'call connection failed: ' + ( e && e.message ) } );
             this._teardown( 'ended' );
