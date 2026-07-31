@@ -11,7 +11,7 @@ the exact action required.
 | Version | Date | Headline |
 | :--- | :--- | :--- |
 | [0.24.1](#0241---2026-07-30) | 2026-07-30 | Answer/cancel race fix; signed-out devices refuse calls |
-| [0.24.0](#0240---2026-07-30) | 2026-07-30 | **Firebase is the app's, explicitly** — injected via the `messaging` option, not bundled |
+| [0.24.0](#0240---2026-07-30) | 2026-07-30 | **Firebase is the app's, explicitly** — install per the Android checklist; SDK auto-detects |
 | [0.23.1](#0231---2026-07-30) | 2026-07-30 | First sign-in on a fresh install reliably registers the push token |
 | [0.23.0](#0230---2026-07-29) | 2026-07-29 | **Apps write zero push code** — the SDK forwards its own pushes |
 | [0.22.0](#0220---2026-07-29) | 2026-07-29 | **iOS-only apps need zero push packages** — Firebase bundled for Metro resolution |
