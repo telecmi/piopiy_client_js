@@ -10,6 +10,7 @@ the exact action required.
 
 | Version | Date | Headline |
 | :--- | :--- | :--- |
+| [0.24.1](#0241---2026-07-30) | 2026-07-30 | Answer/cancel race fix; signed-out devices refuse calls |
 | [0.24.0](#0240---2026-07-30) | 2026-07-30 | **Firebase is the app's, explicitly** — injected via the `messaging` option, not bundled |
 | [0.23.1](#0231---2026-07-30) | 2026-07-30 | First sign-in on a fresh install reliably registers the push token |
 | [0.23.0](#0230---2026-07-29) | 2026-07-29 | **Apps write zero push code** — the SDK forwards its own pushes |
@@ -27,11 +28,15 @@ the exact action required.
 | [0.14.0](#0140---2026-04-10) | 2026-04-10 | Team transfer |
 | [0.13.0](#0130---2026-04-08) | 2026-04-08 | Call metadata extraction, tooling upgrade |
 
-## [0.24.0] - 2026-07-30
+## [0.24.1] - 2026-07-30
+
+*(These two fixes were written the same day as 0.24.0 but missed its publish window.)*
 
 ### Fixed
-- **A signed-out device could still receive — and even answer — calls** when the sign-out's token removal failed server-side (the invite push carries the room and its join token, so login state didn't gate the join). Two layers now close this: after an explicit `logout()` the SDK **refuses invite pushes** (dismissing the natively-reported ringing screen) until the next sign-in, and the unregister call **retries once and logs loudly** on final failure instead of failing silently. Cold-start pushes (app killed, relaunched by a call) are unaffected.
 - **Answer/cancel race left a phantom in-call panel.** When the caller gave up (or their leg timed out) at the same moment the user answered, the in-flight `answer()` — which awaits audio setup and the room connection — resumed *after* the cancel's teardown and resurrected the dead call: `answered` fired after `hangup`, the app showed an in-call panel with no call behind it, and the stale state corrupted the next incoming call's UI. `answer()` now re-checks after every await; a teardown always wins, the abandoned room is left, and no stale events fire.
+- **A signed-out device could still receive — and even answer — calls** when the sign-out's token removal failed server-side (the invite push carries the room and its join token, so login state didn't gate the join). Two layers now close this: after an explicit `logout()` the SDK **refuses invite pushes** (dismissing the natively-reported ringing screen) until the next sign-in, and the unregister call **retries once and logs loudly** on final failure instead of failing silently. Cold-start pushes (app killed, relaunched by a call) are unaffected.
+
+## [0.24.0] - 2026-07-30
 
 ### Changed
 - **Firebase is no longer bundled with the SDK — Android apps install it explicitly; the SDK detects it automatically.** Firebase belongs to the app (its Firebase project, its `google-services.json`, its gradle plugin, its version), so hiding it inside the SDK made an important setup step invisible. For Android push, your app runs:
