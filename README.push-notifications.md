@@ -411,7 +411,7 @@ included); these are the **project files you must touch**:
 | 4 | Permissions block | `android/app/src/main/AndroidManifest.xml` | mic/notification failures at runtime |
 | 5 | CallKeep `VoiceConnectionService` declaration | same manifest, inside `<application>` | startup red box: `SecurityException: Registering a PhoneAccount…` |
 | 6 | `react-native.config.js` (Step 4a · 0 — shared with iOS) | project root | native modules missing at runtime |
-| 7 | One line in `index.js`: `piopiy.registerBackgroundPushHandler()` | `index.js` | calls only ring while the app is open |
+| 7 | *(automatic since 0.25.0)* the FCM background handler — the SDK registers it itself; on ≤ 0.24.x add `piopiy.registerBackgroundPushHandler()` to `index.js`. Apps that own `setBackgroundMessageHandler` set `autoBackgroundPush: false` and forward call pushes to `handleIncomingPush()` | — | calls only ring while the app is open |
 | 8 | *(first run, on-device)* enable the app's **calling account** if prompted — Settings → Calls → Calling accounts | device setting | push arrives (log shows it) but no call UI appears |
 
 Verify #1–#3 took effect: after a rebuild and sign-in, the app log shows

@@ -168,6 +168,15 @@ export default class PushTokenManager {
             const offMessage = messaging().onMessage( ( msg ) => this._onPush( msg ) );
             if ( typeof offMessage === 'function' ) this.cleanups.push( offMessage );
 
+            // Background/killed wake-ups too — registered HERE so apps write
+            // nothing in index.js. Android allows ONE FCM background handler
+            // per app; an app that manages its own sets
+            // { autoBackgroundPush: false } and forwards call pushes to
+            // piopiy.handleIncomingPush() from its handler.
+            if ( this.piopiy.piopiyOption.autoBackgroundPush !== false ) {
+                this.registerHeadlessHandler();
+            }
+
             dbg( 'auto push token: watching for the Android FCM token' );
             return true;
         } catch ( e ) {
@@ -185,6 +194,7 @@ export default class PushTokenManager {
      */
     registerHeadlessHandler() {
         if ( Platform.OS !== 'android' ) return false;
+        if ( this._headlessRegistered ) return true;   // idempotent — auto + manual can both call
         const messaging = loadMessaging();
         if ( !messaging ) {
             dbg( 'headless push: @react-native-firebase/messaging unavailable — skipping' );
@@ -192,6 +202,7 @@ export default class PushTokenManager {
         }
         try {
             messaging().setBackgroundMessageHandler( async ( msg ) => this._onPush( msg ) );
+            this._headlessRegistered = true;
             dbg( 'headless push: Android background handler registered' );
             return true;
         } catch ( e ) {

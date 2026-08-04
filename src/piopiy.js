@@ -88,6 +88,12 @@ export default class extends EventEmitter {
         // On by default — it is what an app needs for background calls. Set false
         // to manage the token yourself with registerToken().
         this.piopiyOption.autoPushToken = _.isBoolean(option.autoPushToken) ? option.autoPushToken : true;
+        // Android: register the FCM BACKGROUND handler automatically (the SDK
+        // module is evaluated during headless push launches, so the timing is
+        // right). Android allows one background handler app-wide — set false
+        // if your app owns setBackgroundMessageHandler, and forward call
+        // pushes to handleIncomingPush() from it.
+        this.piopiyOption.autoBackgroundPush = _.isBoolean(option.autoBackgroundPush) ? option.autoBackgroundPush : true;
         // Override the TeleCMI API base URL (staging/testing). Defaults to production.
         if (_.isString(option.apiBase) && option.apiBase.trim()) {
             RestCMI.setApiBase(option.apiBase);

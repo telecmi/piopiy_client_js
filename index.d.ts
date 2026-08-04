@@ -28,6 +28,14 @@ export interface PiopiyOptions {
    */
   autoPushToken?: boolean;
   /**
+   * Android only: automatically register the FCM background handler so
+   * killed/backgrounded call pushes wake the app — no index.js code needed.
+   * Default true. Set false if your app owns `setBackgroundMessageHandler`
+   * (Android allows exactly one app-wide); then forward call pushes to
+   * `handleIncomingPush()` from your handler.
+   */
+  autoBackgroundPush?: boolean;
+  /**
    * Override the TeleCMI API base URL used for login and push-token
    * registration. Defaults to production — set this only for testing against a
    * staging environment, e.g. `'https://stagerest.telecmi.com/v2'`.

@@ -32,6 +32,8 @@ the exact action required.
 ## [0.25.0] - 2026-08-04
 
 ### Changed
+- **The Android FCM background handler registers itself** — the `index.js` line is gone too. The SDK module is evaluated during headless push launches, so it registers `setBackgroundMessageHandler` at start (Android allows one app-wide; apps that own it set `autoBackgroundPush: false` and forward call pushes to `handleIncomingPush()`). `registerBackgroundPushHandler()` remains as an idempotent manual call for ≤ 0.24.x patterns.
+- **`debug: true` now shows the SDK's internal diagnostics in Metro** by default (an app-provided `globalThis.__piopiyLog` sink still takes precedence). Previously the SDK's explanations — e.g. exactly why the push token was skipped — went to a hook no real app wires, so integrators debugged blind.
 - **The Android ConnectionService declaration and telephony permissions now merge into your app automatically.** The SDK's bundled call-screen module (`@telecmi/react-native-callkeep` 4.3.17) declares `VoiceConnectionService` — with the `BIND_TELECOM_CONNECTION_SERVICE` guard, foreground-service types, and the telephony permissions — in its own library manifest, so Android's manifest merger injects everything. The startup `SecurityException: Registering a PhoneAccount requires…` can no longer happen on a fresh integration, and the Android guide's manifest step shrinks to "verify" instead of "hand-copy". Apps that already declare the block keep building unchanged (identical values merge cleanly; `tools:node` overrides remain available).
 
 ### Upgrading
