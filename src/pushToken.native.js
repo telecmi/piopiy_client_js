@@ -38,13 +38,47 @@ try {
 // still bundle — Metro treats a try/catch-wrapped require of an uninstalled
 // package as optional (verified empirically on RN 0.76, dev and release, both
 // platforms; the publish gate re-proves it on every release).
+// Returns a version-agnostic adapter over @react-native-firebase/messaging:
+// v25 and earlier expose a callable namespaced factory (messaging().getToken());
+// v26+ removed it in favour of the modular API (getToken(getMessaging())).
+// Calling the old style on v26 throws "Object is not a function" — the SDK
+// speaks both so apps can install whichever RNFirebase their RN version wants.
 function loadMessaging() {
     if ( Platform.OS !== 'android' ) return null;
+    let mod;
     try {
-        const mod = require( '@react-native-firebase/messaging' );
-        return mod && ( mod.default || mod );
+        mod = require( '@react-native-firebase/messaging' );
     } catch {
         dbg( 'Android push needs Firebase: npm install @react-native-firebase/app @react-native-firebase/messaging — see the Android setup guide.' );
+        return null;
+    }
+    try {
+        const ns = mod && ( mod.default || mod );
+        if ( typeof ns === 'function' ) {
+            // namespaced API (≤ v25)
+            const m = ns();
+            return {
+                getToken: () => m.getToken(),
+                onTokenRefresh: ( cb ) => m.onTokenRefresh( cb ),
+                onMessage: ( cb ) => m.onMessage( cb ),
+                setBackgroundMessageHandler: ( cb ) => m.setBackgroundMessageHandler( cb ),
+            };
+        }
+        // modular API (v26+)
+        const { getMessaging, getToken, onTokenRefresh, onMessage, setBackgroundMessageHandler } = mod;
+        if ( typeof getMessaging !== 'function' ) {
+            dbg( 'unrecognized @react-native-firebase/messaging API shape — token disabled' );
+            return null;
+        }
+        const m = getMessaging();
+        return {
+            getToken: () => getToken( m ),
+            onTokenRefresh: ( cb ) => onTokenRefresh( m, cb ),
+            onMessage: ( cb ) => onMessage( m, cb ),
+            setBackgroundMessageHandler: ( cb ) => setBackgroundMessageHandler( m, cb ),
+        };
+    } catch ( e ) {
+        dbg( 'firebase messaging init failed —', e && e.message );
         return null;
     }
 }
@@ -155,17 +189,17 @@ export default class PushTokenManager {
         try {
             // Throws "No Firebase App '[DEFAULT]'" when google-services.json is
             // missing — caught so a misconfigured app degrades instead of crashing.
-            messaging()
+            messaging
                 .getToken()
                 .then( ( token ) => this._onToken( token, 'fcm', 'android' ) )
                 .catch( ( e ) => dbg( 'auto push token: FCM getToken failed —', e && e.message ) );
 
-            const unsubscribe = messaging().onTokenRefresh( ( token ) => this._onToken( token, 'fcm', 'android' ) );
+            const unsubscribe = messaging.onTokenRefresh( ( token ) => this._onToken( token, 'fcm', 'android' ) );
             if ( typeof unsubscribe === 'function' ) this.cleanups.push( unsubscribe );
 
             // Foreground call pushes forwarded to the SDK here — the app never
             // imports the push library.
-            const offMessage = messaging().onMessage( ( msg ) => this._onPush( msg ) );
+            const offMessage = messaging.onMessage( ( msg ) => this._onPush( msg ) );
             if ( typeof offMessage === 'function' ) this.cleanups.push( offMessage );
 
             // Background/killed wake-ups too — registered HERE so apps write
@@ -201,7 +235,7 @@ export default class PushTokenManager {
             return false;
         }
         try {
-            messaging().setBackgroundMessageHandler( async ( msg ) => this._onPush( msg ) );
+            messaging.setBackgroundMessageHandler( async ( msg ) => this._onPush( msg ) );
             this._headlessRegistered = true;
             dbg( 'headless push: Android background handler registered' );
             return true;
