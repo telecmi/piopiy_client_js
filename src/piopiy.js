@@ -10,6 +10,8 @@ import CallKeepBridge from './callkeep';
 import LiveKitCall from './livekitCall';
 // Platform-resolved: pushToken.native.js on React Native, pushToken.js (no-op) on web.
 import PushTokenManager from './pushToken';
+// Platform-resolved: pushRouter.native.js on React Native, no-op on web.
+import { getPushRouter } from './pushRouter';
 
 
 
@@ -274,6 +276,15 @@ export default class extends EventEmitter {
      * Foreground pushes on both platforms are forwarded to the SDK
      * automatically — no app code involved.
      */
+    /**
+     * React Native, multi-SDK apps: receive pushes that no TeleCMI SDK owns
+     * (e.g. your app's own FCM notifications) from the shared push pipeline.
+     * The callback gets the raw data payload.
+     */
+    onOtherPush(callback) {
+        try { getPushRouter().onUnrouted(callback); } catch { /* no-op on web */ }
+    }
+
     registerBackgroundPushHandler() {
         return this._pushToken_mgr && typeof this._pushToken_mgr.registerHeadlessHandler === 'function'
             ? this._pushToken_mgr.registerHeadlessHandler()

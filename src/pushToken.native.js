@@ -12,6 +12,7 @@
 // it automatically when present and degrades with a clear log when absent.
 
 import { Platform } from 'react-native';
+import { getPushRouter } from './pushRouter';
 
 const dbg = ( ...args ) => {
     try {
@@ -132,6 +133,14 @@ export default class PushTokenManager {
             }
         }, 10000 );
 
+        // Cross-SDK routing: this SDK owns the voice payload types. Typeless
+        // payloads are legacy voice invites, so we're also the default route.
+        getPushRouter().register(
+            [ 'incoming_call', 'cancel_call' ],
+            ( data ) => this._handleOwnPush( data ),
+            { isDefault: true }
+        );
+
         if ( Platform.OS === 'ios' ) return this._startIOS();
         if ( Platform.OS === 'android' ) return this._startAndroid();
         dbg( 'auto push token: unsupported platform', Platform.OS );
@@ -245,13 +254,23 @@ export default class PushTokenManager {
         }
     }
 
-    // A call push arrived (any platform, any app state) — normalize the payload
-    // shape and hand it to the SDK. iOS VoIP events wrap the dictionary as
-    // {data}, or deliver it bare; FCM wraps it as {data} on the message.
+    // A push arrived (any platform, any app state) — normalize the payload
+    // shape and DISPATCH THROUGH THE ROUTER: voice payloads come back to this
+    // SDK; other TeleCMI SDKs in the same app (e.g. @telecmi/connle-video)
+    // receive their own types; unclaimed payloads reach the app's callback.
     _onPush( raw ) {
         try {
             const data = ( raw && ( raw.data ?? raw ) ) || null;
             if ( !data || typeof data !== 'object' ) return;
+            getPushRouter().dispatch( data );
+        } catch ( e ) {
+            dbg( 'push dispatch failed —', e && e.message );
+        }
+    }
+
+    // The router routed a voice payload back to us.
+    _handleOwnPush( data ) {
+        try {
             this.piopiy.handleIncomingPush( data );
         } catch ( e ) {
             dbg( 'push forward failed —', e && e.message );
@@ -267,6 +286,8 @@ export default class PushTokenManager {
         this.deviceToken = token;
         this.provider = provider;
         this.platform = platform;
+        // Share with co-resident TeleCMI SDKs (same device = same token).
+        try { getPushRouter().publishToken( { token, provider, platform } ); } catch { /* ignore */ }
         // The OS re-emits the same token on every launch — only send changes.
         // (An app that also registers manually therefore causes no extra calls.
         // lastToken is cleared on logout, so a re-login sends again.)
