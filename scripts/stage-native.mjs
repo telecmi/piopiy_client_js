@@ -85,7 +85,7 @@ const nativePkg = {
     'livekit-client': '^2.15.0',
     // Our CallKeep: upstream 4.3.16 + the duplicate-@ReactMethod fix (Android
     // crash on RN 0.76+). Bundled so apps neither install nor patch CallKeep.
-    '@telecmi/react-native-callkeep': '4.3.16',
+    '@telecmi/react-native-callkeep': '4.3.17',
     // Audio routing and iOS VoIP push — required for calls, so they ship with
     // the SDK like everything else. Apps register them in react-native.config.js
     // (transitive deps aren't autolinked otherwise) and install nothing.

@@ -28,12 +28,19 @@ native setup.
 
 ## 2. Configure `AndroidManifest.xml` (permissions + ConnectionService)
 
-Open `android/app/src/main/AndroidManifest.xml`. **Both** parts below are
-required for the SDK to start — not just for push. The SDK initializes the
-native call system (CallKeep / ConnectionService) as soon as `new PIOPIY(...)`
-runs, so skipping the service block crashes every Android app at startup.
+Since SDK **0.25.0**, the ConnectionService declaration and the telephony
+permissions **merge into your app automatically** from the SDK's bundled
+call-screen module — there is nothing to hand-copy. The blocks below are the
+reference for what arrives (verify with a manifest-merger report, or override
+any entry with `tools:node` in your own manifest).
 
-**Part 1 — permissions**, inside the `<manifest>` block:
+> [!NOTE]
+> On SDK **≤ 0.24.x** you must add both blocks to
+> `android/app/src/main/AndroidManifest.xml` yourself — the SDK initializes
+> the native call system at `new PIOPIY(...)`, so a missing service block
+> crashes at startup (the `SecurityException` shown below).
+
+**Part 1 — permissions** (auto-merged since 0.25.0):
 
 ```xml
 <uses-permission android:name="android.permission.INTERNET" />
@@ -49,10 +56,9 @@ runs, so skipping the service block crashes every Android app at startup.
 <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
 ```
 
-**Part 2 — the ConnectionService declaration**, inside `<application>`. It is
-**not** merged from the library's manifest; without the
-`BIND_TELECOM_CONNECTION_SERVICE` guard, Android's Telecom framework rejects
-the phone-account registration at startup with:
+**Part 2 — the ConnectionService declaration** (auto-merged since 0.25.0).
+Without it, Android's Telecom framework rejects the phone-account registration
+at startup with:
 
 ```
 java.lang.SecurityException: Registering a PhoneAccount requires either:

@@ -10,6 +10,7 @@ the exact action required.
 
 | Version | Date | Headline |
 | :--- | :--- | :--- |
+| [0.25.0](#0250---2026-08-04) | 2026-08-04 | **Android manifest wiring is automatic** — ConnectionService merges in from the SDK |
 | [0.24.1](#0241---2026-07-30) | 2026-07-30 | Answer/cancel race fix; signed-out devices refuse calls |
 | [0.24.0](#0240---2026-07-30) | 2026-07-30 | **Firebase is the app's, explicitly** — install per the Android checklist; SDK auto-detects |
 | [0.23.1](#0231---2026-07-30) | 2026-07-30 | First sign-in on a fresh install reliably registers the push token |
@@ -27,6 +28,14 @@ the exact action required.
 | [0.15.0](#0150---2026-04-15) | 2026-04-15 | `call_id` key standardization |
 | [0.14.0](#0140---2026-04-10) | 2026-04-10 | Team transfer |
 | [0.13.0](#0130---2026-04-08) | 2026-04-08 | Call metadata extraction, tooling upgrade |
+
+## [0.25.0] - 2026-08-04
+
+### Changed
+- **The Android ConnectionService declaration and telephony permissions now merge into your app automatically.** The SDK's bundled call-screen module (`@telecmi/react-native-callkeep` 4.3.17) declares `VoiceConnectionService` — with the `BIND_TELECOM_CONNECTION_SERVICE` guard, foreground-service types, and the telephony permissions — in its own library manifest, so Android's manifest merger injects everything. The startup `SecurityException: Registering a PhoneAccount requires…` can no longer happen on a fresh integration, and the Android guide's manifest step shrinks to "verify" instead of "hand-copy". Apps that already declare the block keep building unchanged (identical values merge cleanly; `tools:node` overrides remain available).
+
+### Upgrading
+- No action. You may delete the hand-copied `<service>` block and the five telephony `<uses-permission>` entries from your manifest if you prefer — the merger provides them either way.
 
 ## [0.24.1] - 2026-07-30
 
