@@ -56,6 +56,19 @@ export default class extends EventEmitter {
             { 'urls': 'stun:stunind.telecmi.com' }
         ]
         this.piopiyOption.debug = (_.isBoolean(option.debug)) ? option.debug : false;
+        // debug:true with no app-provided sink: route the SDK's internal
+        // diagnostics to the console so they appear in Metro. Without this,
+        // every explanation the SDK logs (e.g. WHY the push token was skipped)
+        // is invisible unless the app wires globalThis.__piopiyLog itself.
+        if (this.piopiyOption.debug) {
+            try {
+                const g = (typeof globalThis !== 'undefined') ? globalThis : null;
+                if (g && typeof g.__piopiyLog !== 'function') {
+                    // eslint-disable-next-line no-console
+                    g.__piopiyLog = (line) => console.log('[piopiy]', line);
+                }
+            } catch { /* ignore */ }
+        }
         this.piopiyOption.autoplay = _.isBoolean(option.autoplay) ? option.autoplay : true;
         this.piopiyOption.autoReboot = _.isBoolean(option.autoReboot) ? option.autoReboot : true;
         this.piopiyOption.ringTime = _.isNumber(option.ringTime) ? option.ringTime : 40;
