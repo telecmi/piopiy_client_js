@@ -26,9 +26,14 @@ native setup.
 
 ---
 
-## 2. Configure Permissions
+## 2. Configure `AndroidManifest.xml` (permissions + ConnectionService)
 
-Open `android/app/src/main/AndroidManifest.xml` and declare the following permissions inside the `<manifest>` block:
+Open `android/app/src/main/AndroidManifest.xml`. **Both** parts below are
+required for the SDK to start — not just for push. The SDK initializes the
+native call system (CallKeep / ConnectionService) as soon as `new PIOPIY(...)`
+runs, so skipping the service block crashes every Android app at startup.
+
+**Part 1 — permissions**, inside the `<manifest>` block:
 
 ```xml
 <uses-permission android:name="android.permission.INTERNET" />
@@ -37,6 +42,35 @@ Open `android/app/src/main/AndroidManifest.xml` and declare the following permis
 <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 <uses-permission android:name="android.permission.WAKE_LOCK" />
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+<uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+<uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
+```
+
+**Part 2 — the ConnectionService declaration**, inside `<application>`. It is
+**not** merged from the library's manifest; without the
+`BIND_TELECOM_CONNECTION_SERVICE` guard, Android's Telecom framework rejects
+the phone-account registration at startup with:
+
+```
+java.lang.SecurityException: Registering a PhoneAccount requires either:
+(1) The Service definition requires that the ConnectionService is guarded
+with the BIND_TELECOM_CONNECTION_SERVICE ...
+```
+
+```xml
+<service
+  android:name="io.wazo.callkeep.VoiceConnectionService"
+  android:label="@string/app_name"
+  android:permission="android.permission.BIND_TELECOM_CONNECTION_SERVICE"
+  android:foregroundServiceType="phoneCall|microphone"
+  android:exported="true">
+  <intent-filter>
+      <action android:name="android.telecom.ConnectionService" />
+  </intent-filter>
+</service>
 ```
 
 ---
