@@ -56,7 +56,7 @@ Push uses a **different transport per platform**, so the native setup differs:
 | :--- | :--- | :--- |
 | **Incoming-call UI** | CallKit — via the SDK's bundled `@telecmi/react-native-callkeep` *(driven automatically)* | ConnectionService — same bundled module |
 | **Push transport** | VoIP Push / **PushKit** — `react-native-voip-push-notification` | **FCM** — `@react-native-firebase/app` + `@react-native-firebase/messaging` |
-| **Firebase** | ❌ **Not used** — never installed, never imported | ✅ Required — **your app installs** `@react-native-firebase/app` + `/messaging`, adds `google-services.json` + the gradle plugin, adds `google-services.json` + the gradle plugin (Step 4b) — the SDK detects it automatically |
+| **Firebase** | ❌ **Not used** — never installed, never imported | ✅ Required — **your app installs** `@react-native-firebase/app` + `/messaging` and adds `google-services.json` + the gradle plugin (Step 4b); the SDK detects it automatically |
 | **WebRTC / audio** | WebRTC engine bundled in `@telecmi/piopiy-native`; `react-native-incall-manager` for routing | same |
 | **Native wiring** | AppDelegate PushKit + Push/VoIP capabilities + `Info.plist` background modes | FCM background handler + manifest permissions |
 
