@@ -30,6 +30,20 @@ the exact action required.
 | [0.14.0](#0140---2026-04-10) | 2026-04-10 | Team transfer |
 | [0.13.0](#0130---2026-04-08) | 2026-04-08 | Call metadata extraction, tooling upgrade |
 
+## [0.26.1] - 2026-08-12
+
+### Fixed
+- **React Native outbound calls rejected with SIP 488** ("CODEC NEGOTIATION
+  ERROR" on FreeSWITCH — actually "no suitable candidates found"). The
+  inbound fast-release of the SDP (built so a push-woken answer beats the
+  caller-side no-answer timer) also ran for outbound calls; on
+  react-native-webrtc the JS-visible localDescription lags the trickled ICE
+  candidates, so the INVITE could ship with **zero `a=candidate` lines**.
+  Outbound calls now wait for ICE gathering to complete (host + STUN,
+  typically well under a second) before the INVITE is sent; the inbound
+  fast path is unchanged. Codecs were never the issue — G.711 (PCMU/PCMA)
+  was always offered and matched.
+
 ## [0.26.0] - 2026-08-04
 
 ### Added
