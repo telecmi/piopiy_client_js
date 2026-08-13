@@ -784,6 +784,15 @@ export default class {
             // audio. Fall back to parsing the raw candidate string. If no srflx
             // appears quickly during an iOS push wake-up, release the SDP anyway so
             // the SIP answer is not lost to the caller-side no-answer timer.
+            //
+            // INBOUND ONLY: on react-native-webrtc the JS-visible
+            // localDescription lags the trickled candidates, so an early
+            // release can ship an SDP with NO a=candidate lines — FreeSWITCH
+            // then rejects the call with 488 ("CODEC NEGOTIATION ERROR",
+            // really "no suitable candidates found"). Outbound calls have no
+            // no-answer clock pressing on them: wait for gathering to
+            // complete, when the native SDP is guaranteed to carry every
+            // candidate.
             try {
                 const candidate = event && event.candidate;
                 const ready = () => {
@@ -797,9 +806,13 @@ export default class {
                 };
 
                 if ( !candidate ) {
+                    // End of gathering: the SDP is complete — safe for both
+                    // directions.
                     ready();
                     return;
                 }
+
+                if ( cmisession.direction !== 'incoming' ) return;
 
                 const candidateStr = ( typeof candidate.candidate === 'string' ) ? candidate.candidate : '';
                 const type = candidate.type || ( /(?:^|\s)typ\s+(\w+)/.exec( candidateStr ) || [] )[ 1 ];
