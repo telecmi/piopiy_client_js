@@ -37,15 +37,8 @@
       <!-- CallKeep's ConnectionService. NOT merged from the library manifest —
            without the BIND_TELECOM_CONNECTION_SERVICE guard Telecom refuses to
            register the PhoneAccount. (README.push-notifications.md Step 4b) -->
-      <service
-        android:name="io.wazo.callkeep.VoiceConnectionService"
-        android:label="@string/app_name"
-        android:permission="android.permission.BIND_TELECOM_CONNECTION_SERVICE"
-        android:foregroundServiceType="phoneCall|microphone"
-        android:exported="true">
-        <intent-filter>
-            <action android:name="android.telecom.ConnectionService" />
-        </intent-filter>
-      </service>
+      <!-- VoiceConnectionService: declared by @telecmi/react-native-callkeep's
+           library manifest since 4.4.x (with the full foregroundServiceType
+           set) — apps must NOT re-declare it or the manifests conflict. -->
     </application>
 </manifest>
