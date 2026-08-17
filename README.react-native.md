@@ -198,6 +198,39 @@ Because this is a **voice-only** SDK, remote and local audio tracks are automati
 
 ---
 
+## 7. Using Voice and Video SDKs in One App
+
+`@telecmi/piopiy-native` (voice) and `@telecmi/connle-video-native` (video) are
+designed to coexist in a single app — from **0.26.2** and **1.1.3** each SDK
+automatically:
+
+- shares one device push token and one set of OS push listeners (whichever SDK
+  signs in first owns them; the other receives everything through a shared
+  in-app router — no configuration needed), and
+- ignores calls that belong to the other SDK, so answering or ending a video
+  call never touches a voice call and vice versa.
+
+Two things the **app** must do:
+
+1. **Pin one copy of the call module.** Both SDKs depend on
+   `@telecmi/react-native-callkeep`; add this to the app's `package.json` so
+   npm installs exactly one copy:
+
+   ```json
+   "overrides": { "@telecmi/react-native-callkeep": "4.4.3" }
+   ```
+
+2. **Route iOS pushes by payload type** in `AppDelegate` — voice payloads are
+   `incoming_call` / `cancel_call`, video payloads are `video_call` /
+   `video_cancel`. See the combined example's `AppDelegate.mm` for the exact
+   handler.
+
+On Android nothing extra is needed: both SDKs pin the phone account
+system-managed and the platform shows its native call UI for voice while video
+uses the SDK's call surfaces.
+
+---
+
 ## Troubleshooting
 
 | Problem | Solution |
