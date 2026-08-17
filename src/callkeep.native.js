@@ -355,6 +355,10 @@ export default class CallKeepBridge {
 
     _handleAnswerAction( data ) {
         const callUUID = data && data.callUUID;
+        if ( this._isForeignCall( callUUID, data && data.payload ) ) {
+            dbg( 'answerCall ignored — call owned by the video SDK:', callUUID );
+            return;
+        }
         dbg( 'answerCall event from CallKit UI' );
         if ( callUUID ) {
             this.currentCallUUID = callUUID;
@@ -367,6 +371,10 @@ export default class CallKeepBridge {
 
     _handleEndAction( data ) {
         const callUUID = data && data.callUUID;
+        if ( this._isForeignCall( callUUID, data && data.payload ) ) {
+            dbg( 'endCall ignored — call owned by the video SDK:', callUUID );
+            return;
+        }
         if ( callUUID ) {
             this.currentCallUUID = callUUID;
         }
@@ -395,8 +403,35 @@ export default class CallKeepBridge {
         this._clear();
     }
 
+    /** Calls owned by ANOTHER TeleCMI SDK in this app (the video SDK). One
+     *  app has ONE native call UI, so its events reach this bridge too. */
+    _isForeignCall( callUUID, payload ) {
+        const id = String( callUUID || '' ).toLowerCase();
+        const type = payload && typeof payload.type === 'string' ? payload.type : '';
+        if ( type.indexOf( 'video_' ) === 0 ) {
+            if ( id ) {
+                this._foreignUUIDs = this._foreignUUIDs || [];
+                if ( this._foreignUUIDs.indexOf( id ) === -1 ) {
+                    this._foreignUUIDs.push( id );
+                    if ( this._foreignUUIDs.length > 20 ) this._foreignUUIDs.shift();
+                }
+            }
+            return true;
+        }
+        return !!( id && this._foreignUUIDs && this._foreignUUIDs.indexOf( id ) !== -1 );
+    }
+
     _handleDisplayedIncomingCall( data ) {
         const callUUID = data && data.callUUID;
+        // The video SDK's call (payload type video_*): its push carries the
+        // same {room, token} shape this bridge recovers LiveKit calls from, so
+        // without this guard a video call would be adopted as a voice call —
+        // answering it then fails ("call connection URL missing") and ends the
+        // shared native call, killing the video call.
+        if ( this._isForeignCall( callUUID, data && data.payload ) ) {
+            dbg( 'ignoring call owned by the video SDK —', callUUID );
+            return;
+        }
         dbg( 'didDisplayIncomingCall — callUUID:', callUUID );
         if ( callUUID ) {
             // Don't let a secondary/duplicate display steal the uuid of an
