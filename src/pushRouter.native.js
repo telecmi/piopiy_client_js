@@ -26,8 +26,24 @@ function createRouter() {
     const tokenSubs = [];
     let lastToken = null;         // { token, provider, platform }
 
+    let osOwner = null;           // SDK that installed the OS push listeners
+
     return {
-        version: 1,
+        version: 2,
+
+        /** Claim the OS push APIs (FCM handler / iOS PushKit listeners). Only
+         *  the winner may install them: react-native-voip-push-notification
+         *  keeps ONE listener per event and REMOVES the previous one, so a
+         *  second SDK registering would silently kill the first SDK's pushes.
+         *  The loser receives everything through dispatch()/onToken() instead.
+         *  Returns true if the caller owns them (idempotent per name). */
+        claimOS( name ) {
+            if ( !osOwner ) osOwner = name || 'unnamed';
+            return osOwner === ( name || 'unnamed' );
+        },
+
+        /** Who owns the OS push APIs (null until claimed). */
+        osOwnerName() { return osOwner; },
 
         /** An SDK claims the payload types it owns. */
         register( types, handler, opts ) {

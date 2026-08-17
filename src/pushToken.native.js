@@ -141,6 +141,19 @@ export default class PushTokenManager {
             { isDefault: true }
         );
 
+        // Only ONE SDK may install the OS push listeners (iOS PushKit keeps a
+        // single listener per event and drops the previous one; Android allows
+        // one background handler). The loser still receives its payload types
+        // through the router's dispatch, and the device token through onToken.
+        if ( !getPushRouter().claimOS( 'piopiy' ) ) {
+            dbg( 'auto push token: another TeleCMI SDK owns the OS push APIs — receiving via the shared router' );
+            getPushRouter().onToken( ( info ) => {
+                // fromRouter: do NOT publish it back (that would loop).
+                if ( info && info.token ) this._onToken( info.token, info.provider, info.platform, true );
+            } );
+            return true;
+        }
+
         if ( Platform.OS === 'ios' ) return this._startIOS();
         if ( Platform.OS === 'android' ) return this._startAndroid();
         dbg( 'auto push token: unsupported platform', Platform.OS );
@@ -278,7 +291,7 @@ export default class PushTokenManager {
     }
 
     // Register a freshly issued (or rotated) token.
-    _onToken( token, provider, platform ) {
+    _onToken( token, provider, platform, fromRouter ) {
         if ( !token || typeof token !== 'string' ) return;
         // Keep the device token (and its provider) across logout, so the next
         // sign-in can re-register without waiting for an OS event that will
@@ -287,7 +300,11 @@ export default class PushTokenManager {
         this.provider = provider;
         this.platform = platform;
         // Share with co-resident TeleCMI SDKs (same device = same token).
-        try { getPushRouter().publishToken( { token, provider, platform } ); } catch { /* ignore */ }
+        // A token that CAME from the router is never republished — that would
+        // bounce between subscribers forever.
+        if ( !fromRouter ) {
+            try { getPushRouter().publishToken( { token, provider, platform } ); } catch { /* ignore */ }
+        }
         // The OS re-emits the same token on every launch — only send changes.
         // (An app that also registers manually therefore causes no extra calls.
         // lastToken is cleared on logout, so a re-login sends again.)
