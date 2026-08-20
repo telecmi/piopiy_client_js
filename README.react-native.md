@@ -212,9 +212,11 @@ automatically:
 
 Two things the **app** must do:
 
-1. **Pin one copy of the call module.** Both SDKs depend on
-   `@telecmi/react-native-callkeep`; add this to the app's `package.json` so
-   npm installs exactly one copy:
+1. **One copy of the call module.** From `@telecmi/piopiy-native` **0.26.3**
+   both SDKs pin the same range (`^4.4.3`) of
+   `@telecmi/react-native-callkeep`, so npm installs exactly one shared copy
+   automatically. Only if one of the installed SDKs is **older** (piopiy ≤
+   0.26.2 pinned an old exact version) force it in the app's `package.json`:
 
    ```json
    "overrides": { "@telecmi/react-native-callkeep": "4.4.3" }

@@ -275,10 +275,28 @@ export default class PushTokenManager {
         try {
             const data = ( raw && ( raw.data ?? raw ) ) || null;
             if ( !data || typeof data !== 'object' ) return;
+            if ( this._isStaleRing( raw, data ) ) return;
             getPushRouter().dispatch( data );
         } catch ( e ) {
             dbg( 'push dispatch failed —', e && e.message );
         }
+    }
+
+    // FCM redelivers undelivered data pushes for DAYS (process killed
+    // mid-call, device briefly offline) — a redelivered invite rings a call
+    // that is long dead: the user answers into an empty room. Drop invites
+    // older than the ring window. Cancels always pass (a late cancel still
+    // correctly dismisses a stale ring), and payloads without a timestamp
+    // (iOS PushKit) ring normally — APNs pushes expire server-side instead.
+    _isStaleRing( raw, data ) {
+        const type = data.type || 'incoming_call';   // typeless = legacy invite
+        if ( type !== 'incoming_call' ) return false;
+        const sent = ( raw && typeof raw.sentTime === 'number' ) ? raw.sentTime : 0;
+        if ( !sent ) return false;
+        const age = ( Date.now() - sent ) / 1000;
+        if ( age <= 45 ) return false;
+        dbg( 'stale call push dropped (' + Math.round( age ) + 's old) — uuid ' + ( data.uuid || '-' ) );
+        return true;
     }
 
     // The router routed a voice payload back to us.
