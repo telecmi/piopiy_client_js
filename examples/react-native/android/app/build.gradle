@@ -79,7 +79,7 @@ android {
 
     namespace "com.piopiyrnexample"
     defaultConfig {
-        applicationId "com.piopiyrnexample"
+        applicationId "com.connleai.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
