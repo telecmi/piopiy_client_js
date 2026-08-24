@@ -408,8 +408,8 @@ included); these are the **project files you must touch**:
 | 1 | `google-services.json` from your Firebase project (package name must match your `applicationId`) | `android/app/google-services.json` | no FCM token; SDK logs `FCM getToken failed — No Firebase App '[DEFAULT]'` |
 | 2 | Google services **classpath** | `android/build.gradle` | plugin below can't apply |
 | 3 | Google services **plugin** | `android/app/build.gradle` (bottom) | no FCM token, same log as #1 |
-| 4 | Permissions block | `android/app/src/main/AndroidManifest.xml` | mic/notification failures at runtime |
-| 5 | CallKeep `VoiceConnectionService` declaration | same manifest, inside `<application>` | startup red box: `SecurityException: Registering a PhoneAccount…` |
+| 4 | *(automatic since 0.25.0)* Permissions block — merged from the SDK; on ≤ 0.24.x add it yourself | `android/app/src/main/AndroidManifest.xml` | mic/notification failures at runtime |
+| 5 | *(automatic since 0.25.0)* CallKeep `VoiceConnectionService` — merged from the SDK. **Remove any hand-copied declaration from your own manifest** (older docs said to add one; keeping it now fails the build with a manifest-merger conflict) | same manifest | kept a copy: build fails `Manifest merger failed`; on ≤ 0.24.x missing it: startup `SecurityException: Registering a PhoneAccount…` |
 | 6 | `react-native.config.js` (Step 4a · 0 — shared with iOS) | project root | native modules missing at runtime |
 | 7 | *(automatic since 0.25.0)* the FCM background handler — the SDK registers it itself; on ≤ 0.24.x add `piopiy.registerBackgroundPushHandler()` to `index.js`. Apps that own `setBackgroundMessageHandler` set `autoBackgroundPush: false` and forward call pushes to `handleIncomingPush()` | — | calls only ring while the app is open |
 | 8 | *(first run, on-device)* enable the app's **calling account** if prompted — Settings → Calls → Calling accounts | device setting | push arrives (log shows it) but no call UI appears |
@@ -430,8 +430,11 @@ In `android/app/build.gradle` (add at the bottom):
 apply plugin: "com.google.gms.google-services"
 ```
 
-### 3. Update `AndroidManifest.xml`
-Ensure permissions and ConnectionService options are present:
+### 3. `AndroidManifest.xml` — nothing to add (verify only)
+Since SDK 0.25.0 the permissions AND the CallKeep `ConnectionService`
+declaration below **merge into your app automatically** from the SDK's
+library manifests — do not hand-copy them. They are shown here only as the
+reference of what arrives:
 ```xml
 <uses-permission android:name="android.permission.INTERNET" />
 <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -446,12 +449,13 @@ Ensure permissions and ConnectionService options are present:
 <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
 ```
 
-You must also declare CallKeep's `ConnectionService` **inside `<application>`** —
-it is NOT merged from the library manifest, and without the
-`BIND_TELECOM_CONNECTION_SERVICE` guard Android's Telecom framework rejects the
-PhoneAccount registration at startup
-(`SecurityException: Registering a PhoneAccount requires either: (1) …
-BIND_TELECOM_CONNECTION_SERVICE …`):
+CallKeep's `ConnectionService` (below) also merges in automatically — since
+callkeep 4.4.x the library manifest declares it. **If your manifest still
+carries a hand-copied declaration from older versions of this guide, remove
+it** — a duplicate now fails the build with a manifest-merger conflict. (Only
+on SDK ≤ 0.24.x did you add it yourself; missing it there crashed at startup
+with `SecurityException: Registering a PhoneAccount requires … 
+BIND_TELECOM_CONNECTION_SERVICE …`.)
 
 ```xml
 <service

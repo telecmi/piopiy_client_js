@@ -207,7 +207,10 @@ import it (iOS-only apps never touch it). The complete Android list:
 2. `android/app/google-services.json` — from *your* Firebase project, matching your `applicationId`
 3. `classpath("com.google.gms:google-services:4.4.2")` in `android/build.gradle`
 4. `apply plugin: "com.google.gms.google-services"` at the bottom of `android/app/build.gradle`
-5. The CallKeep `VoiceConnectionService` block in your `AndroidManifest.xml`
+5. Nothing in your manifest — the `VoiceConnectionService` declaration merges
+   in from the SDK automatically. (If your manifest still carries a
+   hand-copied declaration from older docs, **remove it** — a duplicate now
+   fails the build with a manifest-merger conflict.)
 6. `piopiy.registerBackgroundPushHandler()` — one line in `index.js`
 
 That's the whole list — the SDK detects the installed Firebase automatically;
@@ -219,10 +222,49 @@ you'll see if it's missing.
 
 ---
 
+## Upgrading to 0.26.3+ (fixes answered-call silence from killed state)
+
+`@telecmi/piopiy-native` **0.26.3** fixes two field-reported Android bugs:
+calls answered while the app was **killed** connected but stayed **silent both
+ways**, and an already-ended call could **ring again** minutes later (FCM
+redelivery). Both fixes only take effect if the upgrade actually replaces the
+old native call module, so upgrade exactly like this:
+
+```bash
+npm install @telecmi/piopiy-native@^0.26.3
+rm -rf node_modules package-lock.json   # lockfile pins the OLD call module
+npm install
+```
+
+Then verify — this must print **one** entry at **4.4.3 or later**:
+
+```bash
+npm ls @telecmi/react-native-callkeep
+```
+
+and rebuild the app (a JS-only reload is not enough — the fix is native).
+Two follow-ups for existing installs:
+
+- **Remove any `overrides`/`resolutions`** for `@telecmi/react-native-callkeep`
+  from your `package.json` — they're no longer needed and a stale one can pin
+  you to a broken version.
+- **Remove any hand-copied `VoiceConnectionService`** declaration from your
+  `AndroidManifest.xml` (see §2) — since callkeep 4.4.x the library declares
+  it, and a duplicate fails the build with a manifest-merger conflict.
+
+---
+
 ## Troubleshooting
 
 | Symptom | Fix |
 | :--- | :--- |
+| **Answered from killed state, but silent both ways** | You're on the old call module. Follow *Upgrading to 0.26.3+* above; `npm ls @telecmi/react-native-callkeep` must show 4.4.3+, then a full rebuild. |
+| **A call that already ended rings again minutes later** | FCM redelivery of a stale push — fixed in SDK 0.26.3 (invites older than 45 s are dropped). Upgrade. |
+| **Incoming calls stopped after an app update** | The app's **calling account** got disabled. On the phone: Settings → search "Calling accounts" (or Phone app → Settings → Calling accounts) → enable your app. One-time. |
+| **Push arrives (visible in logs) but no ring UI** | Same calling-account setting as above; also confirm the notification permission was granted (Android 13+ shows the ring as a notification). |
+| **No incoming calls when killed — Oppo / OnePlus / Xiaomi / vivo** | OEM battery management blocks the FCM wake-up: set the app's battery usage to **Unrestricted** and enable **Auto-start** for it. Advise your users in-app. |
+| **Build fails: `Manifest merger failed` mentioning VoiceConnectionService** | Your manifest still hand-declares the service — remove it (the SDK's library manifest declares it since callkeep 4.4.x). |
+| **Build fails: `No matching client found for package name`** | Your `google-services.json` doesn't contain your `applicationId` — regenerate it from your Firebase project after adding that package name. |
 | **No audio on emulator** | Ensure the emulator has access to your host machine's microphone in AVD settings. |
 | **`mediaFailed` event** | The microphone permission was denied. Verify app settings and prompt on login/call. |
 | **Build error: minSdkVersion** | Ensure `minSdkVersion = 24` (or higher) is configured in your project's gradle build scripts. |
