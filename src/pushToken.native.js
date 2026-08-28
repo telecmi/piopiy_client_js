@@ -302,6 +302,13 @@ export default class PushTokenManager {
     // The router routed a voice payload back to us.
     _handleOwnPush( data ) {
         try {
+            // Claim this call's uuid on the shared router: native answer/end
+            // events are broadcast to every co-resident TeleCMI SDK, and the
+            // owner claim is what stops the video SDK acting on OUR calls.
+            const uuid = data && ( data.uuid || data.call_id );
+            if ( uuid ) {
+                try { getPushRouter().claimCall( uuid, 'piopiy' ); } catch { /* ignore */ }
+            }
             this.piopiy.handleIncomingPush( data );
         } catch ( e ) {
             dbg( 'push forward failed —', e && e.message );

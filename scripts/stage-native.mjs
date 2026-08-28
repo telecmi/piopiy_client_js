@@ -88,7 +88,7 @@ const nativePkg = {
     // ^4.4.3: killed-state answer audio fix (4.3.17's cold-start path is
     // broken) AND the same range @telecmi/connle-video-native pins — both
     // SDKs in one app resolve ONE shared copy, no `overrides` needed.
-    '@telecmi/react-native-callkeep': '^4.4.3',
+    '@telecmi/react-native-callkeep': '^4.5.0',
     // Audio routing and iOS VoIP push — required for calls, so they ship with
     // the SDK like everything else. Apps register them in react-native.config.js
     // (transitive deps aren't autolinked otherwise) and install nothing.

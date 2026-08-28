@@ -407,6 +407,13 @@ export default class CallKeepBridge {
      *  app has ONE native call UI, so its events reach this bridge too. */
     _isForeignCall( callUUID, payload ) {
         const id = String( callUUID || '' ).toLowerCase();
+        // Shared-router ownership is authoritative when known: the SDK that
+        // RANG the call owns its events (payload sniffing below stays as the
+        // fallback for payloads that never crossed the router).
+        try {
+            const owner = require( './pushRouter' ).getPushRouter().callOwner( id );
+            if ( owner ) return owner !== 'piopiy';
+        } catch { /* router unavailable — fall through */ }
         const type = payload && typeof payload.type === 'string' ? payload.type : '';
         if ( type.indexOf( 'video_' ) === 0 ) {
             if ( id ) {

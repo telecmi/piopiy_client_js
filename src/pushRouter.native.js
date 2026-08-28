@@ -28,8 +28,31 @@ function createRouter() {
 
     let osOwner = null;           // SDK that installed the OS push listeners
 
+    const callOwners = new Map();  // uuid -> SDK name (capped FIFO)
+
     return {
-        version: 2,
+        version: 3,
+
+        /** Per-call ownership: the SDK that RINGS a call claims its uuid, so
+         *  native answer/end events (broadcast to every SDK) are acted on
+         *  only by the SDK that owns the call. Idempotent; returns the
+         *  owner's name. */
+        claimCall( uuid, owner ) {
+            const id = String( uuid || '' ).toLowerCase();
+            if ( !id ) return null;
+            if ( !callOwners.has( id ) ) {
+                callOwners.set( id, owner || 'unnamed' );
+                if ( callOwners.size > 50 ) {
+                    callOwners.delete( callOwners.keys().next().value );
+                }
+            }
+            return callOwners.get( id );
+        },
+
+        /** Who rang this uuid (null = unknown/cold). */
+        callOwner( uuid ) {
+            return callOwners.get( String( uuid || '' ).toLowerCase() ) || null;
+        },
 
         /** Claim the OS push APIs (FCM handler / iOS PushKit listeners). Only
          *  the winner may install them: react-native-voip-push-notification
@@ -83,5 +106,21 @@ function createRouter() {
 export function getPushRouter() {
     const g = ( typeof globalThis !== 'undefined' ) ? globalThis : {};
     if ( !g[ KEY ] ) g[ KEY ] = createRouter();
-    return g[ KEY ];
+    const r = g[ KEY ];
+    // An older co-resident SDK may have installed a v2 router (no per-call
+    // ownership). Upgrade it in place — same contract as v3.
+    if ( typeof r.claimCall !== 'function' ) {
+        const callOwners = new Map();
+        r.claimCall = ( uuid, owner ) => {
+            const id = String( uuid || '' ).toLowerCase();
+            if ( !id ) return null;
+            if ( !callOwners.has( id ) ) {
+                callOwners.set( id, owner || 'unnamed' );
+                if ( callOwners.size > 50 ) callOwners.delete( callOwners.keys().next().value );
+            }
+            return callOwners.get( id );
+        };
+        r.callOwner = ( uuid ) => callOwners.get( String( uuid || '' ).toLowerCase() ) || null;
+    }
+    return r;
 }
