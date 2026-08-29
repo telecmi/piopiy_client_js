@@ -10,6 +10,10 @@ the exact action required.
 
 | Version | Date | Headline |
 | :--- | :--- | :--- |
+| [0.26.4](#0264---2026-08-20) | 2026-08-20 | **Two phone accounts + per-call ownership** — voice keeps the OS call UI, video gets SDK call screens, in ONE app |
+| [0.26.3](#0263---2026-08-20) | 2026-08-20 | **Killed-state answer audio fixed** — callkeep ^4.4.3; stale FCM invite redeliveries dropped |
+| [0.26.2](#0262---2026-08-17) | 2026-08-17 | Combined-app coexistence — shared OS-push claim, foreign-call guard |
+| [0.26.1](#0261---2026-08-12) | 2026-08-12 | Outbound SIP 488 fixed — INVITE waits for ICE gathering |
 | [0.26.0](#0260---2026-08-04) | 2026-08-04 | **Shared TeleCMI push router** — voice + video SDKs coexist in one app |
 | [0.25.0](#0250---2026-08-04) | 2026-08-04 | **Android manifest wiring is automatic** — ConnectionService merges in from the SDK |
 | [0.24.1](#0241---2026-07-30) | 2026-07-30 | Answer/cancel race fix; signed-out devices refuse calls |
@@ -29,6 +33,48 @@ the exact action required.
 | [0.15.0](#0150---2026-04-15) | 2026-04-15 | `call_id` key standardization |
 | [0.14.0](#0140---2026-04-10) | 2026-04-10 | Team transfer |
 | [0.13.0](#0130---2026-04-08) | 2026-04-08 | Call metadata extraction, tooling upgrade |
+
+## [0.26.4] - 2026-08-20
+
+### Changed — two phone accounts: voice on the OS call UI, video on SDK call screens
+- Bundled `@telecmi/react-native-callkeep` moves to **^4.5.0**: the app now
+  holds TWO Android phone accounts — system-managed for voice/PSTN calls
+  (native OS call UI, account never cycled) and a self-managed `_team`
+  account for video calls (the video SDK's custom call screens) — chosen
+  per call. A combined voice+video app finally gets BOTH experiences.
+- Shared push router **v3**: the SDK that rings a call claims its uuid
+  (`claimCall`/`callOwner`), and native answer/end events are acted on only
+  by the owning SDK. A co-resident video SDK can no longer answer or end a
+  live voice call under any race; older-router apps are upgraded in place.
+
+### Upgrading
+- Nothing to do. Fresh installs resolve callkeep 4.5.0 automatically; the
+  `overrides` workaround remains unnecessary.
+
+## [0.26.3] - 2026-08-20
+
+### Fixed
+- **Calls answered from a killed app connected but stayed silent both ways**
+  (Android). The pinned callkeep 4.3.17's cold-start path never activated
+  the Telecom connection; the bundled callkeep now follows **^4.4.3**,
+  whose cold-start rework (`setActive()` on answer among others) fixes it.
+  Upgrade note: delete `node_modules` AND your lockfile — the lockfile
+  pins the old callkeep — then verify with
+  `npm ls @telecmi/react-native-callkeep`.
+- **An already-ended call could ring again minutes later** — FCM redelivers
+  undelivered data pushes; call invites older than 45 s are now dropped
+  (cancels always pass; iOS unaffected — APNs pushes expire server-side).
+
+## [0.26.2] - 2026-08-17
+
+### Fixed — running alongside @telecmi/connle-video-native in one app
+- Only one SDK installs the OS push listeners (iOS PushKit keeps a single
+  listener per event — the second registration silently killed the first
+  SDK's calls); the other receives tokens and payloads via the shared
+  router (`claimOS`).
+- Native call events for the video SDK's calls (payload type `video_*`)
+  are ignored by this SDK — a video call is no longer adopted as a voice
+  call (which failed with 1009 and ended the shared native call).
 
 ## [0.26.1] - 2026-08-12
 
