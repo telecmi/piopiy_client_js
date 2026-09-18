@@ -263,7 +263,26 @@ export interface PiopiyEventMap {
   callkeepCancel: { uuid: string; reason: string };
 
   // --- server notifications ---
-  transfer: { state: 'init' | 'trying' | 'answered' | 'failed' | 'ended'; [key: string]: any };
+  /**
+   * Call transfer lifecycle. Transfers started with the Call Transfer API carry a
+   * `transfer_id` and one of the keyed states; payloads without `transfer_id` are the
+   * legacy events (`init`, `started`, `bridged`, `ended`) kept for older applications.
+   */
+  transfer: {
+    state: 'initiated' | 'ringing' | 'answered' | 'conference' | 'completed' | 'cancelled' | 'failed'
+      | 'init' | 'started' | 'bridged' | 'ended';
+    /** 100 initiated, 180 ringing, 200 answered, 201 conference, 202 completed, 487 cancelled, 480 failed; legacy init sends the string "100". */
+    code?: number | string;
+    transfer_id?: string;
+    /** Target extension or phone number. */
+    to?: string;
+    type?: 'attended' | 'blind';
+    /** Set on `failed` only: invalid_number, blocked, offline, busy, no_answer, rejected, switch_error. */
+    reason?: string;
+    /** The transferring agent's own leg, the id used with the Call Transfer API. */
+    cmiuuid?: string;
+    [key: string]: any;
+  };
   record: { state: 'start' | 'stop'; [key: string]: any };
 }
 
