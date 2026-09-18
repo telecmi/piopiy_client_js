@@ -10,6 +10,7 @@ the exact action required.
 
 | Version | Date | Headline |
 | :--- | :--- | :--- |
+| [Unreleased](#unreleased) | | **ICE restart only after a 5 s grace period** — no more one-way / no audio after a transfer, hold or short network blip on FreeSWITCH |
 | [0.26.4](#0264---2026-08-20) | 2026-08-20 | **Two phone accounts + per-call ownership** — voice keeps the OS call UI, video gets SDK call screens, in ONE app |
 | [0.26.3](#0263---2026-08-20) | 2026-08-20 | **Killed-state answer audio fixed** — callkeep ^4.4.3; stale FCM invite redeliveries dropped |
 | [0.26.2](#0262---2026-08-17) | 2026-08-17 | Combined-app coexistence — shared OS-push claim, foreign-call guard |
@@ -33,6 +34,24 @@ the exact action required.
 | [0.15.0](#0150---2026-04-15) | 2026-04-15 | `call_id` key standardization |
 | [0.14.0](#0140---2026-04-10) | 2026-04-10 | Team transfer |
 | [0.13.0](#0130---2026-04-08) | 2026-04-08 | Call metadata extraction, tooling upgrade |
+
+## Unreleased
+
+- `transfer` event typings now list the keyed states of the Call Transfer API (`initiated`, `ringing`, `answered`, `conference`, `completed`, `cancelled`, `failed`) and their fields, plus the legacy `init` / `started` / `bridged` / `ended` payloads.
+
+### Fixed
+
+- **ICE restart no longer fires on a transient `disconnected`.** The SDK used to
+  renegotiate with `iceRestart: true` the instant Chrome reported the ICE
+  connection state as `disconnected`. Chrome enters that state after a pause of a
+  few hundred milliseconds in the media from the switch, which happens on every
+  attended-transfer step (consult, cancel, merge) and on hold; the restart then
+  renegotiated a connection that was about to recover, and on FreeSWITCH 1.10 a
+  restarted ICE session frequently never carried media again — the agent could
+  neither hear nor be heard for the rest of the call, while the other parties were
+  fine. The restart is now requested only when the state is `failed`, or when it
+  has stayed `disconnected` for 5 seconds without recovering. A real network change
+  still recovers, five seconds later. No API change; the `RTC` events are unchanged.
 
 ## [0.26.4] - 2026-08-20
 
