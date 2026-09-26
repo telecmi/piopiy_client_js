@@ -38,6 +38,8 @@ the exact action required.
 
 ## Unreleased
 
+- `inComingCall`: `transfer` is now a boolean (`true` for a transferred call, `false` otherwise) instead of the raw `X-Transfer` header string, and is always present. For a transferred call `transfer_from` carries the customer's number and `from` the transferring agent.
+
 - `transfer` event typings now list the keyed states of the Call Transfer API (`initiated`, `ringing`, `answered`, `conference`, `completed`, `cancelled`, `failed`) and their fields, plus the legacy `init` / `started` / `bridged` / `ended` payloads.
 
 ### Fixed
