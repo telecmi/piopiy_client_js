@@ -10,8 +10,8 @@ the exact action required.
 
 | Version | Date | Headline |
 | :--- | :--- | :--- |
-| [Unreleased](#unreleased) | | **ICE restart only after a 5 s grace period** — no more one-way / no audio after a transfer, hold or short network blip on FreeSWITCH |
-| [0.26.5](#0265---2026-09-26) | 2026-09-26 | `getAuthToken()` — the login REST token, now readable by the app |
+| [0.26.6](#0266---2026-09-26) | 2026-09-26 | `inComingCall.transfer` is a boolean; `transfer_from` is the customer's number on transferred calls |
+| [0.26.5](#0265---2026-09-26) | 2026-09-26 | **ICE restart only after a 5 s grace period** (no more lost audio after a transfer or hold) + `getAuthToken()` |
 | [0.26.4](#0264---2026-08-20) | 2026-08-20 | **Two phone accounts + per-call ownership** — voice keeps the OS call UI, video gets SDK call screens, in ONE app |
 | [0.26.3](#0263---2026-08-20) | 2026-08-20 | **Killed-state answer audio fixed** — callkeep ^4.4.3; stale FCM invite redeliveries dropped |
 | [0.26.2](#0262---2026-08-17) | 2026-08-17 | Combined-app coexistence — shared OS-push claim, foreign-call guard |
@@ -38,9 +38,12 @@ the exact action required.
 
 ## Unreleased
 
+## [0.26.6] - 2026-09-26
+
+### Changed
 - `inComingCall`: `transfer` is now a boolean (`true` for a transferred call, `false` otherwise) instead of the raw `X-Transfer` header string, and is always present. For a transferred call `transfer_from` carries the customer's number and `from` the transferring agent.
 
-- `transfer` event typings now list the keyed states of the Call Transfer API (`initiated`, `ringing`, `answered`, `conference`, `completed`, `cancelled`, `failed`) and their fields, plus the legacy `init` / `started` / `bridged` / `ended` payloads.
+## [0.26.5] - 2026-09-26
 
 ### Fixed
 
@@ -56,7 +59,6 @@ the exact action required.
   has stayed `disconnected` for 5 seconds without recovering. A real network change
   still recovers, five seconds later. No API change; the `RTC` events are unchanged.
 
-## [0.26.5] - 2026-09-26
 
 ### Added
 - **`piopiy.getAuthToken()`** (web + React Native): returns the TeleCMI REST
@@ -64,6 +66,9 @@ the exact action required.
   can call TeleCMI REST APIs with the same session instead of logging in a
   second time. `null` until the `'login'` event fires; the next login
   replaces it.
+
+### Changed
+- `transfer` event typings now list the keyed states of the Call Transfer API (`initiated`, `ringing`, `answered`, `conference`, `completed`, `cancelled`, `failed`) and their fields, plus the legacy `init` / `started` / `bridged` / `ended` payloads.
 
 ## [0.26.4] - 2026-08-20
 
