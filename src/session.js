@@ -132,12 +132,13 @@ export default class {
                 var x_call_id = getHeader('X-Call-ID');
                 var transfer_from = getHeader('X-Transfer-From');
                 var transfer = getHeader('X-Transfer');
+                var is_transfer = /^(true|1|yes)$/i.test(String(transfer || ''));
 
                 cmi_session['call_ID'] = x_call_id || call_uuid;
                 cmi_session['team_name'] = team_name;
                 cmi_session['to_number'] = to_number;
                 cmi_session['transfer_from'] = transfer_from;
-                cmi_session['transfer'] = transfer;
+                cmi_session['transfer'] = is_transfer;
 
                 const incoming_call_payload = {
                     from: session.request.from._display_name || 'unknown'
@@ -146,7 +147,8 @@ export default class {
                 if (team_name) incoming_call_payload.team_name = team_name;
                 if (to_number) incoming_call_payload.to_number = to_number;
                 if (transfer_from) incoming_call_payload.transfer_from = transfer_from;
-                if (transfer) incoming_call_payload.transfer = transfer;
+                // true when the switch marked the call as transferred (X-Transfer header), else false
+                incoming_call_payload.transfer = is_transfer;
 
                 const final_call_id = x_call_id || session.request.call_id || "";
                 if (final_call_id) incoming_call_payload.call_id = final_call_id;

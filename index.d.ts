@@ -183,10 +183,10 @@ export interface PiopiyIncomingCall {
   team_name?: string;
   /** The destination number that was dialled. */
   to_number?: string;
-  /** Extension that transferred the call to you, when applicable. */
+  /** For a transferred call: the customer's number (X-Transfer-From header). `from` is then the transferring agent. */
   transfer_from?: string;
-  /** Additional transfer routing information. */
-  transfer?: string;
+  /** true when the call was transferred to you, false otherwise. */
+  transfer: boolean;
   /** `'push'` when the call was delivered via a push notification. */
   transport?: 'push';
 }
