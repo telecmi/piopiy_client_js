@@ -285,6 +285,16 @@ export default class extends EventEmitter {
         try { getPushRouter().onUnrouted(callback); } catch { /* no-op on web */ }
     }
 
+    /**
+     * The TeleCMI REST auth token of the signed-in agent (the /user/login
+     * bearer the SDK fetched at login) — for apps that call TeleCMI REST
+     * APIs themselves. null until login completes; listen for the 'login'
+     * event before reading it. The next login replaces it.
+     */
+    getAuthToken() {
+        return this._token || null;
+    }
+
     registerBackgroundPushHandler() {
         return this._pushToken_mgr && typeof this._pushToken_mgr.registerHeadlessHandler === 'function'
             ? this._pushToken_mgr.registerHeadlessHandler()

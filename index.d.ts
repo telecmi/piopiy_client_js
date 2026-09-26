@@ -70,6 +70,13 @@ export default class PIOPIY {
 
   login(userId: string, password: string, region?: string): void;
   /**
+   * The TeleCMI REST auth token of the signed-in agent (the `/user/login`
+   * bearer the SDK fetched at login) — for apps calling TeleCMI REST APIs
+   * themselves. `null` until login completes; listen for the `'login'`
+   * event before reading it. The next login replaces it.
+   */
+  getAuthToken(): string | null;
+  /**
    * Sign out. On React Native the device's push token is unregistered from
    * TeleCMI first, so this device stops being woken for incoming calls; the
    * session is then torn down. The optional callback receives the unregister

@@ -11,6 +11,7 @@ the exact action required.
 | Version | Date | Headline |
 | :--- | :--- | :--- |
 | [Unreleased](#unreleased) | | **ICE restart only after a 5 s grace period** — no more one-way / no audio after a transfer, hold or short network blip on FreeSWITCH |
+| [0.26.5](#0265---2026-09-26) | 2026-09-26 | `getAuthToken()` — the login REST token, now readable by the app |
 | [0.26.4](#0264---2026-08-20) | 2026-08-20 | **Two phone accounts + per-call ownership** — voice keeps the OS call UI, video gets SDK call screens, in ONE app |
 | [0.26.3](#0263---2026-08-20) | 2026-08-20 | **Killed-state answer audio fixed** — callkeep ^4.4.3; stale FCM invite redeliveries dropped |
 | [0.26.2](#0262---2026-08-17) | 2026-08-17 | Combined-app coexistence — shared OS-push claim, foreign-call guard |
@@ -52,6 +53,15 @@ the exact action required.
   fine. The restart is now requested only when the state is `failed`, or when it
   has stayed `disconnected` for 5 seconds without recovering. A real network change
   still recovers, five seconds later. No API change; the `RTC` events are unchanged.
+
+## [0.26.5] - 2026-09-26
+
+### Added
+- **`piopiy.getAuthToken()`** (web + React Native): returns the TeleCMI REST
+  auth token the SDK obtains at `login()` (the `/user/login` bearer), so apps
+  can call TeleCMI REST APIs with the same session instead of logging in a
+  second time. `null` until the `'login'` event fires; the next login
+  replaces it.
 
 ## [0.26.4] - 2026-08-20
 
