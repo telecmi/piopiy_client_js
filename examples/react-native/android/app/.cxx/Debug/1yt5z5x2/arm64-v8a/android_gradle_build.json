@@ -1,0 +1,42 @@
+{
+  "buildFiles": [
+    "/Users/rahul/Desktop/telecmi/piopiy_client_js/examples/react-native/node_modules/react-native/ReactAndroid/cmake-utils/default-app-setup/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/Users/rahul/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/Users/rahul/Desktop/telecmi/piopiy_client_js/examples/react-native/android/app/.cxx/Debug/1yt5z5x2/arm64-v8a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/Users/rahul/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/Users/rahul/Desktop/telecmi/piopiy_client_js/examples/react-native/android/app/.cxx/Debug/1yt5z5x2/arm64-v8a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "appmodules::@6890427a1f51a3e7e1df": {
+      "toolchain": "toolchain",
+      "abi": "arm64-v8a",
+      "artifactName": "appmodules",
+      "output": "/Users/rahul/Desktop/telecmi/piopiy_client_js/examples/react-native/android/app/build/intermediates/cxx/Debug/1yt5z5x2/obj/arm64-v8a/libappmodules.so",
+      "runtimeFiles": [
+        "/Users/rahul/.gradle/caches/8.10.2/transforms/8fba70e294c8df69ce10c97837f01f06/transformed/fbjni-0.6.0/prefab/modules/fbjni/libs/android.arm64-v8a/libfbjni.so",
+        "/Users/rahul/.gradle/caches/8.10.2/transforms/afcb101ab0f2dbcac4d45e9c7ad133ad/transformed/react-android-0.76.9-debug/prefab/modules/jsi/libs/android.arm64-v8a/libjsi.so",
+        "/Users/rahul/.gradle/caches/8.10.2/transforms/afcb101ab0f2dbcac4d45e9c7ad133ad/transformed/react-android-0.76.9-debug/prefab/modules/reactnative/libs/android.arm64-v8a/libreactnative.so"
+      ]
+    }
+  },
+  "toolchains": {
+    "toolchain": {
+      "cCompilerExecutable": "/Users/rahul/Library/Android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang.lld",
+      "cppCompilerExecutable": "/Users/rahul/Library/Android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang++.lld"
+    }
+  },
+  "cFileExtensions": [],
+  "cppFileExtensions": [
+    "cpp"
+  ]
+}

@@ -47,7 +47,21 @@ export interface PiopiyOptions {
    * platform delivers the URL inside the push and the SDK connects
    * automatically, so you should not set this.
    */
-  livekit?: { url?: string };
+  livekit?: {
+    url?: string;
+    /**
+     * Android only. Join the LiveKit room **while the call is ringing** so the
+     * answer doesn't have to run the WebRTC connect after the OS's
+     * system-managed in-call screen has backgrounded the app (Android throttles
+     * that connect, so the caller keeps ringing until the app is foregrounded).
+     * The microphone is not published until you answer. Default `false`.
+     *
+     * Verify with one test call that the caller is NOT connected while the phone
+     * is still ringing — if the platform bridges the caller on agent-join, leave
+     * this off.
+     */
+    preconnect?: boolean;
+  };
 }
 
 /**
@@ -63,6 +77,26 @@ export interface PiopiyPushOptions {
   token: string;
   /** Optional device platform, "ios" | "android". */
   platform?: string;
+}
+
+/** Snapshot returned by `getPushInfo()` — see that method. */
+export interface PiopiyPushInfo {
+  platform?: string;
+  provider?: string;
+  /** The OS issued a device push token. */
+  hasDeviceToken?: boolean;
+  /** Truncated device token, for support logs. */
+  deviceToken?: string | null;
+  /** The backend accepted the token (`/push/register` returned 200). */
+  registered?: boolean;
+  /** Last `/push/register` response. */
+  lastResponse?: any;
+  /** Last token-fetch error (e.g. FCM `getToken` failed / no Google Play services). */
+  tokenError?: string | null;
+  /** The manager is watching for tokens. */
+  watching?: boolean;
+  /** Present on web: no push support. */
+  available?: boolean;
 }
 
 export default class PIOPIY {
@@ -88,6 +122,15 @@ export default class PIOPIY {
   registerToken(push: PiopiyPushOptions, callback?: (data: any) => void): void;
   /** Remove the device push token (e.g. on logout or Do-Not-Disturb). React Native only; no-op on web. */
   unregisterToken(callback?: (data: any) => void): void;
+
+  /**
+   * Diagnostic snapshot of the device push-token state (React Native). Answers
+   * the first question when a device doesn't ring: did the OS ever issue a
+   * token, and did the backend accept it? Anything null/false points at the
+   * layer to fix (GMS/Firebase, capability, network, or the backend call).
+   * On web it returns `{ available: false }`.
+   */
+  getPushInfo(): PiopiyPushInfo;
 
   call(to: string, options?: { extra_param?: string }): void;
   /**
@@ -123,6 +166,21 @@ export default class PIOPIY {
   
   /** Route call audio to the loudspeaker (true) or earpiece (false). React Native only; no-op on web. */
   speaker(on: boolean): boolean;
+  /**
+   * True when this app's Android PhoneAccount is registered AND enabled.
+   * System-managed calls only show UI when enabled — Realme/OPPO ODialer
+   * hides the Settings entry, so check after login and prompt with
+   * openPhoneAccounts() when false. iOS/web: always true.
+   */
+  hasPhoneAccount(): Promise<boolean>;
+  /** Alias of hasPhoneAccount(). */
+  checkPhoneAccountEnabled(): Promise<boolean>;
+  /**
+   * Open the system Calling-accounts screen (ACTION_CHANGE_PHONE_ACCOUNTS) so
+   * the user can enable this app. Bypasses the Settings entry Realme/ColorOS
+   * hides. Android only; resolves false on iOS/web.
+   */
+  openPhoneAccounts(): Promise<boolean>;
 
   isLogedIn(): boolean;
   isConnected(): boolean;
@@ -130,6 +188,11 @@ export default class PIOPIY {
   onMute(): boolean;
   /** Whether the loudspeaker is currently on. */
   onSpeaker(): boolean;
+  /**
+   * Whether the current inbound (LiveKit room) call has joined and `answered`
+   * fired. Use in a call UI that mounts on `answered` so it starts connected.
+   */
+  isCallAnswered(): boolean;
 
   transfer(to: string, callback?: (data: any) => void): void;
   teamTransfer(to: string, callback?: (data: any) => void): void;

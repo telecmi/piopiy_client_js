@@ -1,0 +1,1 @@
+/Users/rahul/Desktop/telecmi/piopiy_client_js/examples/react-native/node_modules/react-native/ReactAndroid/cmake-utils/default-app-setup/CMakeLists.txt

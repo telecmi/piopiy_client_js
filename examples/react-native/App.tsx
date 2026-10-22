@@ -4,8 +4,9 @@
  * Notice what is NOT here: no push-token code. The SDK fetches and registers
  * the device token itself (autoPushToken) and re-registers on rotation.
  */
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -23,23 +24,49 @@ import {
   loadCreds,
   clearCreds,
   signOut,
+  logPushInfo,
 } from './src/callService';
+import ConnleInCallShell from './src/InCallShell';
 
 export default function App() {
-  const [user, setUser] = useState('');
-  const [password, setPassword] = useState('');
-  const [region, setRegion] = useState('');
+  const [user, setUser] = useState('5035_33336088');
+  const [password, setPassword] = useState('admin123');
+  const [region, setRegion] = useState('appind.telecmi.com');
   const [dial, setDial] = useState('');
   const [signedIn, setSignedIn] = useState(false);
   const [call, setCall] = useState<CallState>('idle');
   const [peer, setPeer] = useState<string | null>(null);
   const [lines, setLines] = useState<string[]>([]);
+  const [phoneAccount, setPhoneAccount] = useState<boolean | null>(null);
   const scroller = useRef<ScrollView>(null);
 
   const log = useCallback((line: string) => {
     const ts = new Date().toTimeString().slice(0, 8);
     setLines(prev => [...prev.slice(-200), `${ts}  ${line}`]);
   }, []);
+
+  const checkAccount = useCallback(async (why: string) => {
+    if (Platform.OS !== 'android') {
+      return;
+    }
+    // Local SDK (@telecmi/piopiy-native with the Realme fix) exposes
+    // hasPhoneAccount(); the typeof guard keeps old published builds safe.
+    if (typeof piopiy.hasPhoneAccount !== 'function') {
+      log('calling-account check unavailable on this SDK version — reinstall the app from this repo to get the Realme fix');
+      return;
+    }
+    try {
+      const ok = await piopiy.hasPhoneAccount();
+      setPhoneAccount(ok);
+      log(
+        ok
+          ? `📞 calling account enabled (${why}) — bg/killed calls will ring`
+          : `⚠️ calling account DISABLED (${why}) — bg/killed calls will NOT ring. Tap “Enable calling account”. Realme: Settings entry is hidden, this button deep-links straight to it.`,
+      );
+    } catch (e) {
+      log(`⚠️ calling-account check failed: ${String(e)}`);
+    }
+  }, [log]);
 
   useEffect(() => {
     const off = onEvent(log, st => {
@@ -58,8 +85,25 @@ export default function App() {
         log('ready — sign in to start');
       }
     });
+    // Calling-account status drives bg/killed ringing on Android. Realme/OPPO
+    // hides the Settings entry, so surface it here instead of failing silent.
+    checkAccount('startup');
     return off;
-  }, [log]);
+  }, [log, checkAccount]);
+
+  useEffect(() => {
+    if (signedIn) {
+      checkAccount('after sign-in');
+    }
+  }, [signedIn, checkAccount]);
+
+  // Self-managed calls show the SDK's native in-call screen when the app is
+  // background/killed; when the app is foreground the fork deliberately leaves
+  // the call inside the app. Render the app's own in-call screen on answer in
+  // EVERY case so it always appears.
+  if (call === 'active') {
+    return <ConnleInCallShell name={peer ?? undefined} />;
+  }
 
   return (
     <SafeAreaView style={s.root}>
@@ -74,7 +118,34 @@ export default function App() {
           <Text style={s.callBarText}>
             {call === 'incoming' && `📞 Incoming — ${peer ?? 'unknown'}`}
             {call === 'outgoing' && '📱 Calling…'}
-            {call === 'active' && `🔊 In call${peer ? ` — ${peer}` : ''}`}
+          </Text>
+        </View>
+      )}
+      {Platform.OS === 'android' && phoneAccount === false && (
+        <View style={s.warnBar}>
+          <Text style={s.warnText}>
+            Calling account disabled — background/killed calls won’t ring (common on Realme/OPPO).
+          </Text>
+          <View style={s.row}>
+            <TouchableOpacity
+              style={[s.btn, s.call]}
+              onPress={async () => {
+                if (typeof piopiy.openPhoneAccounts === 'function') {
+                  await piopiy.openPhoneAccounts();
+                  log('opened Calling-accounts — enable PiopiyExample, then return and tap Re-check');
+                } else {
+                  log('openPhoneAccounts() needs the SDK from this repo — reinstall the app to get the Realme fix');
+                }
+              }}>
+              <Text style={s.btnText}>Enable calling account</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[s.btn, s.forget]} onPress={() => checkAccount('re-check')}>
+              <Text style={s.btnText}>Re-check</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={s.warnSub}>
+            Realme C83 / 11 (Android 16): Settings → Calls → Calling accounts is hidden by ODialer — use
+            the button above. Then set battery Unrestricted + Auto-start on.
           </Text>
         </View>
       )}
@@ -109,13 +180,13 @@ export default function App() {
       <View style={s.row}>
         {signedIn ? (
           <TouchableOpacity
-            style={[s.btn, s.signOut, {flex: 3}]}
+            style={[s.btn, s.signOut, { flex: 3 }]}
             onPress={() => signOut(log)}>
             <Text style={s.btnText}>Sign out</Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={[s.btn, {flex: 3}]}
+            style={[s.btn, { flex: 3 }]}
             onPress={() =>
               login(user, password, region).catch(e => log(String(e)))
             }>
@@ -133,12 +204,15 @@ export default function App() {
           }}>
           <Text style={s.btnText}>Forget</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={[s.btn, s.forget]} onPress={() => logPushInfo(log)}>
+          <Text style={s.btnText}>Push info</Text>
+        </TouchableOpacity>
       </View>
 
       {call === 'idle' && (
         <View style={s.row}>
           <TextInput
-            style={[s.input, {flex: 2}]}
+            style={[s.input, { flex: 2 }]}
             placeholder="number to call"
             keyboardType="phone-pad"
             value={dial}
@@ -165,7 +239,7 @@ export default function App() {
         </View>
       )}
 
-      {(call === 'outgoing' || call === 'active') && (
+      {call === 'outgoing' && (
         <View style={s.row}>
           <TouchableOpacity style={[s.btn, s.small, s.end]} onPress={() => piopiy.terminate()}>
             <Text style={s.btnText}>Hang up</Text>
@@ -181,7 +255,7 @@ export default function App() {
       <ScrollView
         ref={scroller}
         style={s.logBox}
-        onContentSizeChange={() => scroller.current?.scrollToEnd({animated: false})}>
+        onContentSizeChange={() => scroller.current?.scrollToEnd({ animated: false })}>
         {lines.map((l, i) => (
           <Text key={i} style={s.logLine}>
             {l}
@@ -193,16 +267,19 @@ export default function App() {
 }
 
 const s = StyleSheet.create({
-  root: {flex: 1, backgroundColor: '#12141a', padding: 14},
-  header: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10},
-  title: {color: '#fff', fontSize: 16, fontWeight: '700'},
-  badge: {paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10},
-  badgeOn: {backgroundColor: '#1f9d55'},
-  badgeOff: {backgroundColor: '#4b5563'},
-  badgeText: {color: '#fff', fontSize: 10, fontWeight: '700'},
-  callBar: {backgroundColor: '#243b53', borderRadius: 6, paddingVertical: 8, paddingHorizontal: 10, marginBottom: 8},
-  callBarText: {color: '#cfe3ff', fontSize: 13, fontWeight: '600'},
-  row: {flexDirection: 'row', gap: 8, marginBottom: 8},
+  root: { flex: 1, backgroundColor: '#12141a', padding: 14 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  title: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
+  badgeOn: { backgroundColor: '#1f9d55' },
+  badgeOff: { backgroundColor: '#4b5563' },
+  badgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  callBar: { backgroundColor: '#243b53', borderRadius: 6, paddingVertical: 8, paddingHorizontal: 10, marginBottom: 8 },
+  callBarText: { color: '#cfe3ff', fontSize: 13, fontWeight: '600' },
+  warnBar: { backgroundColor: '#451a1a', borderRadius: 6, padding: 10, marginBottom: 8 },
+  warnText: { color: '#fecaca', fontSize: 12, fontWeight: '700', marginBottom: 8 },
+  warnSub: { color: '#fca5a5', fontSize: 11, marginTop: 4 },
+  row: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   input: {
     flex: 1,
     backgroundColor: '#1d212b',
@@ -227,12 +304,12 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  small: {flex: 1, paddingVertical: 10},
-  forget: {flex: 1, backgroundColor: '#4b5563'},
-  signOut: {backgroundColor: '#b45309'},
-  call: {flex: 1, backgroundColor: '#1f9d55', marginBottom: 8},
-  end: {backgroundColor: '#d64545'},
-  btnText: {color: '#fff', fontWeight: '600'},
+  small: { flex: 1, paddingVertical: 10 },
+  forget: { flex: 1, backgroundColor: '#4b5563' },
+  signOut: { backgroundColor: '#b45309' },
+  call: { flex: 1, backgroundColor: '#1f9d55', marginBottom: 8 },
+  end: { backgroundColor: '#d64545' },
+  btnText: { color: '#fff', fontWeight: '600' },
   logBox: {
     flex: 1,
     backgroundColor: '#0c0e13',
@@ -240,5 +317,5 @@ const s = StyleSheet.create({
     padding: 10,
     marginTop: 4,
   },
-  logLine: {color: '#9fe6a0', fontSize: 11, fontFamily: 'Menlo'},
+  logLine: { color: '#9fe6a0', fontSize: 11, fontFamily: 'Menlo' },
 });

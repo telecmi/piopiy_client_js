@@ -40,7 +40,35 @@ const APP_NAME = 'PiopiyExample';
 export const piopiy = new PIOPIY({
   name: APP_NAME,
   debug: true,
-  callKeep: {ios: {appName: APP_NAME}},
+  callKeep: {
+    ios: {appName: APP_NAME},
+    // Give the call's foreground-service notification a valid small icon.
+    // Without it the FGS notification is "broken" (Android logs "no icon") and
+    // the service isn't a valid FGS, so the app is frozen while the system
+    // InCall UI is up. See AndroidManifest.xml for the matching service-type
+    // override (Android 14 rejects the library's `camera` type).
+    android: {
+      // Route inbound voice through the SELF-MANAGED account: the app shows its
+      // own WhatsApp-style Answer/Reject notification and a full-screen in-call
+      // screen, and stays foreground — so the LiveKit room join + audio aren't
+      // suspended by the system InCall UI. Phase 1 of the self-managed voice work.
+      selfManagedVoice: true,
+      // Component the fork mounts for self-managed voice on its surface; the
+      // example registers this name in index.js.
+      voiceInCallComponent: 'ConnleInCallShell',
+      foregroundService: {
+        channelId: 'com.piopiy.callkeep',
+        channelName: 'PIOPIY incoming calls',
+        notificationTitle: 'Call in progress',
+        notificationIcon: 'ic_launcher',
+      },
+    },
+  },
+  // Join the held LiveKit room while the call is RINGING (Android), so the
+  // answer doesn't have to run the WebRTC connect after the system in-call
+  // screen has backgrounded the app — otherwise the caller keeps ringing until
+  // the app is brought to the foreground. See README.push-notifications.md.
+  livekit: {preconnect: true},
   // autoPushToken defaults to true — the device token is handled for us.
   // The API base defaults to production (https://rest.telecmi.com/v2); set the
   // `apiBase` option only if you need to point at a different environment.
@@ -61,7 +89,13 @@ export function onEvent(
   // logged before the UI was ready (including module-load failures).
   attachSdkLog(log);
   const handlers: Array<[PiopiyEventName, (d?: any) => void]> = [
-    ['login', () => { set({signedIn: true}); log('✅ signed in — ready for calls'); }],
+    ['login', () => {
+      set({signedIn: true});
+      log('✅ signed in — ready for calls');
+      // Push state is what decides background/killed ringing. Give the OS a few
+      // seconds to issue the FCM/APNs token, then report exactly what happened.
+      setTimeout(() => logPushInfo(log), 6000);
+    }],
     ['loginFailed', d => { set({signedIn: false}); log(`⚠️ login failed: ${d?.code} ${d?.status}`); }],
     ['logout', () => { set({signedIn: false, call: 'idle', peer: null}); log('👋 signed out'); }],
     ['connected', () => log('connected')],
@@ -77,10 +111,38 @@ export function onEvent(
     ['ended', () => { set({call: 'idle', peer: null}); log('call ended'); }],
     ['hangup', () => { set({call: 'idle', peer: null}); log('call hung up'); }],
     ['missedCall', m => log(`📵 missed call from ${m?.from} (${m?.reason})`)],
-    ['error', e => log(`⚠️ error ${e?.code}: ${e?.status}`)],
+    ['error', e => {
+      if (e?.code === 1011) {
+        log(`⚠️ calling account disabled — bg/killed calls won't ring. Enable it (button above / piopiy.openPhoneAccounts()).`);
+      } else {
+        log(`⚠️ error ${e?.code}: ${e?.status}`);
+      }
+    }],
   ];
   handlers.forEach(([evt, fn]) => piopiy.on(evt, fn));
   return () => handlers.forEach(([evt, fn]) => piopiy.off(evt, fn));
+}
+
+/** Log a one-line, human-readable snapshot of the push-token state. */
+export function logPushInfo(log: (line: string) => void) {
+  try {
+    const info: any = (piopiy as any).getPushInfo ? (piopiy as any).getPushInfo() : {available: false};
+    if (info.available === false) {
+      log('push: not supported on this platform');
+      return;
+    }
+    log(
+      `push: token=${info.hasDeviceToken ? info.deviceToken : 'NONE'}` +
+        `${info.tokenError ? ` error="${info.tokenError}"` : ''}` +
+        ` · registered=${info.registered}` +
+        `${info.lastResponse ? ` resp=${JSON.stringify(info.lastResponse)}` : ''}`,
+    );
+    if (!info.hasDeviceToken && Platform.OS === 'android') {
+      log('push: NO device token — no Google Play services / Firebase, or the app is not whitelisted. Background/killed calls cannot ring until FCM works.');
+    }
+  } catch (e) {
+    log(`push: diagnostics failed ${String(e)}`);
+  }
 }
 
 export async function login(user: string, password: string, region?: string) {

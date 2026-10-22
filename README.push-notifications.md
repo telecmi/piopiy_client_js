@@ -412,7 +412,19 @@ included); these are the **project files you must touch**:
 | 5 | *(automatic since 0.25.0)* CallKeep `VoiceConnectionService` — merged from the SDK. **Remove any hand-copied declaration from your own manifest** (older docs said to add one; keeping it now fails the build with a manifest-merger conflict) | same manifest | kept a copy: build fails `Manifest merger failed`; on ≤ 0.24.x missing it: startup `SecurityException: Registering a PhoneAccount…` |
 | 6 | `react-native.config.js` (Step 4a · 0 — shared with iOS) | project root | native modules missing at runtime |
 | 7 | *(automatic since 0.25.0)* the FCM background handler — the SDK registers it itself; on ≤ 0.24.x add `piopiy.registerBackgroundPushHandler()` to `index.js`. Apps that own `setBackgroundMessageHandler` set `autoBackgroundPush: false` and forward call pushes to `handleIncomingPush()` | — | calls only ring while the app is open |
-| 8 | *(first run, on-device)* enable the app's **calling account** if prompted — Settings → Calls → Calling accounts | device setting | push arrives (log shows it) but no call UI appears |
+| 8 | *(first run, on-device)* enable the app's **calling account** if prompted — Settings → Calls → Calling accounts | device setting | push arrives (log shows it) but no call UI appears; SDK emits `error { code: 1011 }` |
+
+> **Realme / OPPO (ODialer hides the entry):** on Realme C83 / Realme 11 (Android 16 / Realme UI 7) there is
+> **no** Calling-accounts option in Settings at all, and the generic intent is swallowed too — so CallKeep's
+> own first-run prompt does nothing. Add the tiny `PiopiyCallingAccounts` native helper from
+> [Android guide → Calling accounts on OEMs that hide the toggle](README.react-native-android.md#calling-accounts-on-oems-that-hide-the-toggle-realme--oppo).
+> The SDK detects it and routes BOTH `piopiy.openPhoneAccounts()` and CallKeep's prompt through it:
+> ```javascript
+> const ok = await piopiy.hasPhoneAccount();   // Android: registered AND enabled; iOS/web: true
+> if (!ok) await piopiy.openPhoneAccounts();    // opens Telecom toggle directly (Realme via the helper)
+> ```
+> Then set battery **Unrestricted** + **Auto-start on** + allow background activity, or the FCM wake never
+> reaches Telecom even when enabled.
 
 Verify #1–#3 took effect: after a rebuild and sign-in, the app log shows
 `registering fcm …` followed by `push token registered`.
@@ -596,6 +608,75 @@ and logged as missed. On iOS also keep the native backstop from Step 4a
 (45 s `dispatch_after`): iOS parks the JS thread shortly after a background
 wake, so only a native timer is guaranteed to fire in the killed/locked case.
 
+### Answering on Android: use the app's own call screen (`selfManagedVoice`)
+With a **system-managed** voice account, answering puts the OS's in-call screen
+up and backgrounds your app. Android then takes the foreground **and the audio
+focus**, so the JS `LiveKit` room join/audio is suspended and the caller keeps
+hearing ringback until the app is brought forward.
+
+The fix is to route inbound voice through the **self-managed** account: Android
+then shows **no** system call UI, your app shows its own; the app stays
+foreground, so the room join and audio keep running. Enable it (Android,
+opt-in):
+
+```javascript
+const piopiy = new PIOPIY({
+  name: 'Agent',
+  callKeep: {
+    android: {
+      selfManagedVoice: true,   // default false
+      // Give the foreground service a valid small icon (Android 14).
+      foregroundService: {
+        channelId: 'com.piopiy.callkeep',
+        channelName: 'Incoming calls',
+        notificationTitle: 'Call in progress',
+        notificationIcon: 'ic_launcher',
+      },
+    },
+  },
+});
+```
+
+You get a **WhatsApp-style call notification** (CallStyle on Android 12+) with
+**Answer / Reject**; answering opens the app's full-screen in-call screen and
+joins the call. Self-managed accounts are **enabled by default** (no
+Settings → Calling accounts toggle), which also removes that Realme/OPPO issue
+for voice.
+
+> [!IMPORTANT]
+> Self-managed calls are shown on the callkeep fork's dedicated React surface,
+> which mounts a component named **`ConnleInCallShell`** (fixed name). Your app
+> must register it, or React throws
+> `'"ConnleInCallShell" has not been registered'` when the call screen opens:
+> ```js
+> // index.js
+> import InCallShell from './src/InCallShell';
+> AppRegistry.registerComponent('ConnleInCallShell', () => InCallShell);
+> ```
+> See `examples/react-native/src/InCallShell.tsx` for a ready-made voice in-call
+> UI (name, timer, mute, speaker, hang up) driven by the SDK.
+
+> [!NOTE]
+> Voice and video in one app? Both would then be self-managed, and the bundled
+> fork currently tells them apart by the `hasVideo` flag — a proper
+> per-call `selfManaged` flag (fork/SDK change) is the follow-up for a
+> voice+video app; the example app (voice only) is fine.
+
+### Alternative: keep the system UI with `livekit.preconnect`
+If you must keep the OS in-call screen, enable **`livekit.preconnect`** to join
+the room **while the call is ringing** (mic not published until answer), so the
+answer no longer depends on a background connect:
+
+```javascript
+const piopiy = new PIOPIY({ name: 'Agent', livekit: { preconnect: true } });
+```
+
+> [!WARNING]
+> Pre-connect joins the room while ringing. Verify with **one test call** that
+> the caller is **not** connected while the phone is still ringing; if your
+> platform bridges on agent-join, leave it off and use `selfManagedVoice`.
+
+
 ---
 
 ## Step 5: Testing Push Configuration
@@ -614,6 +695,7 @@ wake, so only a native timer is guaranteed to fire in the killed/locked case.
 | :--- | :--- |
 | **iOS: Call screen shows but app crashes** | iOS terminates apps that fail to report a CallKit call synchronously inside `didReceiveIncomingPushWithPayload`. Ensure `[RNCallKeep reportNewIncomingCall:...]` is executed immediately. |
 | **Android: Headless task doesn't fire when killed** | Verify that the FCM payload is data-only (no `notification` object in JSON) and has `priority: "high"`. |
+| **Android: call connects only when the app is brought to the foreground; logcat shows `Can't start foreground service : SecurityException … FOREGROUND_SERVICE_CAMERA`** | The bundled `@telecmi/react-native-callkeep` library manifest declares the service as `foregroundServiceType="phoneCall\|microphone\|camera\|mediaPlayback"`. On Android 14 calling `startForeground(microphone)` then throws because the app doesn't hold `FOREGROUND_SERVICE_CAMERA`, so the call's foreground service never starts and the app is frozen while the system InCall UI is up. Override the service in **your app manifest** with `tools:node="replace"` and `foregroundServiceType="phoneCall\|microphone"` (see the example app), and give the notification a small icon via `callKeep.android.foregroundService.notificationIcon`. Combine with `livekit.preconnect: true` (see *Answering on Android* above). |
 | **Android (New Architecture): `Unable to parse @ReactMethod annotations… Module exports two methods to JavaScript with the same name: "displayIncomingCall"`** | You have the upstream `react-native-callkeep` installed alongside the SDK's bundled `@telecmi/react-native-callkeep` (which already contains the fix). Remove the upstream package and any patch-package leftovers — see **Step 4b · 5**. |
 | **Android: red box at startup — `Registering a PhoneAccount requires either: (1) … BIND_TELECOM_CONNECTION_SERVICE …`** | The CallKeep `ConnectionService` is missing from *your app's* `AndroidManifest.xml` — it is NOT merged from the library. Add the `<service android:name="io.wazo.callkeep.VoiceConnectionService" …>` block from **Step 4b · 3**. |
 | **Call connects but there is no audio** | Check that `react-native-incall-manager` is correctly installed. On iOS, make sure the audio session is activated through CallKit's `didActivateAudioSession` event before routing media. |

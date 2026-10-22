@@ -94,6 +94,31 @@ export default class PushTokenManager {
         this.provider = null;
         this.platform = null;
         this.cleanups = [];
+        this.lastResponse = null; // last /push/register response (diagnostics)
+        this.tokenRequestedAt = null;
+        this.tokenError = null;   // last FCM/APNs token-fetch error, if any
+    }
+
+    /**
+     * Snapshot of the push-token state — for diagnostics/support. Answers the
+     * first question when a device doesn't ring: did the OS ever issue a token,
+     * and was it accepted by the backend? Whatever is null/false here is the
+     * layer to fix (GMS/Firebase, capability, network, or the backend call).
+     */
+    getInfo() {
+        return {
+            platform: this.platform,
+            provider: this.provider,
+            // OS issued a device token?
+            hasDeviceToken: !!this.deviceToken,
+            deviceToken: this.deviceToken ? String( this.deviceToken ).slice( 0, 12 ) + '…' : null,
+            // Backend accepted it (200)?
+            registered: !!( this.lastResponse && this.lastResponse.code === 200 ),
+            lastResponse: this.lastResponse || null,
+            // Populated only when getToken()/PushKit failed (e.g. no GMS).
+            tokenError: this.tokenError || null,
+            watching: this.started,
+        };
     }
 
     /** Begin watching for the device push token. Idempotent. */
@@ -213,8 +238,11 @@ export default class PushTokenManager {
             // missing — caught so a misconfigured app degrades instead of crashing.
             messaging
                 .getToken()
-                .then( ( token ) => this._onToken( token, 'fcm', 'android' ) )
-                .catch( ( e ) => dbg( 'auto push token: FCM getToken failed —', e && e.message ) );
+                .then( ( token ) => { this.tokenError = null; this._onToken( token, 'fcm', 'android' ); } )
+                .catch( ( e ) => {
+                    this.tokenError = ( e && e.message ) || String( e );
+                    dbg( 'auto push token: FCM getToken failed —', e && e.message );
+                } );
 
             const unsubscribe = messaging.onTokenRefresh( ( token ) => this._onToken( token, 'fcm', 'android' ) );
             if ( typeof unsubscribe === 'function' ) this.cleanups.push( unsubscribe );
@@ -343,6 +371,7 @@ export default class PushTokenManager {
         // safe whenever the token arrives.
         try {
             this.piopiy.registerToken( { provider, token, platform }, ( res ) => {
+                this.lastResponse = res;
                 dbg( 'auto push token: /push/register response →', res );
             } );
         } catch ( e ) {

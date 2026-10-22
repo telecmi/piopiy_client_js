@@ -265,7 +265,7 @@ Rejects/disconnects an incoming call.
 Hangs up an ongoing active call.
 
 #### `hold()` / `unHold()`
-Places the active call on hold or resumes it.
+Places the active call on hold or resumes it. On an inbound (LiveKit room) call the hold is local — the mic stops publishing and the room stays joined — because the media leg is held by the platform, not by this device.
 
 #### `mute()` / `unMute()`
 Mutes or unmutes your local microphone audio.
@@ -323,6 +323,17 @@ Checks if the local microphone is currently muted.
 #### `onSpeaker()`
 Checks if the loudspeaker is currently turned on (React Native only).
 - **Returns**: `boolean`
+
+#### `hasPhoneAccount()` / `checkPhoneAccountEnabled()` · _Android only_
+True when this app's PhoneAccount is registered **and** enabled. System-managed calls only show UI when enabled — Realme/OPPO ODialer hides the Settings entry, so check after login and prompt with `openPhoneAccounts()` when `false`. Resolves `true` on iOS/web.
+- **Returns**: `Promise<boolean>`
+
+#### `openPhoneAccounts()` · _Android only_
+Opens the system Calling-accounts screen (`ACTION_CHANGE_PHONE_ACCOUNTS`) so the user can enable this app — bypasses the Settings entry Realme/ColorOS hides. Resolves `false` on iOS/web.
+```javascript
+const ok = await piopiy.hasPhoneAccount();
+if (!ok) await piopiy.openPhoneAccounts();
+```
 
 #### `logout(callback?)`
 Signs out and disconnects. On React Native this **also unregisters the device's push token** first, so the device stops being woken for incoming calls. The optional callback receives the unregister response.

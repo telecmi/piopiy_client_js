@@ -6,4 +6,5 @@ export default class PushTokenManager {
     start() { return false; }
     stop() { }
     registerHeadlessHandler() { return false; }
+    getInfo() { return { available: false }; }
 }

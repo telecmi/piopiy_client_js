@@ -81,8 +81,7 @@ describe('apiBase option', () => {
   });
 });
 
-describe('logout() unregisters the push token', () => {
-  test('reports nothing to unregister when no token was registered', done => {
+describe('logout() unregisters the push token', () => {  test('reports nothing to unregister when no token was registered', done => {
     const p = new PIOPIY();
     p.logout(res => {
       expect(res.code).toBe(200);
@@ -93,5 +92,19 @@ describe('logout() unregisters the push token', () => {
 
   test('does not throw when called without a callback', () => {
     expect(() => new PIOPIY().logout()).not.toThrow();
+  });
+});
+
+describe('calling-account helpers (web build)', () => {
+  test('hasPhoneAccount() resolves true (no Telecom gate on web)', async () => {
+    await expect(new PIOPIY().hasPhoneAccount()).resolves.toBe(true);
+  });
+
+  test('checkPhoneAccountEnabled() aliases hasPhoneAccount()', async () => {
+    await expect(new PIOPIY().checkPhoneAccountEnabled()).resolves.toBe(true);
+  });
+
+  test('openPhoneAccounts() resolves false (Android only)', async () => {
+    await expect(new PIOPIY().openPhoneAccounts()).resolves.toBe(false);
   });
 });

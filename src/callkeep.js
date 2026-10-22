@@ -1,6 +1,7 @@
-// CallKeep (native call UI) is a React Native feature; there's no equivalent on
-// web, so the web build uses this no-op bridge. The React Native build replaces
-// this file with callkeep.native.js.
+// Web build: no native call UI — helpers resolve to the enabled state.
 export default class CallKeepBridge {
     constructor() { }
+    async hasPhoneAccount() { return true; }
+    checkPhoneAccountEnabled() { return this.hasPhoneAccount(); }
+    async openPhoneAccounts() { return false; }
 }

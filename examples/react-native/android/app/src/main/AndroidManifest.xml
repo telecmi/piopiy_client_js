@@ -1,4 +1,4 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -34,11 +34,25 @@
         </intent-filter>
       </activity>
 
-      <!-- CallKeep's ConnectionService. NOT merged from the library manifest —
-           without the BIND_TELECOM_CONNECTION_SERVICE guard Telecom refuses to
-           register the PhoneAccount. (README.push-notifications.md Step 4b) -->
-      <!-- VoiceConnectionService: declared by @telecmi/react-native-callkeep's
-           library manifest since 4.4.x (with the full foregroundServiceType
-           set) — apps must NOT re-declare it or the manifests conflict. -->
+      <!-- VoiceConnectionService comes from @telecmi/react-native-callkeep's
+           library manifest, but that declares foregroundServiceType
+           "phoneCall|microphone|camera|mediaPlayback". On Android 14 that makes
+           startForeground(microphone) throw
+           (SecurityException: requires FOREGROUND_SERVICE_CAMERA), so the call's
+           foreground service NEVER starts and the app is frozen while the system
+           InCall UI is up — the caller only connects once the app is
+           foregrounded. Voice only needs phoneCall|microphone; override the
+           declared type. tools:node="replace" avoids a manifest-merger conflict. -->
+      <service
+        android:name="io.wazo.callkeep.VoiceConnectionService"
+        android:label="@string/app_name"
+        android:permission="android.permission.BIND_TELECOM_CONNECTION_SERVICE"
+        android:foregroundServiceType="phoneCall|microphone"
+        android:exported="true"
+        tools:node="replace">
+        <intent-filter>
+            <action android:name="android.telecom.ConnectionService" />
+        </intent-filter>
+      </service>
     </application>
 </manifest>

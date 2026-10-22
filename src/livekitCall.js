@@ -11,6 +11,7 @@ export default class LiveKitCall {
     isCall() { return false; }
     answer() { return Promise.resolve( false ); }
     end() { return false; }
+    isAnswered() { return false; }
     onAudioSessionActivated() { }
     onAudioSessionDeactivated() { }
 }

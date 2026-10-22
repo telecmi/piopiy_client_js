@@ -89,11 +89,24 @@ export default class LiveKitCall {
         this.piopiy = piopiy;
         this.config = config || {};
         this.room = null;        // live Room while connected
+        this.roomConnected = false; // room.connect() resolved (safe to disconnect)
         this.pending = null;     // {uuid, room, token, url, from} while ringing
         this.activeUUID = null;  // CallKit uuid of the connected call
         this.ringTimer = null;   // bounds the pending (ringing) state
         this.muted = false;      // mic muted on the connected call
         this.speakerOn = false;  // loudspeaker route active
+        this.answered = false;   // call joined + 'answered' emitted (for late UI mounts)
+        this.held = false;       // local hold (a LiveKit call has no SIP hold)
+        // Opt-in pre-connect (Android): join the held room WHILE the call is
+        // ringing, so the answer doesn't have to run room.connect() after the
+        // OS's system-managed in-call screen has backgrounded the app — Android
+        // throttles that WebRTC connect, so the caller kept ringing until the
+        // app was brought forward. See livekit.preconnect.
+        this.preconnectEnabled = !!( config && config.preconnect ) && Platform.OS === 'android';
+        this.preconnectRoom = null;    // Room connected during ringing (not yet adopted)
+        this.preconnectStarted = false;
+        this.preconnectDone = false;
+        this.preconnectPromise = null; // in-flight room.connect() while ringing
 
         // LiveKit needs its globals (adds to what react-native-webrtc registers).
         if ( lk && typeof lk.registerGlobals === 'function' && !globalsRegistered ) {
@@ -177,6 +190,10 @@ export default class LiveKitCall {
             call_id: this.pending.uuid,
             transport: 'push',
         } );
+        // Pre-connect the room while ringing (opt-in) — see the constructor.
+        if ( this.preconnectEnabled && !this.preconnectStarted ) {
+            this._startPreconnect();
+        }
         return true;
     }
 
@@ -223,30 +240,35 @@ export default class LiveKitCall {
         // NEXT incoming call's UI. This guard makes teardown win the race.
         const aborted = () => this.activeUUID !== call.uuid;
 
-        try {
-            if ( lk.AudioSession ) {
-                // Voice-call session config: earpiece by default so the CallKit
-                // speaker toggle works. (LiveKit's default is videoChat mode,
-                // which forces the loudspeaker and pins the route.)
-                if ( typeof lk.AudioSession.setAppleAudioConfiguration === 'function' ) {
-                    await lk.AudioSession.setAppleAudioConfiguration( {
-                        audioCategory: 'playAndRecord',
-                        audioCategoryOptions: [ 'allowBluetooth' ],
-                        audioMode: 'voiceChat',
-                    } );
-                    dbg( 'Apple audio configured: playAndRecord / voiceChat' );
-                }
-                // iOS + CallKit: do NOT activate the AVAudioSession ourselves —
-                // CallKit owns activation, and racing it breaks its activation:
-                // the call goes silent and the audio route sticks. RTCAudioSession
-                // is synced on didActivateAudioSession (onAudioSessionActivated).
-                if ( Platform.OS !== 'ios' && typeof lk.AudioSession.startAudioSession === 'function' ) {
-                    await lk.AudioSession.startAudioSession();
-                    dbg( 'AudioSession started' );
-                }
+        // Pre-connect audio setup. LiveKit's RN engine on Android needs the
+        // audio session started BEFORE connecting — otherwise the peer-connection
+        // engine never reaches connected and publishing fails with
+        // "publishing rejected as engine not connected within timeout"
+        // (livekit-client LocalParticipant). This is safe with self-managed
+        // voice (the app stays foreground) and bounded so it can't hang.
+        if ( Platform.OS === 'android' && lk.AudioSession && typeof lk.AudioSession.startAudioSession === 'function' ) {
+            try {
+                await Promise.race( [
+                    lk.AudioSession.startAudioSession(),
+                    new Promise( ( resolve ) => setTimeout( resolve, 2500 ) ),
+                ] );
+                dbg( 'AudioSession started (pre-connect)' );
+            } catch ( e ) {
+                dbg( 'AudioSession pre-start failed:', e && e.message );
             }
-        } catch ( e ) {
-            dbg( 'audio session setup failed:', e && e.message );
+        }
+        // iOS: CallKit owns AVAudioSession activation; only set the category.
+        if ( Platform.OS === 'ios' && lk.AudioSession && typeof lk.AudioSession.setAppleAudioConfiguration === 'function' ) {
+            try {
+                await lk.AudioSession.setAppleAudioConfiguration( {
+                    audioCategory: 'playAndRecord',
+                    audioCategoryOptions: [ 'allowBluetooth' ],
+                    audioMode: 'voiceChat',
+                } );
+                dbg( 'Apple audio configured: playAndRecord / voiceChat' );
+            } catch ( e ) {
+                dbg( 'Apple audio config failed:', e && e.message );
+            }
         }
 
         if ( aborted() ) {
@@ -254,49 +276,161 @@ export default class LiveKitCall {
             return false;
         }
 
-        try {
-            const room = new lkClient.Room();
+        // Adopt a room that pre-connect already joined while ringing (opt-in);
+        // otherwise connect now. An in-flight preconnect is awaited (bounded)
+        // rather than duplicated.
+        let room = null;
+        let preconnected = !!( this.preconnectDone && this.preconnectRoom );
+        if ( !preconnected && this.preconnectRoom && this.preconnectPromise ) {
+            dbg( 'answer(): waiting for in-flight preconnect' );
+            try {
+                await Promise.race( [
+                    this.preconnectPromise,
+                    new Promise( ( resolve ) => setTimeout( resolve, 4000 ) ),
+                ] );
+            } catch { /* the preconnect's own catch handles failures */ }
+            preconnected = !!( this.preconnectDone && this.preconnectRoom );
+        }
+        if ( preconnected ) {
+            room = this.preconnectRoom;
+            this.preconnectRoom = null;
+            this.preconnectStarted = false;
+            this.preconnectDone = false;
+            this.preconnectPromise = null;
+            dbg( 'answer(): using pre-connected room' );
+            // The preconnect handler only cleans up while the room is still the
+            // preconnect room; re-bind it as the active room so a later
+            // disconnect ends the call.
+            try { room.removeAllListeners( 'disconnected' ); } catch { /* ignore */ }
             this.room = room;
+            this.roomConnected = true;   // pre-connect already joined
             room.on( 'disconnected', ( reason ) => {
-                // Ignore events from a room this engine no longer owns (e.g.
-                // one we abandoned below after losing the answer/cancel race).
                 if ( this.room !== room ) return;
                 dbg( 'room disconnected —', reason ? String( reason ) : 'no reason' );
                 this._teardown( 'ended' );
             } );
-            await room.connect( call.url, call.token, { autoSubscribe: true } );
-            if ( aborted() ) {
-                dbg( 'answer aborted — call cancelled during connect; leaving room' );
-                if ( this.room === room ) this.room = null;
-                try { room.disconnect(); } catch { /* ignore */ }
-                return false;
+        } else {
+            if ( this.preconnectRoom ) {
+                const pr = this.preconnectRoom;
+                const prConnected = this.preconnectDone;
+                this.preconnectRoom = null;
+                this.preconnectStarted = false;
+                this.preconnectDone = false;
+                this.preconnectPromise = null;
+                try { pr.removeAllListeners( 'disconnected' ); } catch { /* ignore */ }
+                if ( prConnected ) {
+                    try { pr.disconnect(); } catch { /* ignore */ }
+                }
             }
-            dbg( 'room CONNECTED — enabling microphone' );
             try {
-                await room.localParticipant.setMicrophoneEnabled( true );
+                room = new lkClient.Room();
+                this.room = room;
+                room.on( 'disconnected', ( reason ) => {
+                    // Ignore events from a room this engine no longer owns (e.g.
+                    // one we abandoned below after losing the answer/cancel race).
+                    if ( this.room !== room ) return;
+                    dbg( 'room disconnected —', reason ? String( reason ) : 'no reason' );
+                    this._teardown( 'ended' );
+                } );
+                await room.connect( call.url, call.token, { autoSubscribe: true } );
+                this.roomConnected = true;
             } catch ( e ) {
-                dbg( 'setMicrophoneEnabled failed:', e && e.message );
-            }
-            if ( aborted() ) {
-                dbg( 'answer aborted — call cancelled just after connect; leaving room' );
-                if ( this.room === room ) this.room = null;
-                try { room.disconnect(); } catch { /* ignore */ }
+                if ( aborted() ) {
+                    // The teardown that beat us already emitted the end events —
+                    // stay silent instead of stacking an error on a finished call.
+                    dbg( 'room.connect failed after cancel — already torn down:', e && e.message );
+                    return false;
+                }
+                dbg( 'room.connect FAILED —', e && e.message );
+                this.piopiy.emit( 'error', { code: 1010, status: 'call connection failed: ' + ( e && e.message ) } );
+                this._teardown( 'ended' );
                 return false;
             }
-            this.piopiy.emit( 'answered', { code: 200, status: 'answered', transport: 'push' } );
-            return true;
-        } catch ( e ) {
-            if ( aborted() ) {
-                // The teardown that beat us already emitted the end events —
-                // stay silent instead of stacking an error on a finished call.
-                dbg( 'room.connect failed after cancel — already torn down:', e && e.message );
-                return false;
-            }
-            dbg( 'room.connect FAILED —', e && e.message );
-            this.piopiy.emit( 'error', { code: 1010, status: 'call connection failed: ' + ( e && e.message ) } );
-            this._teardown( 'ended' );
+        }
+
+        if ( aborted() ) {
+            dbg( 'answer aborted — call cancelled during connect; leaving room' );
+            if ( this.room === room ) this.room = null;
+            try { room.disconnect(); } catch { /* ignore */ }
             return false;
         }
+
+        // Answered the instant the room is joined. Joining is what stops the
+        // caller's ringback and moves the native call UI out of "ringing", so
+        // emit it NOW — do NOT gate it on audio or the microphone. Starting the
+        // Android audio session and enabling the mic can be slow or blocked
+        // while the app is backgrounded (the system in-call screen is up);
+        // doing them here would re-introduce the delay. They run asynchronously,
+        // after the connection is already up.
+        dbg( 'room CONNECTED — emitting answered; starting audio + microphone' );
+        this.answered = true;
+        this.piopiy.emit( 'answered', { code: 200, status: 'answered', transport: 'push' } );
+        Promise.resolve()
+            .then( async () => {
+                if ( Platform.OS !== 'ios' && lk.AudioSession && typeof lk.AudioSession.startAudioSession === 'function' ) {
+                    // Bounded: a backgrounded start must never hang the call.
+                    await Promise.race( [
+                        lk.AudioSession.startAudioSession(),
+                        new Promise( ( resolve ) => setTimeout( resolve, 2500 ) ),
+                    ] );
+                    dbg( 'AudioSession started (or timed out)' );
+                }
+                await room.localParticipant.setMicrophoneEnabled( true );
+            } )
+            .then( () => {
+                if ( aborted() ) {
+                    dbg( 'answer aborted — call cancelled just after connect; leaving room' );
+                    if ( this.room === room ) this.room = null;
+                    try { room.disconnect(); } catch { /* ignore */ }
+                }
+            } )
+            .catch( ( e ) => dbg( 'audio/mic setup failed:', e && e.message ) );
+        return true;
+    }
+
+    // Opt-in pre-connect: join the held room while the call is still ringing, so
+    // answer() doesn't have to connect after the system-managed in-call screen
+    // has backgrounded the app (Android throttles that WebRTC connect). The mic
+    // is NOT enabled here — audio/publish happen on answer().
+    _startPreconnect() {
+        const call = this.pending;
+        if ( !call || !call.url ) return;
+        if ( this.preconnectStarted || this.preconnectRoom ) return;
+        this.preconnectStarted = true;
+        const room = new lkClient.Room();
+        this.preconnectRoom = room;
+        room.on( 'disconnected', ( reason ) => {
+            // Only clean up while this is still the preconnect room; once
+            // answer() adopts it, the active-room handler takes over.
+            if ( this.preconnectRoom !== room ) return;
+            dbg( 'preconnect room disconnected —', reason ? String( reason ) : 'no reason' );
+            this.preconnectRoom = null;
+            this.preconnectStarted = false;
+            this.preconnectDone = false;
+        } );
+        dbg( 'preconnect: connecting while ringing', call.room );
+        this.preconnectPromise = room.connect( call.url, call.token, { autoSubscribe: true } )
+            .then( () => {
+                this.preconnectPromise = null;
+                if ( this.preconnectRoom !== room ) {
+                    // Cancelled/ended during connect — discard quietly.
+                    try { room.disconnect(); } catch { /* ignore */ }
+                    return;
+                }
+                this.preconnectDone = true;
+                dbg( 'preconnect: room CONNECTED while ringing' );
+            } )
+            .catch( ( e ) => {
+                this.preconnectPromise = null;
+                if ( this.preconnectRoom === room ) {
+                    this.preconnectRoom = null;
+                    this.preconnectStarted = false;
+                    this.preconnectDone = false;
+                }
+                dbg( 'preconnect failed:', e && e.message );
+                // connect() rejected — the room is not connected, so do NOT
+                // disconnect it (LiveKit errors "leave before connected").
+            } );
     }
 
     // Route call audio to the loudspeaker (true) or back to the default route /
@@ -307,9 +441,27 @@ export default class LiveKitCall {
             return false;
         }
         try {
-            await lk.AudioSession.selectAudioOutput( on ? 'force_speaker' : 'default' );
+            // The output names are PLATFORM specific. LiveKit's Android module
+            // maps them to an AudioDeviceKind ('speaker' / 'earpiece' /
+            // 'bluetooth' / 'headset') and silently IGNORES the iOS-only
+            // 'force_speaker' / 'default' — so on Android the speaker toggle
+            // was a no-op and the call stayed on the route it started on.
+            const target = Platform.OS === 'android'
+                ? ( on ? 'speaker' : 'earpiece' )
+                : ( on ? 'force_speaker' : 'default' );
+            await lk.AudioSession.selectAudioOutput( target );
             this.speakerOn = !!on;
-            dbg( 'speaker', on ? 'ON (loudspeaker)' : 'off (default route)' );
+            // Android 12+ ignores the legacy setSpeakerphoneOn() for apps that
+            // are not the default dialer, so the WebRTC track stays on the
+            // earpiece even though the system logged the request. Set the
+            // COMMUNICATION DEVICE explicitly (the native bridge does it).
+            try {
+                const bridge = this.piopiy && this.piopiy._callkeep;
+                if ( bridge && typeof bridge.setSpeakerOn === 'function' ) {
+                    bridge.setSpeakerOn( !!on );
+                }
+            } catch ( e ) { /* the native route is best effort */ }
+            dbg( 'speaker', on ? 'ON (loudspeaker)' : 'off (default route)', '->', target );
             return true;
         } catch ( e ) {
             dbg( 'setSpeaker failed:', e && e.message );
@@ -340,8 +492,68 @@ export default class LiveKitCall {
         return !!this.muted;
     }
 
+    // Hold for a LiveKit (room) call. There is no SIP session to put on hold, so
+    // hold is simply the local mute: stop publishing mic audio and keep the room
+    // joined — the remote party hears silence until resume. Resume always
+    // unmutes (plain hold-on-mute, no state to restore).
+    setHold( held ) {
+        if ( !this.room || !this.room.localParticipant ) {
+            dbg( 'setHold ignored — no connected room' );
+            return false;
+        }
+        this.held = !!held;
+        this.setMuted( !!held );
+        dbg( held ? 'call on hold — microphone muted' : 'call resumed — microphone unmuted' );
+        return true;
+    }
+
+    isHeld() {
+        return !!this.held;
+    }
+
+    // DTMF on a room call. LiveKit's SIP bridge turns each packet into a DTMF
+    // event on the PSTN leg; with no SIP participant in the room nothing
+    // receives them, and that is not an error (the SIP agent would have thrown
+    // 1002 'call not found', which is what the keypad/record used to hit).
+    sendDtmf( digits ) {
+        const seq = String( digits || '' ).replace( /\s+/g, '' );
+        if ( !seq || !this.room || !this.room.localParticipant ) {
+            dbg( 'sendDtmf ignored — no connected room' );
+            return false;
+        }
+        const codeFor = ( d ) => {
+            const c = String( d ).toUpperCase();
+            if ( c === '*' ) return 10;
+            if ( c === '#' ) return 11;
+            if ( c >= 'A' && c <= 'D' ) return 12 + ( c.charCodeAt( 0 ) - 65 );
+            const n = Number( c );
+            return Number.isInteger( n ) && n >= 0 && n <= 9 ? n : null;
+        };
+        try {
+            for ( const d of seq ) {
+                const code = codeFor( d );
+                if ( code === null ) continue;
+                const p = this.room.localParticipant.publishDtmf( code, String( d ) );
+                if ( p && typeof p.catch === 'function' ) p.catch( () => {} );
+            }
+            dbg( 'DTMF sent:', seq );
+            return true;
+        } catch ( e ) {
+            dbg( 'sendDtmf failed:', e && e.message );
+            return false;
+        }
+    }
+
     isSpeakerOn() {
         return !!this.speakerOn;
+    }
+
+    // Whether the current call has joined and 'answered' was emitted. Lets a UI
+    // that mounts AFTER the answer (e.g. an in-app call screen rendered on the
+    // 'answered' event) start in the connected state instead of waiting for an
+    // event it already missed.
+    isAnswered() {
+        return !!this.answered;
     }
 
     // Hang up / reject. Safe to call in any state.
@@ -398,20 +610,53 @@ export default class LiveKitCall {
     }
 
     _teardown( emitEvent ) {
-        const hadCall = !!( this.room || this.pending || this.activeUUID );
+        const hadCall = !!( this.room || this.pending || this.activeUUID || this.preconnectRoom );
         const room = this.room;
+        const roomWasConnected = this.roomConnected;
+        const pre = this.preconnectRoom;
+        const preWasConnected = this.preconnectDone;
         this.room = null;
+        this.roomConnected = false;
         this.pending = null;
         this.activeUUID = null;
         this.muted = false;
         this.speakerOn = false;
+        this.answered = false;
+        this.held = false;
+        this.preconnectRoom = null;
+        this.preconnectStarted = false;
+        this.preconnectDone = false;
+        this.preconnectPromise = null;
         if ( this.ringTimer ) {
             clearTimeout( this.ringTimer );
             this.ringTimer = null;
         }
+        if ( pre ) {
+            try { pre.removeAllListeners( 'disconnected' ); } catch { /* ignore */ }
+            // Same reasoning as the active room below: a half-joined room still
+            // holds a live session, so it must be closed rather than abandoned.
+            const preDisconnect = (() => {
+                try { return pre.disconnect(); } catch { return null; }
+            })();
+            try { if ( preDisconnect && typeof preDisconnect.catch === 'function' ) preDisconnect.catch( () => {} ); } catch { /* ignore */ }
+            dbg( 'teardown — preconnect room closed (connected:', preWasConnected, ')' );
+        }
         if ( room ) {
             try { room.removeAllListeners( 'disconnected' ); } catch { /* ignore */ }
-            try { room.disconnect(); } catch { /* ignore */ }
+            // Disconnect the room EVEN IF it never reported a finished connect. A
+            // join that is still settling (LiveKit "cannot send signal request
+            // before connected, type: answer" during a cold-start answer) can carry
+            // LIVE two-way audio while roomConnected stays false. Skipping the
+            // disconnect in that state left the engine — and the media session —
+            // running, so after the agent tapped End the agent's screen closed but
+            // the room stayed occupied and the caller kept talking. Closing the
+            // engine drops the media and the signal socket, which is what tells the
+            // server (and the far-end leg) that the agent left.
+            const roomDisconnect = (() => {
+                try { return room.disconnect(); } catch { return null; }
+            })();
+            try { if ( roomDisconnect && typeof roomDisconnect.catch === 'function' ) roomDisconnect.catch( () => {} ); } catch { /* ignore */ }
+            dbg( 'teardown — room closed (connected:', roomWasConnected, ')' );
         }
         try {
             if ( lk && lk.AudioSession && typeof lk.AudioSession.stopAudioSession === 'function' ) {

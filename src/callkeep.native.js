@@ -8,7 +8,7 @@
 // push synchronously in AppDelegate and Android shows CallKeep from the FCM
 // handler. This bridge listens via `didDisplayIncomingCall` and dedupes, so it
 // never double-shows the call.
-import { Platform } from 'react-native';
+import { Platform, Linking, NativeModules } from 'react-native';
 // Shared audio-session controls. On iOS the bridge starts/stops InCallManager in
 // lock-step with CallKit's audio session (see the `didActivateAudioSession` wiring
 // below); session.native.js defers its own start when setCallKitAudioManaged(true).
@@ -78,6 +78,14 @@ export default class CallKeepBridge {
         // How long to wait for the SIP INVITE after a pushed call is displayed
         // before giving up and ending the CallKit UI. Override via callKeep config.
         this.inviteTimeoutMs = ( this.config.inviteTimeoutMs ) || 25000;
+        // Android: route inbound VOICE through the fork's SELF-MANAGED phone
+        // account instead of the system-managed one. Self-managed calls show the
+        // app's own ring surfaces (WhatsApp-style Answer/Reject notification and
+        // a full-screen in-call screen) and keep the app foreground, so the JS
+        // LiveKit room join + audio can't be suspended by the system InCall UI
+        // taking the foreground/audio focus. Enable via
+        // callKeep.android.selfManagedVoice.
+        this.selfManagedVoice = !!( this.config.android && this.config.android.selfManagedVoice );
 
         if ( !RNCallKeep ) {
             // react-native-callkeep not installed — bridge stays inert.
@@ -86,6 +94,164 @@ export default class CallKeepBridge {
 
         this._setup();
         this._wire();
+    }
+
+    // --- Calling-account helpers (Android) ---
+    //
+    // System-managed ConnectionService calls only show UI when the user has
+    // enabled this app's PhoneAccount. Samsung/Moto/Vivo/iQOO expose it under
+    // Settings → Calls → Calling accounts, but Realme/OPPO ODialer (Realme UI /
+    // ColorOS, e.g. Realme C83 / Realme 11 on Android 16) hides that entry, so
+    // the account stays registered-but-disabled and displayIncomingCall() is a
+    // silent no-op: the JS log shows "pending inbound call" but no system UI.
+    // These helpers let the app detect that state and deep-link straight to
+    // the Telecom toggle, bypassing the hidden Settings entry.
+
+    /** True when this app's PhoneAccount is registered AND enabled. Android only (iOS: true). */
+    async hasPhoneAccount() {
+        if ( Platform.OS !== 'android' ) return true;
+        if ( !RNCallKeep ) return false;
+        try {
+            if ( typeof RNCallKeep.hasPhoneAccount === 'function' ) {
+                return !!( await RNCallKeep.hasPhoneAccount() );
+            }
+        } catch ( e ) {
+            dbg( 'hasPhoneAccount check failed:', e && e.message );
+        }
+        try {
+            if ( typeof RNCallKeep.checkPhoneAccountEnabled === 'function' ) {
+                return !!( await RNCallKeep.checkPhoneAccountEnabled() );
+            }
+        } catch ( e ) {
+            dbg( 'checkPhoneAccountEnabled failed:', e && e.message );
+        }
+        return false;
+    }
+
+    /** Alias kept for readability at call sites. */
+    checkPhoneAccountEnabled() {
+        return this.hasPhoneAccount();
+    }
+
+    /** An app-provided native helper that can open the Calling-accounts screen
+     *  on OEMs whose ODialer ignores the generic intent (Realme/OPPO/…). Apps
+     *  add a tiny native module named `PiopiyCallingAccounts` with `open()`;
+     *  when present the SDK routes both its own call and CallKeep's first-run
+     *  prompt through it. See README.react-native-android.md. */
+    _callingAccountsHelper() {
+        try {
+            const h = NativeModules && NativeModules.PiopiyCallingAccounts;
+            return ( h && typeof h.open === 'function' ) ? h : null;
+        } catch { /* ignore */ }
+        return null;
+    }
+
+    /** Redirect CallKeep's OWN first-run "enable calling account" prompt to the
+     *  helper. The fork only targets Samsung/OnePlus with the explicit Telecom
+     *  activity; everywhere else (Realme!) its OK button fires the generic
+     *  intent, which ODialer swallows — so the user taps OK and nothing happens.
+     *  Overriding the native module's method makes that same OK open the screen.
+     *  Must run BEFORE CallKeep.setup() triggers the prompt. */
+    _redirectCallKeepAccountPrompt() {
+        const helper = this._callingAccountsHelper();
+        if ( !helper ) return;
+        try {
+            const rnck = NativeModules && NativeModules.RNCallKeep;
+            if ( !rnck ) return;
+            const open = () => { try { helper.open(); } catch { /* ignore */ } };
+            rnck.openPhoneAccounts = open;
+            rnck.openPhoneAccountSettings = open;
+            dbg( 'calling-account prompt redirected to PiopiyCallingAccounts helper' );
+        } catch ( e ) {
+            dbg( 'redirect of CallKeep account prompt failed:', e && e.message );
+        }
+    }
+
+    /**
+     * Open the system Calling-accounts screen so the user can enable this app.
+     * Prefers an app-provided `PiopiyCallingAccounts` native helper (works on
+     * Realme/OPPO where the generic intent is swallowed), then the bundled
+     * native module (Samsung/OnePlus explicit path), then the generic action.
+     * Returns true if an intent was fired. Android only (iOS: false).
+     */
+    async openPhoneAccounts() {
+        if ( Platform.OS !== 'android' ) return false;
+        // 0. App-provided helper — the only path that works on Realme/OPPO.
+        const helper = this._callingAccountsHelper();
+        if ( helper ) {
+            try {
+                const ok = await helper.open();
+                dbg( 'openPhoneAccounts via PiopiyCallingAccounts helper →', ok );
+                if ( ok ) return true;
+            } catch ( e ) {
+                dbg( 'PiopiyCallingAccounts helper failed:', e && e.message );
+            }
+        }
+        const mod = ( NativeModules && NativeModules.RNCallKeep ) || null;
+        // 1. Bundled native module (Samsung/OnePlus explicit path + generic fallback inside).
+        if ( mod ) {
+            try {
+                if ( typeof mod.openPhoneAccounts === 'function' ) {
+                    mod.openPhoneAccounts();
+                    dbg( 'openPhoneAccounts via native module' );
+                    return true;
+                }
+            } catch ( e ) {
+                dbg( 'native openPhoneAccounts failed:', e && e.message );
+            }
+            try {
+                if ( typeof mod.openPhoneAccountSettings === 'function' ) {
+                    mod.openPhoneAccountSettings();
+                    dbg( 'openPhoneAccountSettings via native module' );
+                    return true;
+                }
+            } catch ( e ) {
+                dbg( 'native openPhoneAccountSettings failed:', e && e.message );
+            }
+        }
+        // 2. Explicit Telecom component — reaches Realme/OPPO/vivo/Xiaomi
+        // ODialer builds where the generic action resolves to nothing.
+        try {
+            const manufacturer = String( ( Platform.constants && Platform.constants.Manufacturer ) || '' ).toLowerCase();
+            const needsExplicit = /realme|oppo|vivo|iqoo|oneplus|samsung|xiaomi|redmi|poco/i.test( manufacturer ) || true;
+            if ( needsExplicit && Linking && typeof Linking.sendIntent === 'function' ) {
+                await Linking.sendIntent( 'android.telecom.action.CHANGE_PHONE_ACCOUNTS', [] );
+                dbg( 'openPhoneAccounts via Linking.sendIntent CHANGE_PHONE_ACCOUNTS' );
+                return true;
+            }
+        } catch ( e ) {
+            dbg( 'Linking.sendIntent CHANGE_PHONE_ACCOUNTS failed:', e && e.message );
+        }
+        // 3. Generic view fallback.
+        try {
+            if ( Linking && typeof Linking.openSettings === 'function' ) {
+                await Linking.openSettings();
+                return true;
+            }
+        } catch { /* ignore */ }
+        return false;
+    }
+
+    /**
+     * Fire-and-forget guard used before showing Android UI: when the account
+     * is disabled, displayIncomingCall() silently does nothing, so log loudly
+     * (with the fix action) instead of leaving only "incoming from …" behind.
+     */
+    _warnIfAccountDisabled( where ) {
+        if ( Platform.OS !== 'android' || !RNCallKeep ) return;
+        this.hasPhoneAccount().then( ( ok ) => {
+            if ( !ok ) {
+                dbg( ( where || 'incoming call' ) + ': PhoneAccount DISABLED — system UI will not show. '
+                    + 'Realme/OPPO: open Calling accounts via piopiy.openPhoneAccounts() and enable this app, '
+                    + 'then set battery to Unrestricted + Auto-start on.' );
+                try {
+                    this.piopiy.emit( 'error', {
+                        code: 1011,
+                        status: 'calling account disabled — enable it via openPhoneAccounts()',
+                    } );
+                } catch { /* ignore */ }
+            }
+        } ).catch( () => { } );
     }
 
     // Safe event registration. RNCallKeep.addEventListener(type) internally calls
@@ -104,6 +270,26 @@ export default class CallKeepBridge {
     // What the native call screen shows as the caller. Caller name when the
     // platform resolved one, else the number; team/queue appended when present:
     //   "Priya Sharma — support3"  ·  "+91… — support3"  ·  "+91…"
+    /**
+     * Route the app's call audio to the loudspeaker (true) or back to the
+     * default route (false).
+     *
+     * On Android 12+ the legacy setSpeakerphoneOn() is a no-op for apps that
+     * are not the default dialer — the app asks for the loudspeaker and the
+     * WebRTC audio stays on the earpiece. The native layer sets the
+     * communication device explicitly instead.
+     */
+    setSpeakerOn( on ) {
+        try {
+            if ( typeof RNCallKeep.setSpeakerOn !== 'function' ) return false;
+            RNCallKeep.setSpeakerOn( !!on );
+            return true;
+        } catch ( e ) {
+            dbg( 'setSpeakerOn failed:', e && e.message );
+            return false;
+        }
+    }
+
     _callDisplay( d, from ) {
         const name = ( d && d.name && String( d.name ).trim() ) || '';
         const team = ( d && ( d.team_name || d.team ) ) || '';
@@ -111,8 +297,35 @@ export default class CallKeepBridge {
         return team ? primary + ' — ' + team : primary;
     }
 
+    /**
+     * Set the DISPLAY name of the ringing call.
+     *
+     * The platform only knows the caller's NUMBER; the app resolves the real
+     * name from its own contacts DB and hands it over here, so the native ring
+     * notification (and the OS call UI) show "Priya Sharma" instead of
+     * "+91 12031 34091". The notification is updated IN PLACE — no new
+     * heads-up, no re-ring — and the "— <team>" suffix of the caller line is
+     * kept.
+     */
+    setIncomingCallName( name ) {
+        if ( !name || !this.currentCallUUID ) return false;
+        const team = this._incomingTeam || '';
+        const display = team ? `${name} — ${team}` : name;
+        try {
+            if ( typeof RNCallKeep.updateIncomingCallName !== 'function' ) return false;
+            RNCallKeep.updateIncomingCallName( this.currentCallUUID, display );
+            dbg( 'incoming call name →', display );
+            return true;
+        } catch ( e ) {
+            dbg( 'setIncomingCallName failed:', e && e.message );
+            return false;
+        }
+    }
+
     _setup() {
         const ck = this.config;
+        // Route CallKeep's own first-run prompt through the app helper (Realme).
+        this._redirectCallKeepAccountPrompt();
         try {
             RNCallKeep.setup( {
                 ios: {
@@ -125,6 +338,12 @@ export default class CallKeepBridge {
                     alertDescription: 'This app needs access to manage phone calls to show incoming calls.',
                     cancelButton: 'Cancel',
                     okButton: 'OK',
+                    // With selfManagedVoice the inbound voice calls use the
+                    // SELF-MANAGED account, which Android enables by default —
+                    // so tell CallKeep to skip its managed-account prompt. Do
+                    // NOT set `selfManaged` here: that would flip the global
+                    // account kind and disturb a co-resident video SDK.
+                    ...( this.selfManagedVoice ? { selfManagedVoice: true } : {} ),
                     foregroundService: {
                         channelId: 'com.piopiy.callkeep',
                         channelName: 'PIOPIY incoming calls',
@@ -204,12 +423,27 @@ export default class CallKeepBridge {
             }
             this._clearInviteTimeout();   // a genuine call is here
             const from = ( d && d.from ) ? String( d.from ) : 'Unknown';
+            // Remember the team label of this call: a later name update (a name
+            // the app resolved from its own contacts DB) has to keep the
+            // "— <team>" suffix the caller line was shown with.
+            this._incomingTeam = ( d && ( d.team_name || d.team ) ) ? String( d.team_name || d.team ) : '';
             dbg( 'inComingCall', isLiveKit ? '(LiveKit room)' : '(SIP INVITE arrived)', 'from', from,
                 '— hasIncomingSession:', this.hasIncomingSession, 'pendingAnswer:', this.pendingAnswer );
 
             // Foreground with no preceding push: show the native UI now.
             if ( !this.currentCallUUID ) {
                 const display = this._callDisplay( d, from );
+                // How the ring surface labels this call: a team call (the SIP
+                // X-Team-Name header / the push's `team` field) reads as a plain
+                // "Incoming call" with the team already in the caller line,
+                // while a 1:1/PSTN contact call also shows the number — the app
+                // is the only place that knows the difference.
+                const callKind = d && ( d.team_name || d.team ) ? 'team' : 'contact';
+                // Android voice → self-managed account (see selfManagedVoice):
+                // the fork keys the account off its `hasVideo` argument, so we
+                // pass true to put this call on the self-managed account and get
+                // the app's own ring/in-call surfaces instead of the OS InCall UI.
+                const useSelfManaged = Platform.OS === 'android' && this.selfManagedVoice;
                 if ( isLiveKit && d.call_id && Platform.OS === 'ios' ) {
                     // iOS push inbound: CallKit is ALREADY ringing — the
                     // AppDelegate reported the call before JS booted (iOS
@@ -224,11 +458,17 @@ export default class CallKeepBridge {
                     // UI. Display with the push's uuid so answer/cancel/end
                     // all correlate.
                     this.currentCallUUID = String( d.call_id ).toLowerCase();
-                    dbg( 'android push call — displaying incoming UI', this.currentCallUUID );
-                    RNCallKeep.displayIncomingCall( this.currentCallUUID, from, display );
+                    dbg( 'android push call — displaying incoming UI', this.currentCallUUID, useSelfManaged ? '(self-managed)' : '(system-managed)' );
+                    if ( !useSelfManaged ) {
+                        this._warnIfAccountDisabled( 'android push call' );
+                    }
+                    RNCallKeep.displayIncomingCall( this.currentCallUUID, from, display, 'number', false, { selfManaged: useSelfManaged, callKind } );
                 } else {
                     this.currentCallUUID = uuidv4();
-                    RNCallKeep.displayIncomingCall( this.currentCallUUID, from, display );
+                    if ( !useSelfManaged ) {
+                        this._warnIfAccountDisabled( 'android incoming call' );
+                    }
+                    RNCallKeep.displayIncomingCall( this.currentCallUUID, from, display, 'number', false, { selfManaged: useSelfManaged, callKind } );
                 }
 
                 // iOS only: refresh the already-ringing CallKit screen with the
@@ -363,9 +603,24 @@ export default class CallKeepBridge {
         if ( callUUID ) {
             this.currentCallUUID = callUUID;
         }
-        if ( Platform.OS === 'android' ) {
+        if ( Platform.OS === 'android' && !this.selfManagedVoice ) {
+            // System-managed: bring the app forward. Self-managed voice already
+            // has its own call surface (and the app is foreground); forcing the
+            // main app forward here churns the React host and can disrupt the
+            // in-flight LiveKit room join.
             RNCallKeep.backToForeground();
         }
+        // Announce the answer BEFORE joining: `answered` only fires once the
+        // LiveKit room is connected (audio session + WebRTC, often several
+        // seconds), so a UI that waits for it shows the in-call screen late.
+        // `answering` lets the app open that screen on the tap and render its
+        // "Connecting…" state; `answered` still marks the real connection.
+        try {
+            this.piopiy.emit( 'answering', {
+                call_id: callUUID || null,
+                transport: 'push',
+            } );
+        } catch { /* event surface is best effort */ }
         this._answer();
     }
 
@@ -388,10 +643,16 @@ export default class CallKeepBridge {
         }
         dbg( 'endCall event from CallKit UI — callActive:', this.callActive, 'hasIncomingSession:', this.hasIncomingSession );
         // No real SIP session behind this CallKit call (a push "ghost" with no
-        // INVITE, or a call already ended / dismissed by us). CallKit dismisses
-        // its own UI; there is nothing to terminate/reject, so just clear.
+        // INVITE, or a call whose LiveKit room/SIP session already ended — e.g.
+        // the far end hung up and the room was deleted first). CallKit dismisses
+        // its own UI on iOS, but on Android _clear() only resets our own
+        // bookkeeping: the Telecom connection survived, so the system/lock-screen
+        // End button stayed on screen and tapping it re-entered this very branch
+        // and again did nothing — the user could not hang up. End the native call
+        // here so that tap always dismisses the UI.
         if ( !this.hasIncomingSession ) {
             this._clear();
+            this._endNativeCall( callUUID );
             return;
         }
         // Decline (still ringing) vs hang up (answered) — let the SDK pick the verb.
@@ -401,6 +662,28 @@ export default class CallKeepBridge {
             this.piopiy.reject();
         }
         this._clear();
+        this._endNativeCall( callUUID );
+    }
+
+    /**
+     * Dismiss the NATIVE call (Telecom connection / CallKit call) for an endCall
+     * event that the JS side has nothing left to hand to the SDK. Without this
+     * the system call UI outlives the call and its End button becomes a no-op.
+     * Safe to call with no uuid (falls back to ending everything this bridge
+     * owns) and when the connection is already gone.
+     */
+    _endNativeCall( callUUID ) {
+        if ( Platform.OS !== 'android' || !RNCallKeep ) return;
+        try {
+            const uuid = callUUID || this.currentCallUUID;
+            if ( uuid ) {
+                RNCallKeep.endCall( uuid );
+            } else if ( typeof RNCallKeep.endAllCalls === 'function' ) {
+                RNCallKeep.endAllCalls();
+            }
+        } catch ( e ) {
+            dbg( '_endNativeCall failed:', e && e.message );
+        }
     }
 
     /** Calls owned by ANOTHER TeleCMI SDK in this app (the video SDK). One

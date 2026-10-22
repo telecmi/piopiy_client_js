@@ -57,6 +57,11 @@ npx react-native run-android
 
 3. First run: if a call push arrives but no call UI shows, enable the app's
    **calling account** — Settings → Calls → Calling accounts → PiopiyExample.
+   The app checks this itself on startup/after sign-in and shows an “Enable calling account”
+   banner when disabled (watch for `error 1011` in the log). **Realme (C83/11, Android 16):**
+   that Settings entry is hidden by ODialer — use the banner button instead (it deep-links
+   straight to Telecom via `piopiy.openPhoneAccounts()`), then set battery Unrestricted +
+   Auto-start on.
 
 ## 4. Try it
 

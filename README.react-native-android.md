@@ -254,6 +254,78 @@ Two follow-ups for existing installs:
 
 ---
 
+## Calling accounts on OEMs that hide the toggle (Realme / OPPO)
+
+On most devices the app's **calling account** must be enabled before the system
+call UI can appear. Samsung/Moto/Vivo/iQOO show it under Settings → Calls →
+Calling accounts; **Realme/OPPO (ODialer)** hides that entry, and the generic
+`ACTION_CHANGE_PHONE_ACCOUNTS` intent is swallowed — so the account stays
+disabled and bg/killed calls show no UI (the app log shows an incoming call, but
+nothing rings).
+
+The **only** way through is the explicit Telecom activity
+`com.android.server.telecom/com.android.server.telecom.settings.EnableAccountPreferenceActivity`
+(what `adb shell am start -n …` uses). Add this tiny native module; the SDK
+detects it by name and routes both `piopiy.openPhoneAccounts()` **and CallKeep's
+own first-run “enable calling account” prompt** through it:
+
+`android/app/src/main/java/<pkg>/CallingAccountsModule.kt`
+```kotlin
+package <your.package>
+
+import android.content.ComponentName
+import android.content.Intent
+import android.telecom.TelecomManager
+import com.facebook.react.bridge.Promise
+import com.facebook.react.bridge.ReactApplicationContext
+import com.facebook.react.bridge.ReactContextBaseJavaModule
+import com.facebook.react.bridge.ReactMethod
+
+class CallingAccountsModule(reactContext: ReactApplicationContext) :
+  ReactContextBaseJavaModule(reactContext) {
+  override fun getName() = "PiopiyCallingAccounts"
+
+  @ReactMethod
+  fun open(promise: Promise) {
+    val attempts = listOf(
+      Intent().setComponent(ComponentName("com.android.server.telecom",
+        "com.android.server.telecom.settings.EnableAccountPreferenceActivity")),
+      Intent(TelecomManager.ACTION_CHANGE_PHONE_ACCOUNTS),
+    )
+    for (intent in attempts) {
+      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      try { reactApplicationContext.startActivity(intent); promise.resolve(true); return }
+      catch (_: Throwable) { /* try next */ }
+    }
+    promise.resolve(false)
+  }
+}
+```
+
+Register it in `MainApplication` (`getPackages()`):
+```kotlin
+PackageList(this).packages.apply {
+  add(CallingAccountsPackage())   // createNativeModules -> CallingAccountsModule
+}
+```
+
+Apps that don't add it keep the previous behaviour. The upstream fix belongs in
+`@telecmi/react-native-callkeep` (`openPhoneAccounts()` should try the explicit
+activity for every OEM, not just Samsung/OnePlus) — until that ships, this
+module is the reliable path. See the SDK's `openPhoneAccounts()` /
+`hasPhoneAccount()` API.
+
+---
+
+## Quick checklist — calling account
+
+1. `const ok = await piopiy.hasPhoneAccount()` after login. If `false`, prompt.
+2. `await piopiy.openPhoneAccounts()` — opens the toggle (with the helper above on Realme).
+3. User enables the app, returns; re-check with `hasPhoneAccount()`.
+4. Set battery **Unrestricted** + **Auto-start on** (Realme/OPPO/Xiaomi/vivo).
+
+---
+
 ## Troubleshooting
 
 | Symptom | Fix |
@@ -261,7 +333,8 @@ Two follow-ups for existing installs:
 | **Answered from killed state, but silent both ways** | You're on the old call module. Follow *Upgrading to 0.26.3+* above; `npm ls @telecmi/react-native-callkeep` must show 4.4.3+, then a full rebuild. |
 | **A call that already ended rings again minutes later** | FCM redelivery of a stale push — fixed in SDK 0.26.3 (invites older than 45 s are dropped). Upgrade. |
 | **Incoming calls stopped after an app update** | The app's **calling account** got disabled. On the phone: Settings → search "Calling accounts" (or Phone app → Settings → Calling accounts) → enable your app. One-time. |
-| **Push arrives (visible in logs) but no ring UI** | Same calling-account setting as above; also confirm the notification permission was granted (Android 13+ shows the ring as a notification). |
+| **Push arrives (visible in logs) but no ring UI** | Same calling-account setting as above; also confirm the notification permission was granted (Android 13+ shows the ring as a notification). The SDK now also emits `error { code: 1011 }` when it attempts to ring while the account is disabled — listen for it and prompt with `openPhoneAccounts()`. |
+| **Realme (C83, 11, …) — no “Calling accounts” option at all (Android 16 / Realme UI 7)** | Realme/OPPO ODialer hides the Settings entry, so the account stays disabled and bg/killed calls silently show nothing (log shows incoming, no system UI). The generic `ACTION_CHANGE_PHONE_ACCOUNTS` intent is **swallowed** too, so both the SDK's `openPhoneAccounts()` and CallKeep's own first-run prompt do nothing. Fix: add the tiny native helper below — the SDK detects it and routes both its own call and CallKeep's prompt through it. Verify `adb shell dumpsys telecom \| grep -i -A8 <applicationId>` (`enabled=false` = broken). Also set battery **Unrestricted** + **Auto-start on**. |
 | **No incoming calls when killed — Oppo / OnePlus / Xiaomi / vivo** | OEM battery management blocks the FCM wake-up: set the app's battery usage to **Unrestricted** and enable **Auto-start** for it. Advise your users in-app. |
 | **Build fails: `Manifest merger failed` mentioning VoiceConnectionService** | Your manifest still hand-declares the service — remove it (the SDK's library manifest declares it since callkeep 4.4.x). |
 | **Build fails: `No matching client found for package name`** | Your `google-services.json` doesn't contain your `applicationId` — regenerate it from your Firebase project after adding that package name. |

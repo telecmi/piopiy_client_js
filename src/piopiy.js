@@ -301,6 +301,23 @@ export default class extends EventEmitter {
             : false;
     }
 
+    /**
+     * Diagnostic snapshot of the device push-token state (React Native). Answers
+     * the first question when a device doesn't ring: did the OS ever issue a
+     * token, and did the backend accept it? Anything null/false points at the
+     * layer to fix (GMS/Firebase, capability, network, or the backend call).
+     * On web it returns `{ available: false }`.
+     * @returns {{platform?: string, provider?: string, hasDeviceToken?: boolean, deviceToken?: string|null, registered?: boolean, lastResponse?: any, tokenError?: string|null, watching?: boolean, available?: boolean}}
+     */
+    getPushInfo() {
+        try {
+            if (this._pushToken_mgr && typeof this._pushToken_mgr.getInfo === 'function') {
+                return this._pushToken_mgr.getInfo();
+            }
+        } catch { /* ignore */ }
+        return { available: false };
+    }
+
     handleIncomingPush(info) {
         // Explicitly signed out: refuse invite pushes (the payload alone could
         // join the call — see _signedOut above). Dismiss the natively-reported
@@ -337,6 +354,29 @@ export default class extends EventEmitter {
     /** @deprecated Renamed to handleIncomingPush(). Kept as an alias. */
     livekitIncoming(info) {
         return this.handleIncomingPush(info);
+    }
+
+    /**
+     * Set the display name of the RINGING call.
+     *
+     * The platform only knows the caller's number. An app that keeps its own
+     * contacts (a CRM, a local database) can resolve the real name and hand
+     * it over here — the ring notification and the OS call UI then show
+     * "Priya Sharma" instead of "+91 12031 34091". The notification is
+     * updated in place: no new heads-up, no re-ring, and the "— <team>" suffix
+     * of a team call is kept.
+     *
+     * Best effort: no-op when no call is ringing, or when the native layer
+     * does not support it.
+     *
+     * @param {string} name the resolved caller name
+     * @returns {boolean} true when the name was handed to the native layer
+     */
+    setIncomingCallName( name ) {
+        if ( this._callkeep && typeof this._callkeep.setIncomingCallName === 'function' ) {
+            return this._callkeep.setIncomingCallName( name );
+        }
+        return false;
     }
 
 
@@ -455,16 +495,32 @@ export default class extends EventEmitter {
 
     sendDtmf(no) {
         let _this = this;
+        // LiveKit (room) call: there is no SIP session behind it, so send the
+        // tones through the room instead. The LiveKit SIP bridge relays them to
+        // the PSTN leg as DTMF; a room with no SIP participant just ignores them.
+        if (_this._livekit && typeof _this._livekit.sendDtmf === 'function' && _this._livekit.isCall(null)) {
+            return _this._livekit.sendDtmf(no);
+        }
         userAgent.dtmf(no, _this);
     }
 
     hold() {
         let _this = this;
+        // LiveKit (room) call: there is no SIP session to put on hold, so hold
+        // locally — stop publishing mic audio and keep the room joined. Without
+        // this branch every hold tap raised { code: 1002, status: 'call not
+        // found' } and the button did nothing.
+        if (_this._livekit && typeof _this._livekit.setHold === 'function' && _this._livekit.isCall(null)) {
+            return _this._livekit.setHold(true);
+        }
         userAgent.hold(_this);
     }
 
     unHold() {
         let _this = this;
+        if (_this._livekit && typeof _this._livekit.setHold === 'function' && _this._livekit.isCall(null)) {
+            return _this._livekit.setHold(false);
+        }
         userAgent.unhold(_this);
     }
 
@@ -497,6 +553,47 @@ export default class extends EventEmitter {
         return userAgent.speaker(on, _this);
     }
 
+    /**
+     * True when this app's Android PhoneAccount is registered AND enabled.
+     * System-managed ConnectionService calls only show UI when enabled —
+     * Realme/OPPO ODialer hides the Settings entry, so the account stays
+     * disabled and bg/killed calls silently show nothing. Check after login
+     * and prompt with openPhoneAccounts() when false. iOS/web: always true.
+     * @returns {Promise<boolean>}
+     */
+    async hasPhoneAccount() {
+        try {
+            if (this._callkeep && typeof this._callkeep.hasPhoneAccount === 'function') {
+                return !!(await this._callkeep.hasPhoneAccount());
+            }
+        } catch { /* ignore */ }
+        return true;
+    }
+
+    /**
+     * Alias of hasPhoneAccount().
+     * @returns {Promise<boolean>}
+     */
+    checkPhoneAccountEnabled() {
+        return this.hasPhoneAccount();
+    }
+
+    /**
+     * Open the system Calling-accounts screen so the user can enable this app.
+     * Deep-links straight to Telecom (ACTION_CHANGE_PHONE_ACCOUNTS), bypassing
+     * the Settings entry that Realme/ColorOS hides. Android only; no-op
+     * (false) on iOS/web.
+     * @returns {Promise<boolean>} true if a settings intent was fired
+     */
+    openPhoneAccounts() {
+        try {
+            if (this._callkeep && typeof this._callkeep.openPhoneAccounts === 'function') {
+                return this._callkeep.openPhoneAccounts();
+            }
+        } catch { /* ignore */ }
+        return Promise.resolve(false);
+    }
+
     isLogedIn() {
         let _this = this;
         return userAgent.islogedin(_this);
@@ -509,6 +606,9 @@ export default class extends EventEmitter {
 
     onHold() {
         let _this = this;
+        if (_this._livekit && typeof _this._livekit.isHeld === 'function' && _this._livekit.isCall(null)) {
+            return _this._livekit.isHeld();
+        }
         return userAgent.onhold(_this);
     }
 
@@ -526,6 +626,22 @@ export default class extends EventEmitter {
             return _this._livekit.isSpeakerOn();
         }
         return userAgent.onspeaker(_this);
+    }
+
+    /**
+     * Whether the current inbound (LiveKit room) call has joined and the
+     * `answered` event has fired. Useful for a call UI that mounts AFTER the
+     * answer (e.g. an in-app call screen rendered on `answered`): it can start
+     * in the connected state instead of waiting for an event it already missed.
+     * @returns {boolean}
+     */
+    isCallAnswered() {
+        try {
+            if (this._livekit && typeof this._livekit.isAnswered === 'function') {
+                return !!this._livekit.isAnswered();
+            }
+        } catch { /* ignore */ }
+        return false;
     }
 
     transfer(to, callback) {
