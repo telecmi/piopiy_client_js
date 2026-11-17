@@ -138,16 +138,16 @@ class RNCallKeep {
     options = null
   ) => {
     if (!isIOS) {
-      // selfManaged (per call, independent of hasVideo) puts the call on the
-      // self-managed account so the app shows its own ring/in-call surfaces.
-      const selfManaged = !!(options && options.selfManaged);
-      // How the ring surface labels the call ("contact" | "team" | "video").
-      // Only the app knows team vs contact, so it rides the same options bag.
-      const callKind = options && options.callKind ? String(options.callKind) : '';
-      if (callKind && typeof RNCallKeepModule.displayIncomingCallWithOptionsAndKind === 'function') {
-        RNCallKeepModule.displayIncomingCallWithOptionsAndKind(uuid, handle, localizedCallerName, hasVideo, selfManaged, callKind);
+      if (options && typeof RNCallKeepModule.displayIncomingCallWithOptions === 'function') {
+        RNCallKeepModule.displayIncomingCallWithOptions(
+          uuid,
+          handle,
+          localizedCallerName,
+          hasVideo,
+          options
+        );
       } else {
-        RNCallKeepModule.displayIncomingCallWithOptions(uuid, handle, localizedCallerName, hasVideo, selfManaged);
+        RNCallKeepModule.displayIncomingCall(uuid, handle, localizedCallerName, hasVideo);
       }
       return;
     }
@@ -328,6 +328,34 @@ class RNCallKeep {
     RNCallKeepModule.setActivityShowWhenLocked(show);
   };
 
+  // Android: a caller name resolved after the ring started — updates the
+  // ring notification and the full-screen ring UI in place.
+  updateIncomingCallName = (uuid, name) => {
+    if (isIOS) {
+      return;
+    }
+
+    RNCallKeepModule.updateIncomingCallName(uuid, name);
+  };
+
+  // Android: "Display over other apps" permission, needed so incoming calls
+  // can show over the lock screen. Resolves false on iOS.
+  canDrawOverlays = () => {
+    if (isIOS) {
+      return Promise.resolve(false);
+    }
+
+    return RNCallKeepModule.canDrawOverlays();
+  };
+
+  openOverlaySettings = () => {
+    if (isIOS) {
+      return;
+    }
+
+    RNCallKeepModule.openOverlaySettings();
+  };
+
   updateDisplay = (uuid, displayName, handle, options = null) => {
     if (!isIOS) {
       RNCallKeepModule.updateDisplay(uuid, displayName, handle);
@@ -341,28 +369,6 @@ class RNCallKeep {
       };
     }
     RNCallKeepModule.updateDisplay(uuid, displayName, handle, iosOptions);
-  };
-
-  /**
-   * Update the caller name of a RINGING call — e.g. a name the app resolved
-   * from its own contacts database, since the platform only knows the
-   * caller's number. The ring notification is updated IN PLACE (same tag+id):
-   * no new heads-up, no second ringtone, and the Answer/Decline actions keep
-   * working. The OS call UI (when one is showing) is updated too.
-   */
-  updateIncomingCallName = (uuid, callerName) => {
-    if (!uuid || !callerName) return;
-    RNCallKeepModule.updateIncomingCallName(uuid, callerName);
-  };
-
-  /**
-   * Route the app's call audio to the loudspeaker (true) or back to the
-   * default route (false). On Android 12+ this sets the COMMUNICATION DEVICE
-   * explicitly — the legacy setSpeakerphoneOn() is ignored for apps that are
-   * not the default dialer, so the WebRTC audio would stay on the earpiece.
-   */
-  setSpeakerOn = (on) => {
-    RNCallKeepModule.setSpeakerOn(!!on);
   };
 
   setOnHold = (uuid, shouldHold) => RNCallKeepModule.setOnHold(uuid, shouldHold);
@@ -395,13 +401,7 @@ class RNCallKeep {
   _setupAndroid = async (options) => {
     RNCallKeepModule.setup(options);
 
-    // Skip the managed-account "enable in Settings" prompt when the app uses
-    // the self-managed account (globally, or for voice via selfManagedVoice):
-    // self-managed accounts are enabled by default and need no toggle. Also
-    // skipped on request (skipAccountAlert) for apps whose calls ALL go through
-    // the self-managed account (e.g. per-call selfManaged by hasVideo): the
-    // managed account stays registered but unused, so the prompt is only noise.
-    if (options.selfManaged || options.selfManagedVoice || options.skipAccountAlert) {
+    if (options.selfManaged) {
       return false;
     }
 

@@ -334,16 +334,21 @@ export default class CallKeepBridge {
                     ...( ck.ios || {} ),
                 },
                 android: {
-                    alertTitle: 'Permissions required',
-                    alertDescription: 'This app needs access to manage phone calls to show incoming calls.',
-                    cancelButton: 'Cancel',
-                    okButton: 'OK',
                     // With selfManagedVoice the inbound voice calls use the
-                    // SELF-MANAGED account, which Android enables by default —
-                    // so tell CallKeep to skip its managed-account prompt. Do
-                    // NOT set `selfManaged` here: that would flip the global
-                    // account kind and disturb a co-resident video SDK.
-                    ...( this.selfManagedVoice ? { selfManagedVoice: true } : {} ),
+                    // SELF-MANAGED account, which Android enables by default, so
+                    // no calling-account prompt is needed. CallKeep only shows its
+                    // "Permissions required" alert when `selfManaged` is false, so
+                    // set it (the native module treats selfManaged and
+                    // selfManagedVoice the same; the video SDK already sets it) and
+                    // leave the alert strings out. System-managed configs keep them.
+                    ...( this.selfManagedVoice
+                        ? { selfManaged: true, selfManagedVoice: true }
+                        : {
+                            alertTitle: 'Permissions required',
+                            alertDescription: 'This app needs access to manage phone calls to show incoming calls.',
+                            cancelButton: 'Cancel',
+                            okButton: 'OK',
+                        } ),
                     foregroundService: {
                         channelId: 'com.piopiy.callkeep',
                         channelName: 'PIOPIY incoming calls',
@@ -357,6 +362,11 @@ export default class CallKeepBridge {
                     RNCallKeep.registerPhoneAccount();
                     RNCallKeep.registerAndroidEvents();
                 }
+                // Let the video SDK know CallKeep is already configured, so its
+                // own setup() does not overwrite this self-managed voice config.
+                try {
+                    globalThis.__telecmiCallKeepConfigured = true;
+                } catch { /* best effort */ }
             } ).catch( () => { } );
         } catch {
             // setup failed (native side not linked yet) — leave the bridge inert.
@@ -444,6 +454,9 @@ export default class CallKeepBridge {
                 // pass true to put this call on the self-managed account and get
                 // the app's own ring/in-call surfaces instead of the OS InCall UI.
                 const useSelfManaged = Platform.OS === 'android' && this.selfManagedVoice;
+                // The React component the native in-call surface mounts for a
+                // voice call (callKeep.android.voiceInCallComponent).
+                const voiceComponent = ( this.config && this.config.android && this.config.android.voiceInCallComponent ) || 'PiopiyInCallShell';
                 if ( isLiveKit && d.call_id && Platform.OS === 'ios' ) {
                     // iOS push inbound: CallKit is ALREADY ringing — the
                     // AppDelegate reported the call before JS booted (iOS
@@ -462,13 +475,13 @@ export default class CallKeepBridge {
                     if ( !useSelfManaged ) {
                         this._warnIfAccountDisabled( 'android push call' );
                     }
-                    RNCallKeep.displayIncomingCall( this.currentCallUUID, from, display, 'number', false, { selfManaged: useSelfManaged, callKind } );
+                    RNCallKeep.displayIncomingCall( this.currentCallUUID, from, display, 'number', useSelfManaged, { selfManaged: useSelfManaged, callKind, component: voiceComponent } );
                 } else {
                     this.currentCallUUID = uuidv4();
                     if ( !useSelfManaged ) {
                         this._warnIfAccountDisabled( 'android incoming call' );
                     }
-                    RNCallKeep.displayIncomingCall( this.currentCallUUID, from, display, 'number', false, { selfManaged: useSelfManaged, callKind } );
+                    RNCallKeep.displayIncomingCall( this.currentCallUUID, from, display, 'number', useSelfManaged, { selfManaged: useSelfManaged, callKind, component: voiceComponent } );
                 }
 
                 // iOS only: refresh the already-ringing CallKit screen with the

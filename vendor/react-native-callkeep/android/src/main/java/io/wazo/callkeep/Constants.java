@@ -23,19 +23,20 @@ public class Constants {
     public static final String EXTRA_CALL_UUID = "EXTRA_CALL_UUID";
     public static final String EXTRA_CALLER_NAME = "EXTRA_CALLER_NAME";
     public static final String EXTRA_HAS_VIDEO = "EXTRA_HAS_VIDEO";
-    // Per-call self-managed flag (independent of hasVideo) so a voice call can
-    // be self-managed while video still keys off hasVideo. Plus the React
-    // component the ring/in-call surface must mount for this call type.
-    public static final String EXTRA_SELF_MANAGED = "EXTRA_SELF_MANAGED";
-    public static final String EXTRA_IN_CALL_COMPONENT = "EXTRA_IN_CALL_COMPONENT";
     public static final String EXTRA_PAYLOAD = "EXTRA_PAYLOAD";
-    // "contact" | "team" | "video" — how the ring surface labels this call.
-    // Video is also derivable from EXTRA_HAS_VIDEO, but team vs contact is
-    // only known to the JS side (the SIP X-Team-Name header / the push's
-    // `team` field), so it is passed down per call.
+    /** React component the standalone in-call surface must mount after answer.
+     *  Voice calls pass 'PiopiyInCallShell'; video calls leave it unset and the
+     *  surface falls back to 'ConnleInCallShell'. */
+    public static final String EXTRA_IN_CALL_COMPONENT = "EXTRA_IN_CALL_COMPONENT";
+    /** 'team' for team calls, 'contact' for 1:1/PSTN contact calls. */
     public static final String EXTRA_CALL_KIND = "EXTRA_CALL_KIND";
     // Can't use telecom.EXTRA_DISABLE_ADD_CALL ...
     public static final String EXTRA_DISABLE_ADD_CALL = "android.telecom.extra.DISABLE_ADD_CALL";
 
     public static final int FOREGROUND_SERVICE_TYPE_MICROPHONE = 128;
+    /** API 34+: a call foreground service that does NOT require RECORD_AUDIO.
+     *  The ringing phase must start before the user grants the microphone,
+     *  so the ConnectionService uses phoneCall (microphone is added only when
+     *  the app actually captures audio). */
+    public static final int FOREGROUND_SERVICE_TYPE_PHONE_CALL = 4;
 }

@@ -55,14 +55,13 @@ final class InCallReactSurface {
     }
 
     /** Attach the React in-call screen to the activity. Returns null when the
-     *  React runtime isn't reachable (fallback: native timer shell).
-     *  @param appKey component name to mount (video vs self-managed voice);
-     *                falls back to the default when null. */
-    static InCallReactSurface attach(Activity activity, String appKey, String uuid, String name) {
-        final String key = (appKey != null && !appKey.isEmpty()) ? appKey : APP_KEY;
+     *  React runtime isn't reachable (fallback: native timer shell). */
+    static InCallReactSurface attach(Activity activity, String uuid, String name, String componentName) {
         try {
             Object app = activity.getApplication();
             if (!(app instanceof ReactApplication)) return null;
+
+            String appKey = (componentName == null || componentName.isEmpty()) ? APP_KEY : componentName;
 
             Bundle props = new Bundle();
             props.putString("uuid", uuid);
@@ -71,7 +70,7 @@ final class InCallReactSurface {
             // Bridgeless (RN 0.76+ default): a ReactSurface on our activity.
             ReactHost reactHost = ((ReactApplication) app).getReactHost();
             if (reactHost != null) {
-                ReactSurface s = reactHost.createSurface(activity, key, props);
+                ReactSurface s = reactHost.createSurface(activity, appKey, props);
                 if (s != null) {
                     s.start();
                     ViewGroup view = s.getView();
@@ -91,7 +90,7 @@ final class InCallReactSurface {
             ReactNativeHost rnHost = ((ReactApplication) app).getReactNativeHost();
             if (rnHost != null) {
                 ReactRootView root = new ReactRootView(activity);
-                root.startReactApplication(rnHost.getReactInstanceManager(), key, props);
+                root.startReactApplication(rnHost.getReactInstanceManager(), appKey, props);
                 activity.setContentView(root);
                 InCallReactSurface r = new InCallReactSurface();
                 r.rootView = root;

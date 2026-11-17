@@ -41,9 +41,8 @@ public class IncomingCallActionReceiver extends BroadcastReceiver {
                     inCall.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
                     inCall.putExtra(Constants.EXTRA_CALL_UUID, uuid);
                     inCall.putExtra(IncomingCallActivity.EXTRA_NAME, intent.getStringExtra(IncomingCallActivity.EXTRA_NAME));
+                    inCall.putExtra(Constants.EXTRA_IN_CALL_COMPONENT, intent.getStringExtra(Constants.EXTRA_IN_CALL_COMPONENT));
                     inCall.putExtra(IncomingCallActivity.EXTRA_ANSWERED, true);
-                    String comp = intent.getStringExtra(Constants.EXTRA_IN_CALL_COMPONENT);
-                    if (comp != null) inCall.putExtra(Constants.EXTRA_IN_CALL_COMPONENT, comp);
                     context.startActivity(inCall);
                 }
             } else if (IncomingCallNotification.ACTION_NOTIFICATION_DECLINE.equals(action)) {

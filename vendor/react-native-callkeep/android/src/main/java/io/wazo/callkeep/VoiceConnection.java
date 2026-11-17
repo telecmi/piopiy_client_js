@@ -39,9 +39,6 @@ import java.util.HashMap;
 
 import static io.wazo.callkeep.Constants.ACTION_ANSWER_CALL;
 import static io.wazo.callkeep.Constants.EXTRA_HAS_VIDEO;
-import static io.wazo.callkeep.Constants.EXTRA_SELF_MANAGED;
-import static io.wazo.callkeep.Constants.EXTRA_IN_CALL_COMPONENT;
-import static io.wazo.callkeep.Constants.EXTRA_CALL_KIND;
 import static io.wazo.callkeep.Constants.ACTION_AUDIO_SESSION;
 import static io.wazo.callkeep.Constants.ACTION_DTMF_TONE;
 import static io.wazo.callkeep.Constants.ACTION_END_CALL;
@@ -52,6 +49,7 @@ import static io.wazo.callkeep.Constants.ACTION_UNMUTE_CALL;
 import static io.wazo.callkeep.Constants.EXTRA_CALLER_NAME;
 import static io.wazo.callkeep.Constants.EXTRA_CALL_NUMBER;
 import static io.wazo.callkeep.Constants.EXTRA_CALL_UUID;
+import static io.wazo.callkeep.Constants.EXTRA_IN_CALL_COMPONENT;
 import static io.wazo.callkeep.Constants.ACTION_SHOW_INCOMING_CALL_UI;
 import static io.wazo.callkeep.Constants.ACTION_ON_SILENCE_INCOMING_CALL;
 import static io.wazo.callkeep.Constants.ACTION_DID_CHANGE_AUDIO_ROUTE;
@@ -363,30 +361,27 @@ public class VoiceConnection extends Connection {
     @Override
     public void onShowIncomingCallUi() {
         Log.d(TAG, "[VoiceConnection] onShowIncomingCallUi");
-        // The custom ring surfaces (full-screen IncomingCallActivity + CallStyle
-        // notification + the React in-call screen) are shown for SELF-MANAGED
-        // calls: video (hasVideo=true) and, since the per-call self-managed flag
-        // was added, self-managed VOICE too. System-managed voice keeps upstream
-        // behavior (JS event only; no app surface).
+        // The custom ring surfaces (full-screen IncomingCallActivity +
+        // CallStyle notification + the React in-call screen) belong to VIDEO
+        // calls only — the connle-video SDK displays every call with
+        // hasVideo=true. VOICE calls (the piopiy SDK, hasVideo=false) keep
+        // upstream behavior: the JS event below, and the voice SDK/app owns
+        // its own ring UI. Without this gate, a shared callkeep in a
+        // voice+video app dressed voice calls in the video screens.
         // Self-managed mode: Android shows NO system call UI — this native
         // notification (CallStyle on 12+) is the ring, and it works even when
-        // the app process was just spawned for the push (no JS yet).
+        // the app process was just spawned for the push (no JS yet). VIDEO
+        // calls additionally get the full-screen call surface; VOICE calls get
+        // the notification only, so they can never ring invisibly but also
+        // never inherit the video UI.
         boolean hasVideo = Boolean.parseBoolean(handle.get(EXTRA_HAS_VIDEO));
-        boolean selfManaged = Boolean.parseBoolean(handle.get(EXTRA_SELF_MANAGED));
-        boolean withCallScreen = hasVideo || selfManaged;
-        String component = handle.get(EXTRA_IN_CALL_COMPONENT);
-        // "contact" | "team" from the JS bridge; video is known here. Drives the
-        // ring surface's subtitle (a contact call also shows the number) — the
-        // reverse of the old hardcoded "Incoming video call", which announced
-        // every call as video.
-        String callKind = handle.get(EXTRA_CALL_KIND);
+        String inCallComponent = handle.get(EXTRA_IN_CALL_COMPONENT);
         IncomingCallNotification.show(context,
                 handle.get(EXTRA_CALL_UUID),
                 handle.get(EXTRA_CALLER_NAME),
                 handle.get(EXTRA_CALL_NUMBER),
-                withCallScreen,
-                component,
-                IncomingCallNotification.callSubtitle(hasVideo, callKind, handle.get(EXTRA_CALL_NUMBER)));
+                hasVideo,
+                inCallComponent);
         sendCallRequestToActivity(ACTION_SHOW_INCOMING_CALL_UI, handle);
     }
 

@@ -70,9 +70,8 @@ import static io.wazo.callkeep.Constants.EXTRA_CALL_NUMBER;
 import static io.wazo.callkeep.Constants.EXTRA_CALL_NUMBER_SCHEMA;
 import static io.wazo.callkeep.Constants.EXTRA_CALL_UUID;
 import static io.wazo.callkeep.Constants.EXTRA_HAS_VIDEO;
-import static io.wazo.callkeep.Constants.EXTRA_SELF_MANAGED;
 import static io.wazo.callkeep.Constants.EXTRA_DISABLE_ADD_CALL;
-import static io.wazo.callkeep.Constants.FOREGROUND_SERVICE_TYPE_MICROPHONE;
+import static io.wazo.callkeep.Constants.FOREGROUND_SERVICE_TYPE_PHONE_CALL;
 import static io.wazo.callkeep.Constants.ACTION_ON_CREATE_CONNECTION_FAILED;
 
 // @see https://github.com/kbagchiGWC/voice-quickstart-android/blob/9a2aff7fbe0d0a5ae9457b48e9ad408740dfb968/exampleConnectionService/src/main/java/com/twilio/voice/examples/connectionservice/VoiceConnectionService.java
@@ -158,17 +157,7 @@ public class VoiceConnectionService extends ConnectionService {
         Log.d(TAG, "[VoiceConnectionService] deinitConnection:" + connectionId);
         VoiceConnectionService.hasOutgoingCall = false;
 
-        // Stop the foreground service with the LAST connection, so its ongoing
-        // notification does not outlive the call. Guarded: the service
-        // instance can be gone already (process restart between call and
-        // teardown), and a null here used to throw inside the teardown.
-        try {
-            if (currentConnectionService != null) {
-                currentConnectionService.stopForegroundService();
-            }
-        } catch (Throwable t) {
-            Log.w(TAG, "[VoiceConnectionService] stopForegroundService on teardown failed: " + t);
-        }
+        currentConnectionService.stopForegroundService();
 
         if (currentConnections.containsKey(connectionId)) {
             currentConnections.remove(connectionId);
@@ -217,18 +206,6 @@ public class VoiceConnectionService extends ConnectionService {
         Connection incomingCallConnection = createConnection(request);
         incomingCallConnection.setRinging();
         incomingCallConnection.setInitialized();
-
-        // A self-managed connection MUST be marked as a VOIP call (the outgoing
-        // path already does). Without it Android treats the app as being in a
-        // CELLULAR call: the call policy then owns the communication device and
-        // pins it to the earpiece — the app's speaker toggle
-        // (AudioManager.setCommunicationDevice) is accepted by the system but
-        // immediately overridden, and the call always plays through the
-        // earpiece. With VOIP mode the app controls the route and the speaker
-        // button works.
-        try {
-            incomingCallConnection.setAudioModeIsVoip(true);
-        } catch (Throwable ignored) { }
 
         startForegroundService();
 
@@ -357,15 +334,8 @@ public class VoiceConnectionService extends ConnectionService {
         manager.createNotificationChannel(chan);
 
         NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID);
-        // A foreground-service notification WITHOUT a title is replaced by
-        // Android with its own "<app> is running" notification, so never build
-        // one without a title.
-        String notificationTitle = foregroundSettings.getString("notificationTitle");
-        if (notificationTitle == null || notificationTitle.trim().isEmpty()) {
-            notificationTitle = "Call in progress";
-        }
         notificationBuilder.setOngoing(true)
-            .setContentTitle(notificationTitle)
+            .setContentTitle(foregroundSettings.getString("notificationTitle"))
             .setPriority(NotificationManager.IMPORTANCE_MIN)
             .setCategory(Notification.CATEGORY_SERVICE);
 
@@ -401,26 +371,11 @@ public class VoiceConnectionService extends ConnectionService {
             notificationBuilder.setContentIntent(pendingIntent);
         }
 
-        // Small icon: `notificationIcon` is optional in the SDK config (and
-        // missing when a second SDK's setup overwrote the shared settings), but
-        // a foreground-service notification WITHOUT a small icon is INVALID:
-        // Android logs "Attempted to start a foreground service … with a broken
-        // notification (no icon)" and shows its own "<app> is running"
-        // notification instead. Fall back to the app icon to keep it valid.
-        int smallIconRes = 0;
         if (foregroundSettings.hasKey("notificationIcon")) {
             Context context = this.getApplicationContext();
             Resources res = context.getResources();
             String smallIcon = foregroundSettings.getString("notificationIcon");
-            smallIconRes = res.getIdentifier(smallIcon, "mipmap", context.getPackageName());
-        }
-        if (smallIconRes == 0) {
-            try {
-                smallIconRes = getApplicationInfo().icon;
-            } catch (Throwable ignored) { }
-        }
-        if (smallIconRes != 0) {
-            notificationBuilder.setSmallIcon(smallIconRes);
+            notificationBuilder.setSmallIcon(res.getIdentifier(smallIcon, "mipmap", context.getPackageName()));
         }
 
         Log.d(TAG, "[VoiceConnectionService] Starting foreground service");
@@ -428,7 +383,14 @@ public class VoiceConnectionService extends ConnectionService {
         Notification notification = notificationBuilder.build();
 
         try {
-            startForeground(FOREGROUND_SERVICE_TYPE_MICROPHONE, notification);
+            // phoneCall (not microphone): the ringing phase starts before the
+            // user grants RECORD_AUDIO, and a microphone FGS is rejected on
+            // Android 14+ (targetSdk 34+) without that runtime permission.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(FOREGROUND_SERVICE_TYPE_PHONE_CALL, notification);
+            } else {
+                startForeground(NOTIFICATION_ID, notification);
+            }
         } catch (Exception e) {
             Log.w(TAG, "[VoiceConnectionService] Can't start foreground service : " + e.toString());
         }
@@ -436,20 +398,17 @@ public class VoiceConnectionService extends ConnectionService {
 
     private void stopForegroundService() {
         Log.d(TAG, "[VoiceConnectionService] stopForegroundService");
+        ReadableMap foregroundSettings = getForegroundSettings(null);
 
-        // Do NOT bail out when the settings no longer carry a foregroundService
-        // block: the service may have been started with an EARLIER set of
-        // settings (a second SDK's setup() overwrites the shared ones), and
-        // skipping the stop left the ongoing notification in the shade.
+        if (!this.isForegroundServiceConfigured()) {
+            Log.w(TAG, "[VoiceConnectionService] Not creating foregroundService because not configured");
+            return;
+        }
+
         try {
-            // stopForeground(int) takes FLAGS, not a notification/service-type
-            // id: passing FOREGROUND_SERVICE_TYPE_MICROPHONE (128) was an
-            // invalid flag value, so the service kept running and its ongoing
-            // notification stayed in the shade after the call ended.
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                stopForeground(STOP_FOREGROUND_REMOVE);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                stopForeground(FOREGROUND_SERVICE_TYPE_PHONE_CALL);
             } else {
-                // Pre-N: the boolean overload removes the notification too.
                 stopForeground(true);
             }
         } catch (Exception e) {
@@ -572,10 +531,6 @@ public class VoiceConnectionService extends ConnectionService {
                         selfManaged = Boolean.parseBoolean(extras.getString(EXTRA_HAS_VIDEO));
                     }
                 } catch (Throwable ignored) { }
-            }
-            // Per-call self-managed flag (voice) — independent of hasVideo.
-            if (extras.containsKey(EXTRA_SELF_MANAGED) && Boolean.parseBoolean(extras.getString(EXTRA_SELF_MANAGED))) {
-                selfManaged = true;
             }
             if (selfManaged) {
                 Log.d(TAG, "[VoiceConnectionService] connection is SELF_MANAGED");

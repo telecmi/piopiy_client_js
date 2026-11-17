@@ -19,6 +19,8 @@ package io.wazo.callkeep;
 import com.facebook.react.bridge.LifecycleEventListener;
 import android.Manifest;
 import android.app.Activity;
+import android.app.NotificationManager;
+import android.provider.Settings;
 import android.content.BroadcastReceiver;
 import android.app.KeyguardManager;
 import android.content.ComponentName;
@@ -88,10 +90,9 @@ import static io.wazo.callkeep.Constants.EXTRA_CALLER_NAME;
 import static io.wazo.callkeep.Constants.EXTRA_CALL_UUID;
 import static io.wazo.callkeep.Constants.EXTRA_CALL_NUMBER;
 import static io.wazo.callkeep.Constants.EXTRA_HAS_VIDEO;
-import static io.wazo.callkeep.Constants.EXTRA_SELF_MANAGED;
+import static io.wazo.callkeep.Constants.EXTRA_PAYLOAD;
 import static io.wazo.callkeep.Constants.EXTRA_IN_CALL_COMPONENT;
 import static io.wazo.callkeep.Constants.EXTRA_CALL_KIND;
-import static io.wazo.callkeep.Constants.EXTRA_PAYLOAD;
 import static io.wazo.callkeep.Constants.ACTION_END_CALL;
 import static io.wazo.callkeep.Constants.ACTION_ANSWER_CALL;
 import static io.wazo.callkeep.Constants.ACTION_MUTE_CALL;
@@ -173,7 +174,13 @@ public class RNCallKeepModule extends ReactContextBaseJavaModule implements Life
     // TWO SDKs, ONE MODULE: setup() overwrites the settings wholesale, so in an
     private boolean isSelfManaged() {
         try {
-            return Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && _settings != null && _settings.hasKey("selfManaged") && _settings.getBoolean("selfManaged");
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || _settings == null) return false;
+            if (_settings.hasKey("selfManaged") && _settings.getBoolean("selfManaged")) return true;
+            // The voice SDK opts in with `selfManagedVoice`; treat it as
+            // self-managed too so end/answer paths aren't blocked by the
+            // (user-enabled, often disabled) system-managed account.
+            if (_settings.hasKey("selfManagedVoice") && _settings.getBoolean("selfManagedVoice")) return true;
+            return false;
         } catch (Exception e) {
             return false;
         }
@@ -446,10 +453,37 @@ public class RNCallKeepModule extends ReactContextBaseJavaModule implements Life
         this.displayIncomingCall(uuid, number, callerName, false, null);
     }
 
-    // Not exported: TurboModule interop forbids duplicate @ReactMethod names
-    // (the exported one is the selfManaged overload below).
+    @ReactMethod
     public void displayIncomingCall(String uuid, String number, String callerName, boolean hasVideo) {
-        this.displayIncomingCall(uuid, number, callerName, hasVideo, false, null);
+        this.displayIncomingCall(uuid, number, callerName, hasVideo, null);
+    }
+
+    /**
+     * Same as displayIncomingCall, plus per-call UI options from the SDK that
+     * rang the call. The shared callkeep is used by BOTH the voice and video
+     * SDKs, so the standalone in-call surface must know which React component
+     * to mount: voice passes {@code component: 'PiopiyInCallShell'}, while the
+     * video SDK keeps calling the 4-arg method and gets 'ConnleInCallShell'.
+     */
+    @ReactMethod
+    public void displayIncomingCallWithOptions(String uuid, String number, String callerName, boolean hasVideo, ReadableMap options) {
+        Bundle payload = new Bundle();
+        if (options != null) {
+            if (options.hasKey("component") && !options.isNull("component")) {
+                payload.putString(EXTRA_IN_CALL_COMPONENT, options.getString("component"));
+            }
+            if (options.hasKey("callKind") && !options.isNull("callKind")) {
+                payload.putString(EXTRA_CALL_KIND, options.getString("callKind"));
+            }
+            if (options.hasKey("selfManaged")) {
+                try {
+                    payload.putBoolean("selfManaged", options.getBoolean("selfManaged"));
+                } catch (Throwable ignored) {
+                    // option shape changed — not fatal
+                }
+            }
+        }
+        this.displayIncomingCall(uuid, number, callerName, hasVideo, payload);
     }
 
     /** Process-start zombie purge, callable without a React context (the
@@ -501,71 +535,31 @@ public class RNCallKeepModule extends ReactContextBaseJavaModule implements Life
     }
 
     public void displayIncomingCall(String uuid, String number, String callerName, boolean hasVideo, @Nullable Bundle payload) {
-        this.displayIncomingCall(uuid, number, callerName, hasVideo, false, payload);
-    }
-
-    /** React component the ring/in-call surface mounts for this call type.
-     *  Video → videoInCallComponent; self-managed voice → voiceInCallComponent;
-     *  system-managed voice → null (no app surface). Configurable via setup(). */
-    private static String inCallComponent(boolean hasVideo, boolean selfManaged) {
-        if (hasVideo) return settingString("videoInCallComponent", "ConnleInCallShell");
-        if (selfManaged) return settingString("voiceInCallComponent", "PiopiyInCallShell");
-        return null;
-    }
-
-    private static String settingString(String key, String def) {
-        try {
-            if (_settings != null && _settings.hasKey(key)) {
-                String v = _settings.getString(key);
-                if (v != null && !v.isEmpty()) return v;
-            }
-        } catch (Throwable ignored) { }
-        return def;
-    }
-
-    /**
-     * Exported overload (unique name): the New Architecture interop rejects
-     * method overloading AND a `Bundle` parameter type, so this is the single
-     * JS-facing entry — a Bundle-free 5-arg wrapper over the internal helper.
-     * @param selfManaged per-call self-managed flag, INDEPENDENT of hasVideo.
-     */
-    @ReactMethod
-    public void displayIncomingCallWithOptions(String uuid, String number, String callerName, boolean hasVideo, boolean selfManaged) {
-        this.displayIncomingCall(uuid, number, callerName, hasVideo, selfManaged, null);
-    }
-
-    /**
-     * Same as {@link #displayIncomingCallWithOptions} plus how the ring surface
-     * should label the call: "contact" (1:1/PSTN) also shows the number,
-     * "team" keeps the plain generic label, "video" says video.
-     *
-     * A separate @ReactMethod on purpose: the New Architecture rejects two
-     * exports with the same name (and a Bundle parameter type), so this is a
-     * flat 6-arg method rather than another displayIncomingCall overload.
-     */
-    @ReactMethod
-    public void displayIncomingCallWithOptionsAndKind(String uuid, String number, String callerName, boolean hasVideo, boolean selfManaged, @Nullable String callKind) {
-        this.displayIncomingCall(uuid, number, callerName, hasVideo, selfManaged, null, callKind);
-    }
-
-    /**
-     * @param selfManaged per-call self-managed flag, INDEPENDENT of hasVideo, so
-     *  a voice call can be self-managed while video still keys off hasVideo.
-     *  When either is true the call uses the self-managed account and the app's
-     *  own ring/in-call surfaces; the component mounted is chosen per type.
-     */
-    public void displayIncomingCall(String uuid, String number, String callerName, boolean hasVideo, boolean selfManaged, @Nullable Bundle payload) {
-        displayIncomingCall(uuid, number, callerName, hasVideo, selfManaged, payload, null);
-    }
-
-    public void displayIncomingCall(String uuid, String number, String callerName, boolean hasVideo, boolean selfManaged, @Nullable Bundle payload, @Nullable String callKind) {
         if (!isConnectionServiceAvailable()) {
             Log.w(TAG, "[RNCallKeepModule] displayIncomingCall ignored due to no ConnectionService");
             return;
         }
 
-        boolean useSelfManaged = selfManaged || hasVideo;
-        PhoneAccountHandle targetHandle = (useSelfManaged && handleSelfManaged != null) ? handleSelfManaged : handle;
+        // Android 14+: self-managed calls show their own ring screen via a
+        // full-screen intent. When that permission is missing (or revoked) the
+        // system would otherwise show nothing on the lock screen, so fall back
+        // to the system-managed account, whose OS incoming-call UI is shown by
+        // the default dialer without full-screen-intent access.
+        boolean effectiveHasVideo = hasVideo;
+        if (hasVideo && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            try {
+                NotificationManager nm = (NotificationManager) this.reactContext.getSystemService(Context.NOTIFICATION_SERVICE);
+                boolean fsiAllowed = (nm == null) || nm.canUseFullScreenIntent();
+                boolean overlayGranted = (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) || android.provider.Settings.canDrawOverlays(this.reactContext);
+                if (!fsiAllowed && !overlayGranted) {
+                    effectiveHasVideo = false;
+                    Log.w(TAG, "[RNCallKeepModule] FSI+overlay not allowed — falling back to system-managed call");
+                }
+            } catch (Throwable t) {
+                // keep self-managed on uncertainty
+            }
+        }
+        PhoneAccountHandle targetHandle = (effectiveHasVideo && handleSelfManaged != null) ? handleSelfManaged : handle;
 
         if (targetHandle == handle && !hasPhoneAccount()) {
             Log.w(TAG, "[RNCallKeepModule] displayIncomingCall ignored due to no phone account");
@@ -578,7 +572,7 @@ public class RNCallKeepModule extends ReactContextBaseJavaModule implements Life
             return;
         }
 
-        Log.d(TAG, "[RNCallKeepModule] displayIncomingCall, uuid: " + uuid + ", number: " + number + ", callerName: " + callerName + ", hasVideo: " + hasVideo + ", selfManaged: " + useSelfManaged + ", targetHandle: " + targetHandle);
+        Log.d(TAG, "[RNCallKeepModule] displayIncomingCall, uuid: " + uuid + ", number: " + number + ", callerName: " + callerName + ", hasVideo: " + hasVideo + ", targetHandle: " + targetHandle);
 
         Bundle extras = new Bundle();
         Uri uri = Uri.fromParts(PhoneAccount.SCHEME_TEL, number, null);
@@ -587,58 +581,24 @@ public class RNCallKeepModule extends ReactContextBaseJavaModule implements Life
         extras.putString(EXTRA_CALLER_NAME, callerName);
         extras.putString(EXTRA_CALL_UUID, uuid);
         extras.putString(EXTRA_HAS_VIDEO, String.valueOf(hasVideo));
-        extras.putString(EXTRA_SELF_MANAGED, String.valueOf(useSelfManaged));
-        String component = inCallComponent(hasVideo, useSelfManaged);
-        if (component != null) {
-            extras.putString(EXTRA_IN_CALL_COMPONENT, component);
-        }
         if (payload != null) {
             extras.putBundle(EXTRA_PAYLOAD, payload);
+            // The standalone in-call surface reads these off the Telecom
+            // connection extras (VoiceConnection -> IncomingCallActivity).
+            String inCallComponent = payload.getString(EXTRA_IN_CALL_COMPONENT);
+            if (inCallComponent != null) {
+                extras.putString(EXTRA_IN_CALL_COMPONENT, inCallComponent);
+            }
+            String callKind = payload.getString(EXTRA_CALL_KIND);
+            if (callKind != null) {
+                extras.putString(EXTRA_CALL_KIND, callKind);
+            }
         }
-        // How the ring surface labels this call (see displayIncomingCallWithOptionsAndKind).
-        if (callKind != null && !callKind.isEmpty()) {
-            extras.putString(EXTRA_CALL_KIND, callKind);
-        }
-        if (useSelfManaged) {
+        if (hasVideo) {
             sweepZombieCalls(); // clear any orphaned RINGING calls first
         }
-        // A RINGING connection that lingers blocks EVERY later call: Android
-        // refuses the new one with MAX_RINGING_CALLS ("createConnectionFailed"),
-        // so the agent sees no incoming call at all. A leftover RINGING
-        // connection is always stale (the platform rings one call at a time per
-        // agent) — drop it before the new call is added.
-        sweepStaleRingingCalls();
         this.listenToNativeCallsState();
         telecomManager.addNewIncomingCall(targetHandle, extras);
-    }
-
-    /**
-     * Drop leftover RINGING/DIALING connections before a new call is added.
-     * Android allows only a couple of simultaneous ringing calls per phone
-     * account (often ONE for a self-managed account) and refuses the next one
-     * with MAX_RINGING_CALLS — so a single stale connection left behind by a
-     * cancelled call silences every later incoming call.
-     */
-    private void sweepStaleRingingCalls() {
-        try {
-            ArrayList<Map.Entry<String, VoiceConnection>> stale =
-                new ArrayList<Map.Entry<String, VoiceConnection>>(VoiceConnectionService.currentConnections.entrySet());
-            for (Map.Entry<String, VoiceConnection> entry : stale) {
-                Connection conn = entry.getValue();
-                if (conn == null) continue;
-                int state = conn.getState();
-                if (state == Connection.STATE_RINGING || state == Connection.STATE_DIALING) {
-                    Log.w(TAG, "[RNCallKeepModule] sweepStaleRingingCalls: dropping stale call " + entry.getKey());
-                    try {
-                        conn.onDisconnect();
-                    } catch (Throwable t) {
-                        Log.w(TAG, "[RNCallKeepModule] sweepStaleRingingCalls: onDisconnect failed: " + t);
-                    }
-                }
-            }
-        } catch (Throwable t) {
-            Log.w(TAG, "[RNCallKeepModule] sweepStaleRingingCalls failed: " + t);
-        }
     }
 
     @ReactMethod
@@ -700,14 +660,12 @@ public class RNCallKeepModule extends ReactContextBaseJavaModule implements Life
     @ReactMethod
     public void endCall(String uuid) {
         Log.d(TAG, "[RNCallKeepModule] endCall called, uuid: " + uuid);
-        // A live connection is ours to tear down — the managed "calling
-        // account" toggle must NOT gate this. A SELF-MANAGED call (per-call
-        // `selfManaged` / `selfManagedVoice`) works while the managed account
-        // is still disabled in Settings, and this guard used to abort the
-        // teardown: the Telecom connection stayed RINGING forever, and
-        // Android then refused the NEXT call with MAX_RINGING_CALLS — the
-        // agent saw no incoming call at all.
-        Connection conn = (uuid != null) ? VoiceConnectionService.getConnection(uuid) : null;
+        if (!isConnectionServiceAvailable()) {
+            Log.w(TAG, "[RNCallKeepModule] endCall ignored due to no ConnectionService");
+            return;
+        }
+
+        Connection conn = VoiceConnectionService.getConnection(uuid);
         if (conn == null) {
             Log.w(TAG, "[RNCallKeepModule] endCall ignored because no connection found, uuid: " + uuid);
             return;
@@ -724,17 +682,16 @@ public class RNCallKeepModule extends ReactContextBaseJavaModule implements Life
     @ReactMethod
     public void endAllCalls() {
         Log.d(TAG, "[RNCallKeepModule] endAllCalls called");
-        // Same as endCall(): never let the managed-account toggle block the
-        // teardown — a stale RINGING connection blocks every later call.
+        if (!isConnectionServiceAvailable()) {
+            Log.w(TAG, "[RNCallKeepModule] endAllCalls ignored due to no ConnectionService");
+            return;
+        }
+
         ArrayList<Map.Entry<String, VoiceConnection>> connections =
             new ArrayList<Map.Entry<String, VoiceConnection>>(VoiceConnectionService.currentConnections.entrySet());
         for (Map.Entry<String, VoiceConnection> connectionEntry : connections) {
             Connection connectionToEnd = connectionEntry.getValue();
-            try {
-                connectionToEnd.onDisconnect();
-            } catch (Throwable t) {
-                Log.w(TAG, "[RNCallKeepModule] endAllCalls: onDisconnect failed: " + t);
-            }
+            connectionToEnd.onDisconnect();
         }
         this.stopListenToNativeCallsState();
         this.hasActiveCall = false;
@@ -960,10 +917,11 @@ public class RNCallKeepModule extends ReactContextBaseJavaModule implements Life
     @ReactMethod
     public void rejectCall(String uuid) {
         Log.d(TAG, "[RNCallKeepModule] rejectCall, uuid: " + uuid);
-        // The connection's presence is the real condition: a self-managed call
-        // is live even while the managed calling account is switched off, and
-        // blocking the reject left the Telecom call RINGING (which then made
-        // Android refuse every later call with MAX_RINGING_CALLS).
+        if (!isConnectionServiceAvailable()) {
+            Log.w(TAG, "[RNCallKeepModule] rejectCall ignored — ConnectionService not available");
+            return;
+        }
+
         Connection conn = VoiceConnectionService.getConnection(uuid);
         if (conn == null) {
             Log.w(TAG, "[RNCallKeepModule] rejectCall ignored because no connection found, uuid: " + uuid);
@@ -976,8 +934,6 @@ public class RNCallKeepModule extends ReactContextBaseJavaModule implements Life
     @ReactMethod
     public void setConnectionState(String uuid, int state) {
         Log.d(TAG, "[RNCallKeepModule] setConnectionState, uuid: " + uuid + ", state :" + state);
-        // setState() itself checks that the connection exists — no account
-        // toggle may block it (a self-managed call has no managed account).
         if (!isConnectionServiceAvailable()) {
             Log.w(TAG, "[RNCallKeepModule] setConnectionState ignored — ConnectionService not available");
             return;
@@ -1134,6 +1090,53 @@ public class RNCallKeepModule extends ReactContextBaseJavaModule implements Life
         conn.onPlayDtmfTone(dtmf);
     }
 
+    /** A caller name resolved after the ring started (the app's contacts
+     *  lookup): update the ring notification and the full-screen ring UI. */
+    @ReactMethod
+    public void updateIncomingCallName(String uuid, String name) {
+        Log.d(TAG, "[RNCallKeepModule] updateIncomingCallName, uuid: " + uuid);
+        IncomingCallNotification.updateName(getAppContext(), uuid, name);
+    }
+
+    /** "Display over other apps" (SYSTEM_ALERT_WINDOW). Lets incoming calls
+     *  reach the lock screen on Android 17, where background starts are
+     *  blocked. The app asks the user once; the SDK does the native work. */
+    @ReactMethod
+    public void canDrawOverlays(Promise promise) {
+        try {
+            Context context = getAppContext();
+            boolean granted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M
+                || (context != null && Settings.canDrawOverlays(context));
+            promise.resolve(granted);
+        } catch (Exception e) {
+            promise.resolve(false);
+        }
+    }
+
+    @ReactMethod
+    public void openOverlaySettings() {
+        Context context = getAppContext();
+        if (context == null) {
+            return;
+        }
+        try {
+            Intent intent = new Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:" + context.getPackageName())
+            );
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(intent);
+        } catch (Exception e) {
+            try {
+                Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(intent);
+            } catch (Exception ignored) {
+                Log.w(TAG, "[RNCallKeepModule] openOverlaySettings failed");
+            }
+        }
+    }
+
     @ReactMethod
     public void updateDisplay(String uuid, String displayName, String uri) {
         Log.d(TAG, "[RNCallKeepModule] updateDisplay, uuid: " + uuid + ", displayName: " + displayName+ ", uri: " + uri);
@@ -1145,129 +1148,6 @@ public class RNCallKeepModule extends ReactContextBaseJavaModule implements Life
 
         conn.setAddress(Uri.parse(uri), TelecomManager.PRESENTATION_ALLOWED);
         conn.setCallerDisplayName(displayName, TelecomManager.PRESENTATION_ALLOWED);
-    }
-
-    @ReactMethod
-    public void updateIncomingCallName(String uuid, String callerName) {
-        Log.d(TAG, "[RNCallKeepModule] updateIncomingCallName, uuid: " + uuid + ", name: " + callerName);
-        if (uuid == null || callerName == null || callerName.trim().isEmpty()) return;
-        Context context = getAppContext();
-        if (context == null) {
-            Log.w(TAG, "[RNCallKeepModule] updateIncomingCallName ignored — no app context");
-            return;
-        }
-        // The ring notification's title (updated in place: no new heads-up).
-        IncomingCallNotification.updateCallerName(context, uuid, callerName);
-        // ...and the full-screen ring surface, if it is showing: a broadcast
-        // (NOT startActivity — that would launch the call screen on an
-        // unlocked device, where the banner is the only ring UI).
-        try {
-            Intent update = new Intent(IncomingCallActivity.ACTION_UPDATE_NAME);
-            update.setPackage(context.getPackageName());
-            update.putExtra(IncomingCallActivity.EXTRA_NAME, callerName);
-            update.putExtra(Constants.EXTRA_CALL_UUID, uuid);
-            context.sendBroadcast(update);
-        } catch (Throwable t) {
-            Log.w(TAG, "[RNCallKeepModule] updateIncomingCallName broadcast failed: " + t);
-        }
-        // ...and the OS call UI, when one is showing.
-        Connection conn = VoiceConnectionService.getConnection(uuid);
-        if (conn != null) {
-            try {
-                conn.setCallerDisplayName(callerName, TelecomManager.PRESENTATION_ALLOWED);
-            } catch (Throwable t) {
-                Log.w(TAG, "[RNCallKeepModule] setCallerDisplayName failed: " + t);
-            }
-        }
-    }
-
-    /**
-     * Route the app's call audio to the loudspeaker (true) or back to the
-     * default route (false).
-     *
-     * On Android 12+ (API 31) the legacy {@code AudioManager.setSpeakerphoneOn()}
-     * is deprecated and IGNORED for apps that are not the default dialer — the
-     * app asks for the loudspeaker, the system logs "preferredCommunicationDevice:
-     * speaker", and the WebRTC audio never leaves the earpiece. The modern way is
-     * to set the COMMUNICATION DEVICE explicitly; "off" clears it, so a connected
-     * headset wins again and the earpiece is the fallback.
-     */
-    @ReactMethod
-    public void setSpeakerOn(boolean on) {
-        Log.d(TAG, "[RNCallKeepModule] setSpeakerOn, on: " + on);
-        try {
-            Context context = getAppContext();
-            if (context == null) {
-                Log.w(TAG, "[RNCallKeepModule] setSpeakerOn ignored — no app context");
-                return;
-            }
-            AudioManager am = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-            if (am == null) {
-                Log.w(TAG, "[RNCallKeepModule] setSpeakerOn ignored — no audio service");
-                return;
-            }
-            String before = describeCommunicationDevice(am);
-            if (Build.VERSION.SDK_INT >= 31) {
-                // Android 12+: the communication device has to be requested as
-                // an AudioDeviceInfo. Look it up in the FULL output device list:
-                // getAvailableCommunicationDevices() only lists the devices that
-                // are currently available for communication and on many phones
-                // (Samsung) it does NOT contain the built-in speaker — the
-                // lookup came up empty and the call silently stayed on the
-                // earpiece.
-                if (on) {
-                    AudioDeviceInfo speaker = findOutputDevice(am, AudioDeviceInfo.TYPE_BUILTIN_SPEAKER);
-                    if (speaker != null) {
-                        am.setCommunicationDevice(speaker);
-                        Log.d(TAG, "[RNCallKeepModule] setSpeakerOn: communication device -> " + speaker.getProductName());
-                    } else {
-                        Log.w(TAG, "[RNCallKeepModule] setSpeakerOn: no built-in speaker in the output devices");
-                        am.setSpeakerphoneOn(true);
-                    }
-                } else {
-                    // Clear the explicit choice: the system then routes to a
-                    // connected headset, or the earpiece.
-                    am.clearCommunicationDevice();
-                }
-            } else {
-                am.setSpeakerphoneOn(on);
-            }
-            Log.d(TAG, "[RNCallKeepModule] setSpeakerOn done, route " + before + " -> " + describeCommunicationDevice(am));
-        } catch (Throwable t) {
-            Log.w(TAG, "[RNCallKeepModule] setSpeakerOn failed: " + t);
-        }
-    }
-
-    /** Find an output device by type in the FULL device list (the built-in
-     *  speaker and earpiece are there; getAvailableCommunicationDevices() does
-     *  not list them on every device). */
-    private static AudioDeviceInfo findOutputDevice(AudioManager am, int type) {
-        try {
-            for (AudioDeviceInfo d : am.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
-                if (d.getType() == type) return d;
-            }
-        } catch (Throwable ignored) { }
-        return null;
-    }
-
-    /** The current communication device, for the logs ("speaker" / "earpiece" / …). */    private static String describeCommunicationDevice(AudioManager am) {
-        try {
-            if (Build.VERSION.SDK_INT >= 31) {
-                AudioDeviceInfo info = am.getCommunicationDevice();
-                if (info == null) return "default";
-                switch (info.getType()) {
-                    case AudioDeviceInfo.TYPE_BUILTIN_SPEAKER: return "speaker";
-                    case AudioDeviceInfo.TYPE_BUILTIN_EARPIECE: return "earpiece";
-                    case AudioDeviceInfo.TYPE_WIRED_HEADSET:
-                    case AudioDeviceInfo.TYPE_USB_HEADSET: return "headset";
-                    case AudioDeviceInfo.TYPE_BLUETOOTH_SCO: return "bluetooth";
-                    default: return "type" + info.getType();
-                }
-            }
-            return am.isSpeakerphoneOn() ? "speaker" : "earpiece";
-        } catch (Throwable t) {
-            return "unknown";
-        }
     }
 
     @ReactMethod
@@ -1420,13 +1300,6 @@ public class RNCallKeepModule extends ReactContextBaseJavaModule implements Life
             intent.putExtra(Constants.EXTRA_CALL_UUID, uuid);
             intent.putExtra(IncomingCallActivity.EXTRA_NAME, callerName);
             intent.putExtra(IncomingCallActivity.EXTRA_ANSWERED, true);
-            try {
-                Connection conn = VoiceConnectionService.getConnection(uuid);
-                if (conn != null && conn.getExtras() != null) {
-                    String comp = conn.getExtras().getString(EXTRA_IN_CALL_COMPONENT);
-                    if (comp != null) intent.putExtra(EXTRA_IN_CALL_COMPONENT, comp);
-                }
-            } catch (Throwable ignored) { }
             context.startActivity(intent);
         } catch (Throwable t) {
             Log.w(TAG, "[RNCallKeepModule] showInCallScreen failed", t);
@@ -1610,40 +1483,18 @@ public class RNCallKeepModule extends ReactContextBaseJavaModule implements Life
             return true;
         }
 
-        return isConnectionServiceAvailable() && telecomManager != null &&
-            hasPermissions() && telecomManager.getPhoneAccount(handle) != null &&
-            telecomManager.getPhoneAccount(handle).isEnabled();
-    }
-
-    /**
-     * True when this app can still own and tear down a call.
-     *
-     * The managed "calling account" toggle (Settings → Calling accounts) must
-     * NOT block a SELF-MANAGED call: self-managed accounts are enabled by
-     * default and are what this SDK routes calls through (per-call
-     * `selfManaged`, or `selfManagedVoice` for voice). Gating the teardown on
-     * the MANAGED account left the Telecom connection — and the foreground
-     * service it started — alive after hangup/decline, so Android kept showing
-     * its own "&lt;app&gt; is running" notification in the shade.
-     */
-    private boolean hasUsablePhoneAccount() {
-        if (isSelfManaged()) {
-            return true;
-        }
-        if (hasPhoneAccount()) {
-            return true;
-        }
-        // A self-managed account is registered by registerPhoneAccount() and is
-        // ENABLED BY DEFAULT — it needs no user toggle. Do NOT query it with
-        // getPhoneAccount(): that needs READ_PHONE_NUMBERS and throws a
-        // SecurityException on apps that only hold READ_PHONE_STATE (which
-        // used to make every teardown look "unavailable" and leave the Telecom
-        // connection RINGING — Android then refused the next call with
-        // MAX_RINGING_CALLS).
         try {
-            return Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && handleSelfManaged != null;
-        } catch (Throwable ignored) { }
-        return false;
+            if (!isConnectionServiceAvailable() || telecomManager == null || !hasPermissions()) {
+                return false;
+            }
+            PhoneAccount account = telecomManager.getPhoneAccount(handle);
+            return account != null && account.isEnabled();
+        } catch (Throwable t) {
+            // Android 14+ requires READ_PHONE_NUMBERS for getPhoneAccount(); a
+            // lookup failure must never crash a call path.
+            Log.w(TAG, "[RNCallKeepModule] hasPhoneAccount lookup failed", t);
+            return false;
+        }
     }
 
     protected void registerReceiver() {
