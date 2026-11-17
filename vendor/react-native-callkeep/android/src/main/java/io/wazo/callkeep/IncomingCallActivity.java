@@ -62,18 +62,9 @@ public class IncomingCallActivity extends AppCompatActivity {
     private final Application.ActivityLifecycleCallbacks appLifecycleCallbacks = new Application.ActivityLifecycleCallbacks() {
         @Override
         public void onActivityResumed(Activity activity) {
-            if (isFinishing() || isDestroyed()) return;
-            if (!answering || !shellAnswering) return;
-            if (!isConnectionLive()) return;
-            if (activity != IncomingCallActivity.this) {
-                try {
-                    Intent front = new Intent(activity, IncomingCallActivity.class);
-                    front.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-                    front.putExtra(Constants.EXTRA_CALL_UUID, uuid);
-                    front.putExtra(EXTRA_ANSWERED, true);
-                    activity.startActivity(front);
-                } catch (Throwable ignored) { }
-            }
+            // Do not pull the call screen back over the main app. When the app
+            // is opened on purpose (minimise, recents), the app stays on top;
+            // the ongoing-call notification brings the call screen back.
         }
         @Override public void onActivityCreated(Activity a, Bundle b) {}
         @Override public void onActivityStarted(Activity a) {}

@@ -338,6 +338,16 @@ class RNCallKeep {
     RNCallKeepModule.updateIncomingCallName(uuid, name);
   };
 
+  // Android: open the app's main screen while a call keeps running (the
+  // answered call screen's minimise button). No-op on iOS.
+  openMainApp = () => {
+    if (isIOS) {
+      return;
+    }
+
+    RNCallKeepModule.openMainApp();
+  };
+
   // Android: "Display over other apps" permission, needed so incoming calls
   // can show over the lock screen. Resolves false on iOS.
   canDrawOverlays = () => {

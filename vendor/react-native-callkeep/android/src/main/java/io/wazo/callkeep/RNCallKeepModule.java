@@ -1319,6 +1319,29 @@ public class RNCallKeepModule extends ReactContextBaseJavaModule implements Life
         }
     }
 
+    /** Open the app's main screen while the call keeps running. Used by the
+     *  minimise button on the answered call screen (the in-call screen stays
+     *  in its own task; the call notification brings it back). */
+    @ReactMethod
+    public void openMainApp() {
+        Context context = getAppContext();
+        if (context == null) {
+            return;
+        }
+        try {
+            Intent launch = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
+            if (launch == null) {
+                return;
+            }
+            // Same task as the call screen: bring the app to the front and keep
+            // the call screen directly beneath it (Back returns to the call).
+            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+            context.startActivity(launch);
+        } catch (Throwable t) {
+            Log.w(TAG, "[RNCallKeepModule] openMainApp failed", t);
+        }
+    }
+
     @ReactMethod
     public void backToForeground() {
         Context context = getAppContext();
