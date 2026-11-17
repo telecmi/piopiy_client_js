@@ -5,6 +5,7 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.app.ActivityOptions;
 import android.app.Person;
 import android.content.Context;
 import android.content.Intent;
@@ -12,6 +13,7 @@ import android.media.AudioAttributes;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.PowerManager;
 import android.util.Log;
 
@@ -190,6 +192,26 @@ public class IncomingCallNotification {
         }
     }
 
+
+    /** Android 15+ (API 35): a PendingIntent creator no longer grants its
+     *  background-activity-launch privileges by default. The system (which sends
+     *  the full-screen intent) therefore cannot start our IncomingCallActivity
+     *  unless we opt in here. Without this, on Android 17 the ring screen never
+     *  appears on the lock screen. */
+    private static Bundle creatorBalOptions() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return null;
+        try {
+            ActivityOptions ao = ActivityOptions.makeBasic();
+            int mode = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA)
+                    ? ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOW_ALWAYS
+                    : ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED;
+            ao.setPendingIntentCreatorBackgroundActivityStartMode(mode);
+            return ao.toBundle();
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
     public static boolean isDeviceLocked(Context context) {
         if (context == null) return false;
         try {
@@ -313,13 +335,13 @@ public class IncomingCallNotification {
             fsi.putExtra(IncomingCallActivity.EXTRA_NUMBER, number);
             fsi.putExtra(Constants.EXTRA_IN_CALL_COMPONENT, inCallComponent);
             PendingIntent fullScreen = PendingIntent.getActivity(
-                    context, notificationId(uuid), fsi, piFlags);
+                    context, notificationId(uuid), fsi, piFlags, creatorBalOptions());
 
             Intent launch = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
             PendingIntent openApp = null;
             if (launch != null) {
                 launch.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-                openApp = PendingIntent.getActivity(context, notificationId(uuid) + 3, launch, piFlags);
+                openApp = PendingIntent.getActivity(context, notificationId(uuid) + 3, launch, piFlags, creatorBalOptions());
             }
 
             // Answer. App UI in front: a broadcast — the call stays in the app.
@@ -340,7 +362,7 @@ public class IncomingCallNotification {
                 answer.putExtra(Constants.EXTRA_IN_CALL_COMPONENT, inCallComponent);
                 answer.putExtra(IncomingCallActivity.EXTRA_ANSWER_NOW, true);
                 answerPi = PendingIntent.getActivity(
-                        context, notificationId(uuid) + 4, answer, piFlags);
+                        context, notificationId(uuid) + 4, answer, piFlags, creatorBalOptions());
             } else {
                 Intent answer = new Intent(ACTION_NOTIFICATION_ANSWER)
                         .setPackage(context.getPackageName())
@@ -386,9 +408,9 @@ public class IncomingCallNotification {
                     }
                 }
             }
-            if (openApp != null) {
-                builder.setContentIntent(openApp);
-            }
+            // No content intent: tapping the banner body must not open the app
+            // or the full-screen ring. Answer and Decline are the only actions.
+            // (openApp is no longer attached; keep it out of the builder.)
 
             // Every visible ring notification carries Answer/Decline. The
             // quiet one is hidden behind the call screen and has none.
