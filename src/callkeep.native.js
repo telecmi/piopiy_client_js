@@ -59,6 +59,17 @@ function uuidv4() {
     } );
 }
 
+/** True for a phone-shaped string (optional +, at least 6 digits). */
+function looksLikePhone( value ) {
+    const s = String( value ?? '' ).trim();
+    if ( !s ) return false;
+    const digits = s.replace( /\D/g, '' );
+    return digits.length >= 6 && /^\+?[0-9][0-9\s().-]*$/.test( s ) && /[0-9]$/.test( s );
+}
+
+/** Shown in place of a number-only caller name when masking is on. */
+export const MASKED_CALLER_NAME = 'New customer';
+
 export default class CallKeepBridge {
 
     constructor( piopiy, config ) {
@@ -290,10 +301,28 @@ export default class CallKeepBridge {
         }
     }
 
+    /**
+     * Turn caller-name masking on or off (the app's `mask_app` setting). When
+     * on, a number-only caller shows as "New customer" on the native ring and
+     * its notification, instead of the phone number. Off by default.
+     *
+     * @param {boolean} on
+     */
+    setMaskCallerNames( on ) {
+        this.maskCallerNames = !!on;
+    }
+
+    /** The name to show for a caller: masked when masking is on and the name is empty or a number. */
+    _displayName( name ) {
+        const s = String( name ?? '' ).trim();
+        if ( this.maskCallerNames && ( !s || looksLikePhone( s ) ) ) return MASKED_CALLER_NAME;
+        return s;
+    }
+
     _callDisplay( d, from ) {
         const name = ( d && d.name && String( d.name ).trim() ) || '';
         const team = ( d && ( d.team_name || d.team ) ) || '';
-        const primary = name || from;
+        const primary = this._displayName( name || from );
         return team ? primary + ' — ' + team : primary;
     }
 
@@ -308,9 +337,10 @@ export default class CallKeepBridge {
      * kept.
      */
     setIncomingCallName( name ) {
-        if ( !name || !this.currentCallUUID ) return false;
+        const shown = this._displayName( name );
+        if ( !shown || !this.currentCallUUID ) return false;
         const team = this._incomingTeam || '';
-        const display = team ? `${name} — ${team}` : name;
+        const display = team ? `${shown} — ${team}` : shown;
         try {
             if ( typeof RNCallKeep.updateIncomingCallName !== 'function' ) return false;
             RNCallKeep.updateIncomingCallName( this.currentCallUUID, display );

@@ -379,6 +379,18 @@ export default class extends EventEmitter {
         return false;
     }
 
+    /**
+     * Mask caller names on the native call surfaces. When on, a caller with no
+     * name or a number-only name shows as "New customer" on the ring screen and
+     * its notification (and on names set later with setIncomingCallName).
+     * Off by default; the app turns it on from its `mask_app` setting.
+     *
+     * @param {boolean} on
+     */
+    setMaskCallerNames( on ) {
+        if ( this._callkeep ) this._callkeep.setMaskCallerNames( on );
+    }
+
 
     reRegister() {
         userAgent.re_register();
