@@ -509,9 +509,20 @@ export default class LiveKitCall {
             return false;
         }
         try {
-            this.room.localParticipant.setMicrophoneEnabled( !muted );
+            const enable = !muted;
             this.muted = !!muted;
-            dbg( 'microphone', muted ? 'MUTED' : 'unmuted' );
+            // setMicrophoneEnabled is async: a failed unmute (the OS audio
+            // session was taken by a cellular call) rejects here, not in the
+            // try block. Retry once so a resume does not leave the mic off.
+            const attempt = ( left ) => Promise.resolve( this.room && this.room.localParticipant
+                    ? this.room.localParticipant.setMicrophoneEnabled( enable )
+                    : null )
+                .then( () => dbg( 'microphone', muted ? 'MUTED' : 'unmuted' ) )
+                .catch( ( e ) => {
+                    dbg( 'setMicrophoneEnabled(' + enable + ') failed:', e && e.message );
+                    if ( left > 0 ) setTimeout( () => attempt( left - 1 ), 500 );
+                } );
+            attempt( 1 );
             return true;
         } catch ( e ) {
             dbg( 'setMuted failed:', e && e.message );

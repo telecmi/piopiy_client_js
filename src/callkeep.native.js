@@ -302,6 +302,25 @@ export default class CallKeepBridge {
     }
 
     /**
+     * Tell the system call (Android Telecom) about hold/resume. When a cellular
+     * call takes over, Telecom holds our self-managed call on its own and keeps
+     * the audio held after the cellular call ends, even if the app unmutes the
+     * mic. Resume must set the connection active, or the far end hears nothing.
+     */
+    setNativeHold( held ) {
+        try {
+            if ( Platform.OS !== 'android' || !this.currentCallUUID ) return false;
+            if ( typeof RNCallKeep.setOnHold !== 'function' ) return false;
+            RNCallKeep.setOnHold( this.currentCallUUID, !!held );
+            dbg( 'system call', held ? 'held' : 'resumed', '—', this.currentCallUUID );
+            return true;
+        } catch ( e ) {
+            dbg( 'setNativeHold failed:', e && e.message );
+            return false;
+        }
+    }
+
+    /**
      * Turn caller-name masking on or off (the app's `mask_app` setting). When
      * on, a number-only caller shows as "New customer" on the native ring and
      * its notification, instead of the phone number. Off by default.

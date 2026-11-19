@@ -529,7 +529,12 @@ export default class extends EventEmitter {
         // this branch every hold tap raised { code: 1002, status: 'call not
         // found' } and the button did nothing.
         if (_this._livekit && typeof _this._livekit.setHold === 'function' && _this._livekit.isCall(null)) {
-            return _this._livekit.setHold(true);
+            // Already held: ignore. Telecom echoes every hold we send back as a
+            // hold event, and without this guard that echo loops into hold().
+            if (typeof _this._livekit.isHeld === 'function' && _this._livekit.isHeld()) return true;
+            const ok = _this._livekit.setHold(true);
+            try { _this._callkeep && _this._callkeep.setNativeHold(true); } catch { /* ignore */ }
+            return ok;
         }
         userAgent.hold(_this);
     }
@@ -537,7 +542,10 @@ export default class extends EventEmitter {
     unHold() {
         let _this = this;
         if (_this._livekit && typeof _this._livekit.setHold === 'function' && _this._livekit.isCall(null)) {
-            return _this._livekit.setHold(false);
+            if (typeof _this._livekit.isHeld === 'function' && !_this._livekit.isHeld()) return true;
+            const ok = _this._livekit.setHold(false);
+            try { _this._callkeep && _this._callkeep.setNativeHold(false); } catch { /* ignore */ }
+            return ok;
         }
         userAgent.unhold(_this);
     }
