@@ -14,6 +14,12 @@
 import { Platform } from 'react-native';
 import { getPushRouter } from './pushRouter';
 
+// A queued invite older than this is held before ringing, so a cancel that
+// arrives in the same reconnect burst can suppress it. Fresh invites are not
+// held. Keep the hold short: it delays every queued ring by this much.
+const INVITE_HOLD_MS = 1500;
+const QUEUED_AFTER_S = 3;
+
 const dbg = ( ...args ) => {
     try {
         const g = ( typeof globalThis !== 'undefined' ) ? globalThis : null;
@@ -304,6 +310,18 @@ export default class PushTokenManager {
             const data = ( raw && ( raw.data ?? raw ) ) || null;
             if ( !data || typeof data !== 'object' ) return;
             if ( this._isStaleRing( raw, data ) ) return;
+            // A queued invite (the device was offline, so FCM delivers it in
+            // a burst on reconnect) often arrives together with its cancel.
+            // Hold it briefly: if the cancel lands first, the invite is dropped
+            // by handleIncomingPush() and the ring never shows. Fresh invites
+            // ring immediately.
+            if ( this._shouldHoldInvite( raw, data ) ) {
+                dbg( 'queued invite held ' + INVITE_HOLD_MS + 'ms for a possible cancel — uuid ' + ( data.uuid || '-' ) );
+                setTimeout( () => {
+                    try { getPushRouter().dispatch( data ); } catch ( e ) { dbg( 'held push dispatch failed —', e && e.message ); }
+                }, INVITE_HOLD_MS );
+                return;
+            }
             getPushRouter().dispatch( data );
         } catch ( e ) {
             dbg( 'push dispatch failed —', e && e.message );
@@ -325,6 +343,17 @@ export default class PushTokenManager {
         if ( age <= 45 ) return false;
         dbg( 'stale call push dropped (' + Math.round( age ) + 's old) — uuid ' + ( data.uuid || '-' ) );
         return true;
+    }
+
+    // True for an invite that FCM held while the device was offline: its
+    // sentTime is well behind now. Cancels and payloads without sentTime are
+    // never held.
+    _shouldHoldInvite( raw, data ) {
+        const type = data.type || 'incoming_call';
+        if ( type !== 'incoming_call' ) return false;
+        const sent = ( raw && typeof raw.sentTime === 'number' ) ? raw.sentTime : 0;
+        if ( !sent ) return false;
+        return ( Date.now() - sent ) / 1000 > QUEUED_AFTER_S;
     }
 
     // The router routed a voice payload back to us.

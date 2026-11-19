@@ -348,6 +348,12 @@ export default class extends EventEmitter {
             }
             return true;
         }
+        // An invite for a call the caller already cancelled (the cancel can
+        // arrive first when the network comes back): do not ring it.
+        if (info && info.uuid && this._handledCancels && this._handledCancels.includes(String(info.uuid).toLowerCase())) {
+            _log('invite ignored — the call was already cancelled by the caller');
+            return false;
+        }
         return this._livekit ? this._livekit.setPending(info) : false;
     }
 

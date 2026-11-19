@@ -83,6 +83,12 @@ try {
 
 let globalsRegistered = false;
 
+// Answer-time join tuning. A pre-connect still running after PRECONNECT_WAIT_MS
+// is abandoned and the room is joined fresh; a failed join is retried once.
+const PRECONNECT_WAIT_MS = 1500;
+const CONNECT_ATTEMPTS = 2;
+const RETRY_DELAY_MS = 500;
+
 export default class LiveKitCall {
 
     constructor( piopiy, config ) {
@@ -282,13 +288,18 @@ export default class LiveKitCall {
         let room = null;
         let preconnected = !!( this.preconnectDone && this.preconnectRoom );
         if ( !preconnected && this.preconnectRoom && this.preconnectPromise ) {
-            dbg( 'answer(): waiting for in-flight preconnect' );
+            // Bounded short: a pre-connect that is still stuck after this long
+            // is abandoned below and the room is joined fresh, instead of the
+            // caller waiting on it (the stuck "Connecting…" on answer).
+            dbg( 'answer(): waiting up to', PRECONNECT_WAIT_MS, 'ms for in-flight preconnect' );
+            const waitStart = Date.now();
             try {
                 await Promise.race( [
                     this.preconnectPromise,
-                    new Promise( ( resolve ) => setTimeout( resolve, 4000 ) ),
+                    new Promise( ( resolve ) => setTimeout( resolve, PRECONNECT_WAIT_MS ) ),
                 ] );
             } catch { /* the preconnect's own catch handles failures */ }
+            dbg( 'preconnect wait', Date.now() - waitStart, 'ms — done:', !!this.preconnectDone );
             preconnected = !!( this.preconnectDone && this.preconnectRoom );
         }
         if ( preconnected ) {
@@ -322,27 +333,47 @@ export default class LiveKitCall {
                     try { pr.disconnect(); } catch { /* ignore */ }
                 }
             }
-            try {
-                room = new lkClient.Room();
-                this.room = room;
-                room.on( 'disconnected', ( reason ) => {
-                    // Ignore events from a room this engine no longer owns (e.g.
-                    // one we abandoned below after losing the answer/cancel race).
-                    if ( this.room !== room ) return;
-                    dbg( 'room disconnected —', reason ? String( reason ) : 'no reason' );
-                    this._teardown( 'ended' );
-                } );
-                await room.connect( call.url, call.token, { autoSubscribe: true } );
-                this.roomConnected = true;
-            } catch ( e ) {
-                if ( aborted() ) {
-                    // The teardown that beat us already emitted the end events —
-                    // stay silent instead of stacking an error on a finished call.
-                    dbg( 'room.connect failed after cancel — already torn down:', e && e.message );
-                    return false;
+            // One retry on a failed join: a transient ICE/signal failure used to
+            // end the call and make the caller answer again.
+            let connectError = null;
+            for ( let attempt = 1; attempt <= CONNECT_ATTEMPTS; attempt++ ) {
+                try {
+                    room = new lkClient.Room();
+                    this.room = room;
+                    room.on( 'disconnected', ( reason ) => {
+                        // Ignore events from a room this engine no longer owns (e.g.
+                        // one we abandoned below after losing the answer/cancel race).
+                        if ( this.room !== room ) return;
+                        dbg( 'room disconnected —', reason ? String( reason ) : 'no reason' );
+                        this._teardown( 'ended' );
+                    } );
+                    const connectStart = Date.now();
+                    await room.connect( call.url, call.token, { autoSubscribe: true } );
+                    dbg( 'room joined in', Date.now() - connectStart, 'ms (attempt', attempt, ')' );
+                    this.roomConnected = true;
+                    connectError = null;
+                    break;
+                } catch ( e ) {
+                    connectError = e;
+                    if ( aborted() ) {
+                        // The teardown that beat us already emitted the end events —
+                        // stay silent instead of stacking an error on a finished call.
+                        dbg( 'room.connect failed after cancel — already torn down:', e && e.message );
+                        return false;
+                    }
+                    dbg( 'room.connect attempt', attempt, 'FAILED —', e && e.message );
+                    // Drop the failed room before trying again (its events are ignored).
+                    try { room.removeAllListeners( 'disconnected' ); } catch { /* ignore */ }
+                    try { room.disconnect(); } catch { /* ignore */ }
+                    if ( this.room === room ) this.room = null;
+                    if ( attempt < CONNECT_ATTEMPTS ) {
+                        await new Promise( ( resolve ) => setTimeout( resolve, RETRY_DELAY_MS ) );
+                        if ( aborted() ) return false;
+                    }
                 }
-                dbg( 'room.connect FAILED —', e && e.message );
-                this.piopiy.emit( 'error', { code: 1010, status: 'call connection failed: ' + ( e && e.message ) } );
+            }
+            if ( connectError ) {
+                this.piopiy.emit( 'error', { code: 1010, status: 'call connection failed: ' + ( connectError && connectError.message ) } );
                 this._teardown( 'ended' );
                 return false;
             }
